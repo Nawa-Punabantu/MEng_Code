@@ -445,12 +445,14 @@ def column_func(column_func_inputs):
         q = v[num_comp*nx:] # q = [qA, qB]| qA = q[:nx], qB = q[nx:]
 
         # Craate Lables so that we know the component assignement in the c vecotor:
+        # These labels represent the 1st row-index for the respective component
         A, B = 0*nx, 1*nx # Assume Binary 2*nx, 3*nx, 4*nx, 5*nx
-        IDX = [ A, B]
+        IDX = [A, B]
 
-        # Thus to refer to the liquid concentration of the i = nth row of component B: c[C + n]
-        # Or the the solid concentration 10th row of component B: q[B + 10]
-        # Or to refer to all A's OR B's liquid concentrations: c[A + 0: A + nx] OR c[B + 0: B + nx] 
+        # PLEASE READ:
+        # The liquid concentration of the comp B @ the nth spacial position, is = c[B + n]
+        # OR Similarly, the solid concentration @ spacial position 10, of component B is = q[B + 10]
+        # OR to refer to all A's OR B's liquid concentrations: c[A + 0: A + nx]  c[B + 0: B + nx] 
 
 
         # Initialize the derivatives
@@ -479,27 +481,34 @@ def column_func(column_func_inputs):
         u = Q_out_port/A_col/e
         u = -u
 
-        # Dispersion in the column:
-        Da = -Da_all[comp_idx]
 
-        coeff_matrix, coef_0, coef_1, coef_2 = coeff_matrix_builder(Da, u, dx, len(c))
-
-        beta = 1 / alpha
-        gamma = 1 - 3 * Da / (2 * u * dx)
 
         # Initialize
         vec_add = np.zeros(len(c)) # vectoer to adjust C1 to account for C0 (at left boundary):
         MT = np.zeros(len(c)) # column vector: MT kinetcis for each comp: MT = [MT_A MT_B] 
         
+        # Da = -Da_all[0]
+
+        # coeff_matrix, coef_0, coef_1, coef_2 = coeff_matrix_builder(Da, u, dx, len(c))
+
+        # beta = 1 / alpha
+        # gamma = 1 - 3 * Da / (2 * u * dx)
+            
         # Building MT
         for comp_idx in range(num_comp): # for each component
-            
+            # Dispersion in the column:
+            Da = -Da_all[comp_idx]
+
+            coeff_matrix, coef_0, coef_1, coef_2 = coeff_matrix_builder(Da, u, dx, len(c))
+
+            beta = 1 / alpha
+            gamma = 1 - 3 * Da / (2 * u * dx)
 
             # ------- STILL YET TO APPLY CUSTOM ISOTHERM TO THIS !!!!!!!!!!!!!!!!!!!!!!!!
             ######################(i) Isotherm ####################################################################
 
             # Comment as necessary for required isotherm:
-            isotherm = iso_bi_langmuir(theta_blang[comp_idx], c, IDX, comp_idx)
+            isotherm = cusotom_CUP_isotherm_func(cusotom_isotherm_params_all, c, IDX, comp_idx)
             # isotherm = iso_cup_langmuir(theta_cup_lang, c, IDX, comp_idx)
 
             ################### (ii) MT ##########################################################
@@ -960,9 +969,9 @@ def animate_profiles(t_sets, title, y, nx, labels, colors, t_start_inject_all, t
 # What tpye of isoherm is required?
 # Coupled: "CUP"
 # Uncoupled: "UNC"
-iso_type = "UNC" 
-Names = ["Glucose", "Fructose"] #, "C"]#, "D", "E", "F"]
-color = ["g", "orange"] #, "b"]#, "r", "purple", "brown"]
+iso_type = "CUP" 
+Names = ["Borate", "HCl"] #, "C"]#, "D", "E", "F"]
+color = ["red", "green"] #, "b"]#, "r", "purple", "brown"]
 num_comp = len(Names)
 
 
@@ -1032,7 +1041,63 @@ def cusotom_isotherm_func(cusotom_isotherm_params, c):
     #-------------------------------
 
     return q_star_1 # [qA, ...]
+# CUP
+def cusotom_CUP_isotherm_func(cusotom_isotherm_params, c, IDX, comp_idx):
+    """
+    Returns  solid concentration, q_star vector for given comp_idx
+    *****
+    Variables:
+    cusotom_isotherm_params => parameters for each component [[A's parameters], [B's parameters]]
+    NOTE: This function is (currently) structured to assume A and B have 1 parameter each. 
+    c => liquid concentration of c all compenents
+    IDX => the first row-index in c for respective components
+    comp_idx => which of the components we are currently retreiving the solid concentration, q_star for
+    q_star => solid concentration of ci @ equilibrium
 
+    """
+    # Unpack the component vectors (currently just considers binary case of A and B however, could be more)
+    cA = c[IDX[0] + 0: IDX[0] + nx]
+    cB = c[IDX[1] + 0: IDX[1] + nx]
+    c_i = [cA, cB]
+    # Now, different isotherm Models can be built using c_i
+    
+    # (Uncomment as necessary)
+
+    #------------------- 1. Coupled Linear Models
+
+    # cusotom_isotherm_params has linear constants for each comp
+    # Unpack respective parameters
+    K1 = cusotom_isotherm_params[comp_idx][0] # 1st (and only) parameter of HA or HB
+    q_star_1 = K1*c_i[comp_idx]
+
+
+    #------------------- 2. Coupled Langmuir Models
+    # The parameter in the numerator is dynamic, depends on comp_idx:
+    K =  cusotom_isotherm_params[comp_idx][0]
+    
+    # Fix the sum of parameters in the demoninator:
+    K1 = cusotom_isotherm_params[0][0] # 1st (and only) parameter of HA 
+    K2 = cusotom_isotherm_params[1][0] # 1st (and only) parameter of HB
+    
+    c_sum = K1 + K2
+    q_star_2 = K*c_i[comp_idx]/(1+ K1*c_i[0] + K2*c_i[1])
+
+    #------------------- 3. Combined Coupled Models
+    # The parameter in the numerator is dynamic, depends on comp_idx:
+    K_lin =  cusotom_isotherm_params[comp_idx][0]
+    
+    # Fix the sum of parameters in the demoninator:
+    K1 = cusotom_isotherm_params[0][0] # 1st (and only) parameter of HA 
+    K2 = cusotom_isotherm_params[1][0] # 1st (and only) parameter of HB
+    
+    c_sum = K1 + K2
+    linear_part = K_lin*c_i[comp_idx]
+    langmuir_part = K*c_i[comp_idx]/(1+ K1*c_i[0] + K2*c_i[1])
+
+    q_star_3 =  linear_part + langmuir_part
+
+
+    return q_star_3 # [qA, ...]
 # # Uncomment as necessary:
 # # Linear 
 # cusotom_isotherm_params_all = np.array([[0.27],[0.53]])
@@ -1065,24 +1130,18 @@ print(f'Computation Time: {end-start} s || {(end-start)/60} min')
 print('---------------------------\n\n')
 
 def col_elution_profile(t, col_elution, num_comp):
-    glu_exp_curves = np.array([0,0,0,0,0,0.0104382,0.081351,0.0963738,0.1582416,0.1539864,0.1369116,0.1092042,0.0830898,0.0517428,0.0267354,0.0107838,0.004887,0.0023166,0,0,0,0,0,0,0,0]) #g/cm^3
-    exp_time =np.array([0,48,96,144,192,240,288,336,384,432,480,528,576,624,672,720,768,816,864,912,960,1008,1056,1104,1152,1200])
-    fru_exp_curves = np.array([0, 0,0,0,0,0,0.004266,0.03348,0.141291,0.1682154,0.2087208,0.1417824,0.11043,0.070011,0.0423414,0.0203148,0.0065718,0.0019008, 0.0006588,0,0,0,0,0,0,0,])
 
     fig, ax = plt.subplots(1, 1, figsize=(15, 5))
     for i in range(1):
-        ax.scatter(exp_time/60, glu_exp_curves,label = 'Exprimental Data: Glucose', color = color[i])
-        ax.scatter(exp_time/60, fru_exp_curves, label = 'Exprimental Data: Fructose', color = color[i+1])
-        
-        # ax.axvline(x=t_index, label = 'End of Pulse')
-        ax.plot(t[i]/60, col_elution[i], color = color[i], label = f"Model: {Names[i]}")
-        ax.plot(t[i+1]/60, col_elution[i+1], color = color[i+1], label = f"Model: {Names[i+1]}")
+
         if iso_type == 'UNC':
-            pass
+            ax.plot(t[i]/60, col_elution[i], color = color[i], label = f"Model: {Names[i]}")
+            ax.plot(t[i]/60, col_elution[i+1], color = color[i+1], label = f"Model: {Names[i+1]}")
 
 
         elif iso_type == 'CUP':
-            ax.plot(t, col_elution[i], color = color[i], label = f"{Names[i]}")
+            ax.plot(t/60, col_elution[i], color = color[i], label = f"Model: {Names[i]}")
+            ax.plot(t/60, col_elution[i+1], color = color[i+1], label = f"Model: {Names[i+1]}")
            
         ax.set_xlabel('Time (min)')
         ax.set_ylabel('Concentration g/mL')
