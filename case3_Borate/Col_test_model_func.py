@@ -40,7 +40,7 @@ import time
 def column_func(column_func_inputs):
     
     #### UNPACK INPUT PARAMETERS ########
-    iso_type,  Names, color, parameter_sets, Da_all, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_func, cusotom_isotherm_params_all =  column_func_inputs[0:]
+    iso_type,  Names, color, parameter_sets, Da_all, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all =  column_func_inputs[0:]
     
     ############## Calculated (Secondary) Input Parameters:
     Ncol_num = 1
@@ -87,6 +87,119 @@ def column_func(column_func_inputs):
     # Column Dimensions:
 
     # Functions:
+    # 1.1. Defining the Isotherm Given that it is uncoupled (UNC)
+    # UNC
+    # NOTE: You need to manually set the equation you want 
+    #       - make sure this corresponds to the number of parameters in cusotom_isotherm_params_all
+    #       - Default is Linear
+    def cusotom_isotherm_func(cusotom_isotherm_params, c):
+        """
+        c => liquid concentration of ci
+        q_star => solid concentration of ci @ equilibrium
+        cusotom_isotherm_params[i] => given parameter set of component, i
+        """
+
+        # Uncomment as necessary
+
+        #------------------- 1. Single Parameters Models
+        # Linear
+        K1 = cusotom_isotherm_params[0]
+        H = K1 # Henry's Constant
+        q_star_1 = H*c
+
+        #------------------- 2. Two-Parameter Models
+        # K1 = cusotom_isotherm_params[0]
+        # K2 = cusotom_isotherm_params[1]
+
+        # #  2.1 Langmuir  
+        # Q_max = K1
+        # b = K2
+        # #-------------------------------
+        # q_star_2_1 = Q_max*b*c/(1 + b*c)
+        # #-------------------------------
+
+        # 2.2 Freundlich
+        # a = K1
+        # b = K2
+        # #-------------------------------
+        # q_star_2_2 = b*c**(1/a)
+        # #-------------------------------
+
+        #------------------- 3. Three-Parameter models 
+        # K1 = cusotom_isotherm_params[0]
+        # K2 = cusotom_isotherm_params[1]
+        # K3 = cusotom_isotherm_params[2]
+
+        # Linear + Langmuir
+        # H = K1
+        # Q_max = K2
+        # b = K3
+        #-------------------------------
+        # q_star_3 = H*c + Q_max*b*c/(1 + b*c)
+        #-------------------------------
+
+        return q_star_1 # [qA, ...]
+    # 1.2. Defining the Isotherm Given that it is COUPLED (CUP)
+    # CUP
+    # NOTE: You need to manually set the equation you want 
+    #       - make sure this corresponds to the number of parameters in cusotom_isotherm_params_all
+    #       - Default is Langmuir
+    def cusotom_CUP_isotherm_func(cusotom_isotherm_params, c, IDX, comp_idx):
+        """
+        Returns  solid concentration, q_star vector for given comp_idx
+        *****
+        Variables:
+        cusotom_isotherm_params => parameters for each component [[A's parameters], [B's parameters]]
+        NOTE: This function is (currently) structured to assume A and B have 1 parameter each. 
+        c => liquid concentration of c all compenents
+        IDX => the first row-index in c for respective components
+        comp_idx => which of the components we are currently retreiving the solid concentration, q_star for
+        q_star => solid concentration of ci @ equilibrium
+
+        """
+        # Unpack the component vectors (currently just considers binary case of A and B however, could be more)
+        cA = c[IDX[0] + 0: IDX[0] + nx]
+        cB = c[IDX[1] + 0: IDX[1] + nx]
+        c_i = [cA, cB]
+        # Now, different isotherm Models can be built using c_i
+        
+        # (Uncomment as necessary)
+
+        #------------------- 1. Coupled Linear Models
+
+        # cusotom_isotherm_params has linear constants for each comp
+        # Unpack respective parameters
+        # K1 = cusotom_isotherm_params[comp_idx][0] # 1st (and only) parameter of HA or HB
+        # q_star_1 = K1*c_i[comp_idx]
+
+
+        #------------------- 2. Coupled Langmuir Models
+        # The parameter in the numerator is dynamic, depends on comp_idx:
+        K =  cusotom_isotherm_params[comp_idx][0]
+        
+        # Fix the sum of parameters in the demoninator:
+        K1 = cusotom_isotherm_params[0][0] # 1st (and only) parameter of HA 
+        K2 = cusotom_isotherm_params[1][0] # 1st (and only) parameter of HB
+        
+        c_sum = K1 + K2
+        q_star_2 = K*c_i[comp_idx]/(1+ K1*c_i[0] + K2*c_i[1])
+
+        #------------------- 3. Combined Coupled Models
+        # The parameter in the numerator is dynamic, depends on comp_idx:
+        # K_lin =  cusotom_isotherm_params[comp_idx][0]
+        
+        # # Fix the sum of parameters in the demoninator:
+        # K1 = cusotom_isotherm_params[0][0] # 1st (and only) parameter of HA 
+        # K2 = cusotom_isotherm_params[1][0] # 1st (and only) parameter of HB
+        
+        # c_sum = K1 + K2
+        # linear_part = K_lin*c_i[comp_idx]
+        # langmuir_part = K*c_i[comp_idx]/(1+ K1*c_i[0] + K2*c_i[1])
+
+        # q_star_3 =  linear_part + langmuir_part
+
+
+        return q_star_2 # [qA, ...]
 
     # 2.
     # Generate Indices for the columns
@@ -993,111 +1106,7 @@ d_col = 2 # cm
 
 
 
-# UNC
-def cusotom_isotherm_func(cusotom_isotherm_params, c):
-    """
-    c => liquid concentration of ci
-    q_star => solid concentration of ci @ equilibrium
-    cusotom_isotherm_params[i] => given parameter set of component, i
-    """
 
-    # Uncomment as necessary
-
-    #------------------- 1. Single Parameters Models
-    # Linear
-    K1 = cusotom_isotherm_params[0]
-    H = K1 # Henry's Constant
-    q_star_1 = H*c
-
-    #------------------- 2. Two-Parameter Models
-    # K1 = cusotom_isotherm_params[0]
-    # K2 = cusotom_isotherm_params[1]
-
-    # #  2.1 Langmuir  
-    # Q_max = K1
-    # b = K2
-    # #-------------------------------
-    # q_star_2_1 = Q_max*b*c/(1 + b*c)
-    # #-------------------------------
-
-    # 2.2 Freundlich
-    # a = K1
-    # b = K2
-    # #-------------------------------
-    # q_star_2_2 = b*c**(1/a)
-    # #-------------------------------
-
-    #------------------- 3. Three-Parameter models 
-    # K1 = cusotom_isotherm_params[0]
-    # K2 = cusotom_isotherm_params[1]
-    # K3 = cusotom_isotherm_params[2]
-
-    # Linear + Langmuir
-    # H = K1
-    # Q_max = K2
-    # b = K3
-    #-------------------------------
-    # q_star_3 = H*c + Q_max*b*c/(1 + b*c)
-    #-------------------------------
-
-    return q_star_1 # [qA, ...]
-# CUP
-def cusotom_CUP_isotherm_func(cusotom_isotherm_params, c, IDX, comp_idx):
-    """
-    Returns  solid concentration, q_star vector for given comp_idx
-    *****
-    Variables:
-    cusotom_isotherm_params => parameters for each component [[A's parameters], [B's parameters]]
-    NOTE: This function is (currently) structured to assume A and B have 1 parameter each. 
-    c => liquid concentration of c all compenents
-    IDX => the first row-index in c for respective components
-    comp_idx => which of the components we are currently retreiving the solid concentration, q_star for
-    q_star => solid concentration of ci @ equilibrium
-
-    """
-    # Unpack the component vectors (currently just considers binary case of A and B however, could be more)
-    cA = c[IDX[0] + 0: IDX[0] + nx]
-    cB = c[IDX[1] + 0: IDX[1] + nx]
-    c_i = [cA, cB]
-    # Now, different isotherm Models can be built using c_i
-    
-    # (Uncomment as necessary)
-
-    #------------------- 1. Coupled Linear Models
-
-    # cusotom_isotherm_params has linear constants for each comp
-    # Unpack respective parameters
-    K1 = cusotom_isotherm_params[comp_idx][0] # 1st (and only) parameter of HA or HB
-    q_star_1 = K1*c_i[comp_idx]
-
-
-    #------------------- 2. Coupled Langmuir Models
-    # The parameter in the numerator is dynamic, depends on comp_idx:
-    K =  cusotom_isotherm_params[comp_idx][0]
-    
-    # Fix the sum of parameters in the demoninator:
-    K1 = cusotom_isotherm_params[0][0] # 1st (and only) parameter of HA 
-    K2 = cusotom_isotherm_params[1][0] # 1st (and only) parameter of HB
-    
-    c_sum = K1 + K2
-    q_star_2 = K*c_i[comp_idx]/(1+ K1*c_i[0] + K2*c_i[1])
-
-    #------------------- 3. Combined Coupled Models
-    # The parameter in the numerator is dynamic, depends on comp_idx:
-    K_lin =  cusotom_isotherm_params[comp_idx][0]
-    
-    # Fix the sum of parameters in the demoninator:
-    K1 = cusotom_isotherm_params[0][0] # 1st (and only) parameter of HA 
-    K2 = cusotom_isotherm_params[1][0] # 1st (and only) parameter of HB
-    
-    c_sum = K1 + K2
-    linear_part = K_lin*c_i[comp_idx]
-    langmuir_part = K*c_i[comp_idx]/(1+ K1*c_i[0] + K2*c_i[1])
-
-    q_star_3 =  linear_part + langmuir_part
-
-
-    return q_star_3 # [qA, ...]
 # # Uncomment as necessary:
 # # Linear 
 # cusotom_isotherm_params_all = np.array([[0.27],[0.53]])
@@ -1120,7 +1129,7 @@ parameter_sets = [
 
 Da_all = np.array([3.218e-5, 8.38e-6 ]) 
 
-column_func_inputs = [iso_type,  Names, color, parameter_sets, Da_all, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_func, cusotom_isotherm_params_all]
+column_func_inputs = [iso_type,  Names, color, parameter_sets, Da_all, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all]
 
 start = time.time()
 col_elution, y_matrices, nx, t, t_sets, t_schedule, C_feed, m_in, m_out, Model_Acc, Expected_Acc, Error_percent = column_func(column_func_inputs) 
