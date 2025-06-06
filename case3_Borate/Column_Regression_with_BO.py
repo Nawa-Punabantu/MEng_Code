@@ -460,14 +460,14 @@ if __name__ == "__main__":
     ##
 
     # Da guesses:
-    Da_bor_guess = 1e-6 # cm^2/s
-    Da_hcl_guess = 1e-6 # cm^2/s
+    Da_bor_guess = 9.8e-5 # cm^2/s
+    Da_hcl_guess = 6.8e-5 # cm^2/s
     # kfp guesses:
-    kfp_bor_guess = 0.096
-    kfp_hcl_guess = 0.0542241278
+    kfp_bor_guess = 0.5387
+    kfp_hcl_guess = 0.5062
     # Isotherm Guesses
-    K_bor_guess = 4.7
-    K_hcl_guess = 3.5
+    K_bor_guess = 3.239
+    K_hcl_guess = 2.234
     
     # Load Initial Guesses in vector:
     # When doing Fru:
@@ -484,7 +484,7 @@ if __name__ == "__main__":
     x_initial_guess = x_initial_guess/max_of_each_input
     
 
-    optimization_budget = 6
+    optimization_budget = 20
     bounds = [  (0.01, 1), # Da_bor
                 (0.01, 1), # Da_hcl
 
