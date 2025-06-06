@@ -1123,8 +1123,8 @@ cusotom_isotherm_params_all = np.array([[3.2069715], [3.54]]) # H_glu, H_fru
 # - Concentrations: g/cm^3
 # - kfp: 1/s
 parameter_sets = [
-    {"kfp": 0.467256957, "C_feed": 0.42},    # Glucose SMB Launch
-    {"kfp": 0.462, "C_feed": 0.42798}] #, # Fructose
+    {"kfp": 0.467, "C_feed": 0.42},    # Glucose SMB Launch
+    {"kfp": 0.462, "C_feed": 0.42}] #, # Fructose
 
 
 Da_all = np.array([3.218e-5, 8.38e-6 ]) 
@@ -1138,19 +1138,21 @@ print('---------------------------')
 print(f'Computation Time: {end-start} s || {(end-start)/60} min')
 print('---------------------------\n\n')
 
-def col_elution_profile(t, col_elution, num_comp):
-
+def col_elution_profile(t_vals, col_elution, num_comp):
+    # t_vals = np.array(t_vals)
     fig, ax = plt.subplots(1, 1, figsize=(15, 5))
     for i in range(1):
 
         if iso_type == 'UNC':
-            ax.plot(t[i]/60, col_elution[i], color = color[i], label = f"Model: {Names[i]}")
-            ax.plot(t[i]/60, col_elution[i+1], color = color[i+1], label = f"Model: {Names[i+1]}")
+            # print(f'size of t_vals: {len(t_vals)}')
+            ax.plot(t_vals[i]/60, col_elution[i], color = color[i], label = f"Model: {Names[i]}")
+            # print(f"done 1 doing 2..")
+            ax.plot(t_vals[i+1]/60, col_elution[i+1], color = color[i+1], label = f"Model: {Names[i+1]}")
 
 
         elif iso_type == 'CUP':
-            ax.plot(t/60, col_elution[i], color = color[i], label = f"Model: {Names[i]}")
-            ax.plot(t/60, col_elution[i+1], color = color[i+1], label = f"Model: {Names[i+1]}")
+            ax.plot(t_vals/60, col_elution[i], color = color[i], label = f"Model: {Names[i]}")
+            ax.plot(t_vals/60, col_elution[i+1], color = color[i+1], label = f"Model: {Names[i+1]}")
            
         ax.set_xlabel('Time (min)')
         ax.set_ylabel('Concentration g/mL')
