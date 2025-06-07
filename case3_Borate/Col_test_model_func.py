@@ -597,7 +597,7 @@ def column_func(column_func_inputs):
 
 
         # Initialize
-        vec_add = np.zeros(len(c)) # vectoer to adjust C1 to account for C0 (at left boundary):
+        vec_add = np.zeros(len(c)) # vectoer to adjust C1 to accountcusotom_CUP_isotherm_func for C0 (at left boundary):
         MT = np.zeros(len(c)) # column vector: MT kinetcis for each comp: MT = [MT_A MT_B] 
         
         # Da = -Da_all[0]
@@ -621,7 +621,7 @@ def column_func(column_func_inputs):
             ######################(i) Isotherm ####################################################################
 
             # Comment as necessary for required isotherm:
-            isotherm = cusotom_CUP_isotherm_func(cusotom_isotherm_params_all, c, IDX, comp_idx)
+            isotherm = (cusotom_isotherm_params_all, c, IDX, comp_idx)
             # isotherm = iso_cup_langmuir(theta_cup_lang, c, IDX, comp_idx)
 
             ################### (ii) MT ##########################################################
