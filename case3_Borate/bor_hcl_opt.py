@@ -298,40 +298,40 @@ def SMB(SMB_inputs):
 
 
     # DISPLAYING INPUT INFORMATION:
-    # print('---------------------------------------------------')
-    # print('Number of Components:', num_comp)
-    # print('---------------------------------------------------')
-    # print('\nTime Specs:\n')
-    # print('---------------------------------------------------')
-    # print('Number of Cycles:', n_num_cycles)
-    # print('Time Per Cycle:', n_1_cycle/60, "min")
-    # print('Simulation Time:', tend_min, 'min')
-    # print('Index Time:', t_index, 's OR', t_index/60, 'min' )
-    # print('Number of Port Switches:', num_of_injections)
-    # print('Injections happen at t(s) = :', t_schedule, 'seconds')
-    # print('---------------------------------------------------')
-    # print('\nColumn Specs:\n')
-    # print('---------------------------------------------------')
-    # print('Configuration:', zone_config, '[Z1,Z2,Z3,Z4]')
-    # print(f"Number of Columns: {Ncol_num}")
-    # print('Column Length:', L, 'cm')
-    # print('Column Diameter:', d_col, 'cm')
-    # print('Column Volume:', V_col, 'cm^3')
-    # print("alpha:", alpha, '(alpha = A_in / A_col)')
-    # print("Nodes per Column:",nx_col)
-    # print("Boundary Nodes locations,x[i], i =", start)
-    # print("Total Number of Nodes (nx):",nx)
-    # print('---------------------------------------------------')
-    # print('\nFlowrate Specs:\n')
-    # print('---------------------------------------------------')
-    # print("External Flowrates =", Q_external, '[F,R,D,X] ml/min')
-    # print("Ineternal Flowrates =", Q_internal, 'ml/min')
-    # print('---------------------------------------------------')
-    # print('\nPort Schedules:')
-    # for i in range(num_comp):
-    #     print(f"Concentration Schedule:\nShape:\n {Names[i]}:\n",np.shape(Cj_pulse_all[i]),'\n', Cj_pulse_all[i], "\n")
-    # print("Injection Flowrate Schedule:\nShape:",np.shape(Q_pulse_all),'\n', Q_pulse_all, "\n")
-    # print("Respective Column Flowrate Schedule:\nShape:",np.shape(Q_col_all),'\n', Q_col_all, "\n")
+    print('---------------------------------------------------')
+    print('Number of Components:', num_comp)
+    print('---------------------------------------------------')
+    print('\nTime Specs:\n')
+    print('---------------------------------------------------')
+    print('Number of Cycles:', n_num_cycles)
+    print('Time Per Cycle:', n_1_cycle/60, "min")
+    print('Simulation Time:', tend_min, 'min')
+    print('Index Time:', t_index, 's OR', t_index/60, 'min' )
+    print('Number of Port Switches:', num_of_injections)
+    print('Injections happen at t(s) = :', t_schedule, 'seconds')
+    print('---------------------------------------------------')
+    print('\nColumn Specs:\n')
+    print('---------------------------------------------------')
+    print('Configuration:', zone_config, '[Z1,Z2,Z3,Z4]')
+    print(f"Number of Columns: {Ncol_num}")
+    print('Column Length:', L, 'cm')
+    print('Column Diameter:', d_col, 'cm')
+    print('Column Volume:', V_col, 'cm^3')
+    print("alpha:", alpha, '(alpha = A_in / A_col)')
+    print("Nodes per Column:",nx_col)
+    print("Boundary Nodes locations,x[i], i =", start)
+    print("Total Number of Nodes (nx):",nx)
+    print('---------------------------------------------------')
+    print('\nFlowrate Specs:\n')
+    print('---------------------------------------------------')
+    print("External Flowrates =", Q_external, '[F,R,D,X] cm^3/s')
+    print("Ineternal Flowrates =", Q_internal, 'cm^3/s')
+    print('---------------------------------------------------')
+    print('\nPort Schedules:')
+    for i in range(num_comp):
+        print(f"Concentration Schedule:\nShape:\n {Names[i]}:\n",np.shape(Cj_pulse_all[i]),'\n', Cj_pulse_all[i], "\n")
+    print("Injection Flowrate Schedule:\nShape:",np.shape(Q_pulse_all),'\n', Q_pulse_all, "\n")
+    print("Respective Column Flowrate Schedule:\nShape:",np.shape(Q_col_all),'\n', Q_col_all, "\n")
 
 
 
@@ -424,8 +424,8 @@ def SMB(SMB_inputs):
         K1 = cusotom_isotherm_params[0][0] # 1st (and only) parameter of HA 
         K2 = cusotom_isotherm_params[1][0] # 1st (and only) parameter of HB
         
-        c_sum = K1 + K2
-        q_star_2 = K*c_i[comp_idx]/(1+ K1*c_i[0] + K2*c_i[1])
+        # q_star_2 = K*c_i[comp_idx]/(1+ K1*c_i[0]+ K2*c_i[1])
+        q_star_2 = K*c_i[comp_idx]/(1+ K*c_i[comp_idx])
 
         #------------------- 3. Combined Coupled Models
         # The parameter in the numerator is dynamic, depends on comp_idx:
@@ -443,56 +443,6 @@ def SMB(SMB_inputs):
 
 
         return q_star_2 # [qA, ...]
-    
-    # 1. LINEAR
-    def iso_lin(theta_lin, c):
-        # params: [HA, HB]
-        H = theta_lin
-        q_star = H*c
-
-        return q_star # [qA, qB, ...]
-
-    # 2.  LANGMUIR
-
-    # 2.1 Independent Langmuir
-    def iso_langmuir(theta_lang, c, comp_idx): # already for specific comp
-        H = theta_lang
-        q_star = H*c/(1 + H*c)
-        #q_star = H[comp_idx]*c/(1 + K[0]*c + K[1]*c)
-        # q_star = theta_lang[0]*c/(1 + theta_lang[1]*c + theta_lang[2]*c) +\
-        #     theta_lang[3]*c/(1 + theta_lang[4]*c + theta_lang[5]*c)
-        return q_star
-
-    # 2.3 Coupled Langmuir
-    def iso_cup_langmuir(theta_cuplang, c, IDX, comp_idx): # already for specific comp
-        H = theta_cuplang[:2] # [HA, HB]
-        K = theta_cuplang[2:] # [KA, KB]
-        cA = c[IDX[0] + 0: IDX[0] + nx ]
-        cB = c[IDX[1] + 0: IDX[1] + nx ]
-        c_i = [cA, cB]
-        q_star = H[comp_idx]*c_i[comp_idx]/(1 + K[0]*cA + K[1]*cB)
-        return q_star
-
-    # 2.3 Bi-Langmuir
-    def iso_bi_langmuir(theta_bl, c, IDX, comp_idx): # already for specific comp
-        cA = c[IDX[0] + 0: IDX[0] + nx ]
-        cB = c[IDX[1] + 0: IDX[1] + nx ]
-        c_i = [cA, cB]
-
-        q_star = theta_bl[0]*c_i[comp_idx]/(1 + theta_bl[1]*cA + theta_bl[2]*cB) +\
-                theta_bl[3]*c_i[comp_idx]/(1 + theta_bl[4]*cA + theta_bl[5]*cB)
-
-        return q_star
-
-
-    # 3. FREUDLICH:
-    def iso_freundlich(theta_fre, c): # already for specific comp
-        q_star = theta_fre[0]*c**(1/theta_fre[1])
-        return q_star
-
-
-
-
 
     ###########################################################################################
 
@@ -888,6 +838,7 @@ def SMB(SMB_inputs):
         coeff_matrix, vec_add = coeff_matrix_builder_UNC(t, Q_col_all, Q_pulse_all, dx, start, alpha, c, nx_col, comp_idx)
         # print('coeff_matrix:\n',coeff_matrix)
         # print('vec_add:\n',vec_add)
+        
         dc_dt = coeff_matrix @ c + vec_add - F * MT
         dq_dt = MT
 
@@ -930,10 +881,6 @@ def SMB(SMB_inputs):
         for comp_idx in range(num_comp): # for each component
 
             ######################(i) Isotherm ####################################################################
-
-            # Comment as necessary for required isotherm:
-            # isotherm = iso_bi_langmuir(theta_blang[comp_idx], c, IDX, comp_idx)
-            # isotherm = iso_cup_langmuir(theta_cup_lang, c, IDX, comp_idx)
             isotherm = cusotom_CUP_isotherm_func(cusotom_isotherm_params_all, c, IDX, comp_idx)
 
             # print('qstar:\n', isotherm.shape)
@@ -1026,14 +973,27 @@ def SMB(SMB_inputs):
 
     # ###########################################################################################
 
-    # VISUALIZATION
+    """
+
+    PART 3 - POST-PROCESSING:
+
+     1. Mass Balance (MB) calculations
+        1.1. Capturing Feed, Raffinate, Extract profiles from y_matrices
+        1.2. Integrating over these profiles to get mass In & Out
+        1.3. 
+
+     2. Visulisation:
+        2.1. Plot SMB Elution profiles
+        2.2. Concentration profiles animation
+    
+    """
 
     ###########################################################################################
 
 
 
 
-    # MASS BALANCE AND PURITY CURVES
+    # Helper-Functions to capture Feed, Raffinate, Extract profiles from y_matrices
     ###########################################################################################
 
     def find_indices(t_ode_times, t_schedule):
@@ -1301,11 +1261,13 @@ def SMB(SMB_inputs):
                 C_R1_add = np.array(get_X_row( y_odes[i][:nx,:], row_start_matrix-1, jump_matrix, t_idx_all_Q)) # exclude q
                 # print(f'Use 2...')
                 C_R2_add = np.array(get_X_row( y_odes[i][:nx,:], row_start_matrix, jump_matrix, t_idx_all_Q))
+                
                 # Search the Flowrate Schedule
                 # print(f'Use 3...')
                 P_vflows_1_add = np.array(get_X_row(Q_all_flows, row_start_schedule-1, jump_schedule, t_idx_all_Q))
                 # print(f'Use 4...')
                 P_vflows_2_add = np.array(get_X_row(Q_all_flows, row_start_schedule, jump_schedule, t_idx_all_Q))
+                print(f'shape.(Q_all_flows): {np.shape(Q_all_flows)}, \n{Q_all_flows}')
             
 
 
@@ -1464,7 +1426,8 @@ def SMB(SMB_inputs):
 
 
         Model_Acc = mass_l + mass_r # g
-
+        print(f'mass_l: {mass_l}')
+        print(f'mass_r: {mass_r}')
         return Model_Acc
 
     Model_Acc = model_acc(y_matrices, V_col_total, e, num_comp)
@@ -2366,8 +2329,8 @@ def constrained_BO(optimization_budget, bounds, initial_guess, all_initial_input
 
 ###################### PRIMARY INPUTS #########################
 # Define the names, colors, and parameter sets for 6 components
-Names = ["Glucose", "Fructose"]#, 'C', 'D']#, "C"]#, "D", "E", "F"]
-color = ["g", "orange"]#, "purple", "brown"]#, "b"]#, "r", "purple", "brown"]
+Names = ["Borate", "HCl"]#, 'C', 'D']#, "C"]#, "D", "E", "F"]
+color = ["red", "green"]#, "purple", "brown"]#, "b"]#, "r", "purple", "brown"]
 num_comp = len(Names) # Number of components
 e = 0.40         # bed voidage
 Bm = 300
@@ -2376,7 +2339,7 @@ Bm = 300
 
 # How many columns in each Zone?
 
-Z1, Z2, Z3, Z4 = 2,3,2,1 # *3 for smb config
+Z1, Z2, Z3, Z4 = 1,3,3,1 # *3 for smb config
 zone_config = np.array([Z1, Z2, Z3, Z4])
 nnn = Z1 + Z2 + Z3 + Z4
 
@@ -2391,23 +2354,25 @@ V_col = A_col*L # cm^3
 # Dimensions of the tubing and from each column:
 # Assuming the pipe diameter is 20% of the column diameter:
 d_in = 0.2 * d_col # cm
-nx_per_col = 5
+nx_per_col = 15
 
 
 ################ Time Specs #################################################################################
-t_index_min = 3.3 # min # Index time # How long the pulse holds before swtiching
+t_index_min = 6 # min # Index time # How long the pulse holds before swtiching
 n_num_cycles = 12    # Number of Cycles you want the SMB to run for
 ###############  FLOWRATES   #################################################################################
 
 # Jochen et al:
-Q_P, Q_Q, Q_R, Q_S = 5.21, 4, 5.67, 4.65 # x10-7 m^3/s
+# Q_P, Q_Q, Q_R, Q_S = 5.21, 4, 5.67, 4.65 # x10-7 m^3/s
 conv_fac = 0.1 # x10-7 m^3/s => cm^3/s
-Q_P, Q_Q, Q_R, Q_S  = Q_P*conv_fac, Q_Q*conv_fac, Q_R*conv_fac, Q_S*conv_fac
+# # Q_P, Q_Q, Q_R, Q_S  = Q_P*conv_fac, Q_Q*conv_fac, Q_R*conv_fac, Q_S*conv_fac
+# Q_I, Q_II, Q_III, Q_IV  = Q_P, Q_Q, Q_R, Q_S 
+# Q_internal = np.array([Q_I, Q_II, Q_III, Q_IV])
 
-Q_I, Q_II, Q_III, Q_IV = Q_R,  Q_S, Q_P, Q_Q
+# Other flowrates:
+Q_I, Q_II, Q_III, Q_IV = 70,  60.3, 69, 53 # L/h
+Q_internal = np.array([Q_I, Q_II, Q_III, Q_IV]) # L/h => cm^3/s
 
-
-Q_internal = np.array([Q_I, Q_II, Q_III, Q_IV])
 
 
 
@@ -2425,8 +2390,8 @@ Q_internal = np.array([Q_I, Q_II, Q_III, Q_IV])
 # - Concentrations: g/cm^3
 # - kfp: 1/s
 parameter_sets = [
-    {"kh": 0.467, "C_feed": 0.42},    # Glucose SMB Launch
-    {"kh": 0.462, "C_feed": 0.42}] #, # Fructose
+    {"kh": 0.467, "C_feed": 0.1},    # Borate g/cm^3
+    {"kh": 0.462, "C_feed": 0.4}] #, # HCl g/cm^3
 
 Da_all = np.array([3.218e-5, 8.38e-6]) 
 
@@ -2438,9 +2403,8 @@ Da_all = np.array([3.218e-5, 8.38e-6])
 iso_type = "CUP"
 
 # Uncomment as necessary:
-
 # Linear, H
-cusotom_isotherm_params_all = np.array([[3.2069715], [3.54]]) # H_glu, H_fru 
+cusotom_isotherm_params_all = np.array([[1.2069715], [3.54]]) # [ [H_borate], [H_hcl] ]
 # Sub et al = np.array([[0.27], [0.53]])
 
 # # Langmuir, [Q_max, b]
@@ -2463,11 +2427,46 @@ Raffinate_Recovery = results[11]
 Extract_Purity = results[12]
 Extract_Recovery = results[13]
 Mass_Balance_Error_Percent = results[-1]
+m_in = results[6]
+m_out = results[7]
+Model_Acc =  results[-3]
+Expected_Acc = results[-2]
+raff_cprofile = results[8]
+ext_cprofile= results[9]
+import matplotlib.pyplot as plt
+
+# Plotting the data
+plt.plot(results[2], raff_cprofile[0], label='Raff CProfile 0')
+plt.plot(results[2], raff_cprofile[1], label='Raff CProfile 1')
+plt.plot(results[2], ext_cprofile[0], label='Ext CProfile 0')
+plt.plot(results[2], ext_cprofile[1], label='Ext CProfile 1')
+
+# Adding labels and title
+plt.xlabel('X-axis')
+plt.ylabel('Profile Values')
+plt.title('Comparison of Raff and Ext CProfiles')
+
+# Adding legend
+plt.legend()
+
+# Display the plot
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+
 end_test = time.time()
 test_duration = end_test-start_test
+
 # DISPLAY
 print(f'\n\n TEST RESULTS : \n')
 print(f'Time Taken for 1 SMB Run: {test_duration/60} min')
+print(f'Model_Acc: {Model_Acc}')
+print(f'Expected_Acc: {Expected_Acc}')
+
+
+print(f'm_in: {m_in} g')
+print(f'm_out: {m_out} g ')
 print(f'Raffinate_Recovery: {Raffinate_Recovery} ')
 print(f'Extract_Recovery:  {Extract_Recovery}')
 print(f'Raffinate_Purity: {Raffinate_Purity} ')
