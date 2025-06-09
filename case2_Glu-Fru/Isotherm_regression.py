@@ -44,20 +44,20 @@ def cusotom_isotherm_func(cusotom_isotherm_params, c):
 
     #------------------- 1. Single Parameters Models
     # Linear
-    K1 = cusotom_isotherm_params[0]
-    H = K1 # Henry's Constant
-    q_star_1 = H*c
+    # K1 = cusotom_isotherm_params[0]
+    # H = K1 # Henry's Constant
+    # q_star_1 = H*c
 
     #------------------- 2. Two-Parameter Models
-    # K1 = cusotom_isotherm_params[0]
-    # K2 = cusotom_isotherm_params[1]
+    K1 = cusotom_isotherm_params[0]
+    K2 = cusotom_isotherm_params[1]
 
     # #  2.1 Langmuir  
-    # Q_max = K1
-    # b = K2
-    # #-------------------------------
-    # q_star_2_1 = Q_max*b*c/(1 + b*c)
-    # #-------------------------------
+    Q_max = K1
+    b = K2
+    #-------------------------------
+    q_star_2_1 = Q_max*b*c/(1 + b*c)
+    #-------------------------------
 
     # 2.2 Freundlich
     # a = K1
@@ -79,7 +79,7 @@ def cusotom_isotherm_func(cusotom_isotherm_params, c):
     # q_star_3 = H*c + Q_max*b*c/(1 + b*c)
     #-------------------------------
 
-    return q_star_1 # [qA, ...]
+    return q_star_2_1 # [qA, ...]
 
 
 # Define the objective function
@@ -118,11 +118,11 @@ if __name__ == "__main__":
     for i in range(len(data_all)):
         data = data_all[i]
         # Initial guess for parameters [slope, intercept]
-        initial_guess =[0]
+        initial_guess =[0,0]
 
         # Minimize the loss
         func = cusotom_isotherm_func
-        result = minimize(objective, initial_guess, args=(func, data))
+        result = minimize(objective, initial_guess, args=(func, data), method='L-BFGS-B')
 
         # Extract fitted parameters
         fitted_params = result.x
