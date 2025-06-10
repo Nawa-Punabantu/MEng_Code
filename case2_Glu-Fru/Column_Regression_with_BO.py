@@ -142,7 +142,7 @@ def objective_function(params, t_data, conc_data, column_func_inputs, max_of_eac
     Da_all = [Da_bor, Da_hcl]
     cusotom_isotherm_params_all = np.array([[K_bor], [K_hcl]]) #, [params[3]*K2_max]]) # params[4]*K3_max]
     
-
+    # Evaluate the concentration profile 
     t_predicted, predicted_conc_borate,  predicted_conc_hcl = solve_concentration(Da_all, kfp_all, cusotom_isotherm_params_all, column_func_inputs)
     # Interpolate the predicted concentrations to match the time points in t_data
     # predicted_conc_interpolated = np.interp(t_data, np.linspace(0, tend_min, len(predicted_conc)), predicted_conc)

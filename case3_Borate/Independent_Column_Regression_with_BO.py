@@ -95,7 +95,7 @@ def solve_concentration(Da, kfp, cusotom_isotherm_params_all, column_func_inputs
     column_func_inputs[4] =  np.array([Da]) # Insert the Dispersion in the correct position
     column_func_inputs[3][0]["kfp"] = kfp  # Update kfp in the parameter set
     column_func_inputs[-1] = cusotom_isotherm_params_all  # Update H in the parameter set
-
+    print(f'len(column_func_inputs): {len(column_func_inputs)}')
     solution = column_func(column_func_inputs)
 
     col_elution = solution[0][0]  # Assuming first component
@@ -123,7 +123,7 @@ def generate_synthetic_data(Da, kfp, cusotom_isotherm_params_all, resolution):
     d_col = 2 # cm
     Bm = 500
 
-    column_func_inputs = [iso_type,  Names, color, parameter_sets, Da, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_func, cusotom_isotherm_params_all]
+    column_func_inputs = [iso_type,  Names, color, parameter_sets, Da, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all]
 
     t_values, col_elution = solve_concentration(Da, kfp, cusotom_isotherm_params_all, column_func_inputs)
     # noise = 0.1 * np.random.normal(size=len(t_values))
@@ -163,12 +163,12 @@ def objective_function(params, t_data, conc_data, column_func_inputs, max_of_eac
     Da_max = max_of_each_input[0]
     kfp_max = max_of_each_input[1]
     K1_max = max_of_each_input[2]
-    # K2_max = max_of_each_input[3]
+    K2_max = max_of_each_input[3]
     # K3_max = max_of_each_input[4]
 
     Da = params[0]*Da_max
     kfp = params[1]*kfp_max
-    cusotom_isotherm_params_all = np.array([[params[2]*K1_max]]) #, [params[3]*K2_max]]) # params[4]*K3_max]
+    cusotom_isotherm_params_all = np.array([[params[2]*K1_max, params[3]*K2_max]]) #, [params[3]*K2_max]]) # params[4]*K3_max]
     
 
     t_predicted, predicted_conc = solve_concentration(Da, kfp, cusotom_isotherm_params_all, column_func_inputs)
@@ -268,7 +268,7 @@ def get_data_from_excel(file_path, resolution):
     Da = 0 
     Bm = 0 
 
-    column_func_inputs = [iso_type,  Names, color, parameter_sets, Da, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_func, cusotom_isotherm_params_all]
+    column_func_inputs = [iso_type,  Names, color, parameter_sets, Da, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all]
     
     t_data, col_elution_data = df.iloc[t_start:t_end]['Time, s'], df.iloc[t_start:t_end]['g/cm^3']
 
@@ -352,7 +352,7 @@ def probability_of_improvement(x, surrogate_gp, y_best, xi=0.005):
     - PI: np.array of probability of improvement values
     """
     x = np.array(x).reshape(1, -1)
-
+    print(f'x: {x}')
     mu, sigma = surrogate_gp.predict(x, return_std=True)
 
     # Avoid division by zero
@@ -382,8 +382,8 @@ def constrained_BO(optimization_budget, bounds, all_initial_inputs, all_initial_
     # print(f'f_vals: {f_vals}')
 
     num_inputs = len(max_of_each_input)
-    all_inputs = all_initial_inputs# columns: [Da, kfp, K1, K2, ..., Kn] Ki=isotherm parameters
-
+    all_inputs = all_initial_inputs # columns: [Da, kfp, K1, K2, ..., Kn] Ki=isotherm parameters
+    print(f'all_inputs: {all_inputs}')
     # print(f'np.shape(all_inputs):{np.shape(all_inputs)}')
     # print(f'np.shape(all_initial_inputs):{np.shape(all_initial_inputs)}')
 
@@ -406,7 +406,7 @@ def constrained_BO(optimization_budget, bounds, all_initial_inputs, all_initial_
         # i.e. each time we update the training set
 
         # Fit GP to scalarized_surrogate_objective
-        # print(f'population { population}, \nscalarized_f_vals {scalarized_f_vals} ')
+        print(f'population { population}, f_vals {f_vals} ')
         surrogate_gp = surrogate_model(population, f_vals)
         # Pull mean at relevant poputlation points
         # Mean & Varriance
@@ -468,38 +468,36 @@ if __name__ == "__main__":
     # PLease note that most inputs are obtained from the Excel Sheets and in the 'GENERATE SYNTHETIC DATA' func
      
     ##
-    max_of_each_input = np.array([1e-4, 0.8, 5]) #, 5]) #  [Da_max, kfp_max, K1_max, K2_max, ... Kn_max]
-    ##
+    max_of_each_input = np.array([1e-4,  # Da_max
+                                  0.8,   # kfp_max
+                                  5.0,   # K1_max  (Q_max)
+                                  5.0 ]) # K2_max   (b)
+    
 
     # Da guesses:
-    Da_glu_guess = 1e-6 # cm^2/s
-    Da_fru_guess = 1e-6 # cm^2/s
+    Da_bor_guess = 1e-6 # cm^2/s
+    Da_hcl_guess = 1e-6 # cm^2/s
     # kfp guesses:
-    kfp_glu_guess = 0.096
-    kfp_fru_guess = 0.0542241278
+    kfp_bor_guess = 0.096
+    kfp_hcl_guess = 0.0542241278
     # Isotherm Guesses
-    K1_glu_guess = 4.7
-    # K2_glu_guess = 4.3 #//
-    K1_fru_guess = 3.5
-    # K2_fru_guess = 1.08
+    K1_bor_guess = 4.7
+    K1_hcl_guess = 4.3 
+    #//
+    K2_bor_guess = 3.5
+    K2_hcl_guess = 1.08
 
     # Load Initial Guesses in vector:
     # Note that regression is performed on 1 component at a time, so load for Glu or Fru:
     # When doing Glu:
-    # x_initial_guess = np.array([Da_glu_guess, kfp_glu_guess, K1_glu_guess]) #, K2_glu_guess])  # [Da, kfp, K1, K2, ... Kn]
-    # When doing Fru:
-    x_initial_guess = np.array([Da_fru_guess, kfp_fru_guess, K1_fru_guess]) #, K2_fru_guess])  # [Da, kfp, K1, K2, ... Kn] ])
-    
-    print(f'x_initial_guess: {x_initial_guess}')
-    # Normalize Initial Guess
-    x_initial_guess = x_initial_guess/max_of_each_input
+
     
 
-    optimization_budget = 6
+    optimization_budget = 30
     bounds = [  (0.01, 1), # Da
                 (0.0001, 1), # kfp
                 (0.0001, 1), # K1 - Q_max OR H
-                # (0.0001, 1), # K2 - b
+                (0.0001, 1), # K2 - b
                 # (0.0001, 1), # K3
             ]
 
@@ -528,160 +526,203 @@ if __name__ == "__main__":
 
 
     # Get files in folders for respective Porjects:
-
-    # --------- 1. FOS:
-
-
-    # --------- 2. SMB LAUNCH
-    file_path_GLUCOSE = folder_name_1 + "\_glucose.xlsx"
-    file_path_FRUCTOSE = folder_name_1 + "\_fructose.xlsx"
     
-
     # --------- 3. BORATE & HCL DATA
     # UBK:
-    file_path_BORATE_UBK = r"C:\Users\28820169\Downloads\BO Papers\Regression_Analysis\_borate_UBK_530.xlsx"
-    file_path_HCL_UBK = r"C:\Users\28820169\Downloads\BO Papers\Regression_Analysis\_HCL_UBK_530.xlsx"
+    file_path_BORATE_UBK = r"C:\Users\28820169\Downloads\BO_Papers\MEng_Code\case3_Borate\_borate_UBK_530.xlsx"
+    file_path_HCL_UBK = r"C:\Users\28820169\Downloads\BO_Papers\MEng_Code\case3_Borate\_HCL_UBK_530.xlsx"
+
+    UBK_comps = [file_path_BORATE_UBK, file_path_HCL_UBK, 'UBK-530']
     # PCR
-    file_path_BORATE_PCR = r"C:\Users\28820169\Downloads\BO Papers\Regression_Analysis\_borate_PCR642Ca.xlsx"
-    file_path_HCL_PCR = r"C:\Users\28820169\Downloads\BO Papers\Regression_Analysis\_HCL_PCR642Ca.xlsx"
-
-
-    # --------------------------------
-    t_data, col_elution_data, column_func_inputs = get_data_from_excel(file_path_BORATE_PCR, resolution=None)
-    num_points = len(t_data)
-
-    print(f't_data: {t_data}')
-    tend_min = t_data.iloc[-1]/60 # min
-
-    # --------------------------------
-
-    # ---- PART 2: GET DATA  -------#
-
-    # ---- Set Iniital Guess
-    # Adjust INITIAL GUESS Based On Isotherm Choice:
-
-    # Evaluate Initial guess:
-    f_initial, elution_curve_initial_guess = objective_function(x_initial_guess, t_data, col_elution_data, column_func_inputs,max_of_each_input)
-
-    print(f'{f_initial} for {x_initial_guess}')
-
-    # Perform the Bayesian Optimization
-    start = time.time()
-
-    f_vals, norm_all_inputs = constrained_BO(optimization_budget, bounds, x_initial_guess, f_initial, t_data, col_elution_data, column_func_inputs, max_of_each_input, xi=0.005, sampling_budget=1)
-    # print(f'all_inputs !!!!!!!!: \n{ all_inputs}')
-    all_inputs  = norm_all_inputs*max_of_each_input
-    end = time.time()
+    file_path_BORATE_PCR = r"C:\Users\28820169\Downloads\BO_Papers\MEng_Code\case3_Borate\_borate_PCR642Ca.xlsx"
+    file_path_HCL_PCR = r"C:\Users\28820169\Downloads\BO_Papers\MEng_Code\case3_Borate\_HCL_PCR642Ca.xlsx"
     
+    PCR_comps = [file_path_BORATE_PCR, file_path_HCL_PCR, 'PCR-642-Ca']
+
+
+    comp_data = []
+    comp_best_profiles = []
+
+    # To got from Resin to Resin; comment as necessary:
+
+    # Step 1:
+    resin_select = UBK_comps[-1] # PCR_comps OR UBK_comps
+
+    # Step 2: Use # UBK_comps[:-1] OR PCR_comps[:-1]:
+
+    for comp in UBK_comps[:-1]: # UBK_comps[:-1] OR PCR_comps[:-1]
+            counter = 0
+            if  counter == 0:
+                    x_initial_guess = np.array([Da_bor_guess, kfp_bor_guess, K1_bor_guess, K2_bor_guess])  # [Da, kfp, K1, K2, ... Kn]
+                    print(f'x_initial_guess: {x_initial_guess}')
+                    # Normalize Initial Guess
+                    x_initial_guess = x_initial_guess/max_of_each_input
+            elif counter == 1:
+                    x_initial_guess = np.array([Da_hcl_guess, kfp_hcl_guess, K1_hcl_guess, K2_hcl_guess]) #, K2_hcl_guess])  # [Da, kfp, K1, K2, ... Kn] ])
+                    print(f'x_initial_guess: {x_initial_guess}')
+                    # Normalize Initial Guess
+                    x_initial_guess = x_initial_guess/max_of_each_input
+                    
+            # --------------------------------
+            t_data, col_elution_data, column_func_inputs = get_data_from_excel(comp, resolution=None)
+            num_points = len(t_data)
+
+            print(f't_data: {t_data}')
+            tend_min = t_data.iloc[-1]/60 # min
+
+            # --------------------------------
+
+            # ---- PART 2: GET DATA  -------#
+
+            # ---- Set Iniital Guess
+            # Adjust INITIAL GUESS Based On Isotherm Choice:
+
+            # Evaluate Initial guess:
+            f_initial, elution_curve_initial_guess = objective_function(x_initial_guess, t_data, col_elution_data, column_func_inputs,max_of_each_input)
+            print(f'Initial Guess:')
+            print(f'{f_initial} for {x_initial_guess}')
+
+            # Perform the Bayesian Optimization
+            start = time.time()
+
+            f_vals, norm_all_inputs = constrained_BO(optimization_budget, bounds, x_initial_guess, f_initial, t_data, col_elution_data, column_func_inputs, max_of_each_input, xi=0.005, sampling_budget=1)
+            # print(f'all_inputs !!!!!!!!: \n{ all_inputs}')
+            all_inputs  = norm_all_inputs*max_of_each_input
+            end = time.time()
+            
 
 
 
-    # ---------------- SAVE THE OUTPUTS TO JSONS
-    data_dict = {
-    "f_vals": f_vals.tolist(),
-    "all_inputs": all_inputs.tolist(),
-    }
+            # ---------------- SAVE THE OUTPUTS TO JSONS
+            data_dict = {
+            "f_vals": f_vals.tolist(),
+            "all_inputs": all_inputs.tolist(),
+            }
 
-    # SAVE to JSON:
-    with open("BO_COL_REG.json", "w") as f:
-        json.dump(data_dict, f, indent=4)
-
-
-    # ---------------- Visualise THE OUTPUTS
-
-    #%%
-    # 1. Function Progression:
-    idx_min = np.argmin(f_vals)
-    norm_best_inputs = norm_all_inputs[idx_min,:]
-    best_inputs = all_inputs[idx_min,:]
-
-    print(f'Best Fitted Points: {best_inputs}')
-    __, elution_curve_best = objective_function(norm_best_inputs, t_data, col_elution_data, column_func_inputs,max_of_each_input)
-    
-
-    fig, ax = plt.subplots(1, 1, figsize=(15, 5))
-    x_plot = range(len(f_vals))
-    ax.scatter(x_plot, f_vals, label='SSE', color='blue', alpha=0.6)
-    ax.plot(x_plot, f_vals, label='SSE', color='blue', alpha=0.6)
-
-    ax.scatter(x_plot[idx_min], f_vals[idx_min], marker='*', color='red', s=200, label='Minimum SSE')
-    ax.axvline(x=x_plot[0], linestyle='--', label='Initial Guess', color='green')
-
-    ax.set_xlabel('Function Calls')
-    ax.set_ylabel('SSE')
-    ax.set_title(f'BO of {column_func_inputs[1]}\nElution Curves\n [Da, kfp, Q_max, b]]\n{optimization_budget+1} Interations')
-    ax.legend()
-        # Enforce whole numbers on the x-axis
-    ax.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
-    plt.show()
-
-    # How did the inputs change?
-    # fig, axs = plt.subplots(2, 2, figsize=(15, 10))
-
-    # # Plot Da on the top-left plot
-    # axs[0, 0].scatter(x_plot, norm_all_inputs[:, 0], label='Da', color='blue', alpha=0.6)
-    # axs[0, 0].axvline(x=x_plot[idx_min], linestyle='--', label='Best Point', color='k')
-    # axs[0, 0].plot(x_plot, norm_all_inputs[:, 0], color='blue', alpha=0.6)
-    # axs[0, 0].set_xlabel('Function Calls')
-    # axs[0, 0].set_ylabel('Input Parameters')
-    # axs[0, 0].set_title('Normalized Da')
-    # axs[0, 0].legend()
-
-    # # Plot Q_max on the top-right plot
-    # axs[0, 1].scatter(x_plot, norm_all_inputs[:, 2], label='Q_max', color='orange', alpha=0.6)
-    # axs[0, 1].axvline(x=x_plot[idx_min], linestyle='--', label='Best Point', color='k')
-    # axs[0, 1].plot(x_plot, norm_all_inputs[:, 2], color='orange', alpha=0.6)
-    # axs[0, 1].set_xlabel('Function Calls')
-    # axs[0, 1].set_ylabel('Input Parameters')
-    # axs[0, 1].set_title('Normalized Q_max')
-    # axs[0, 1].legend()
-
-    # # Plot kfp on the bottom-left plot
-    # axs[1, 0].scatter(x_plot, norm_all_inputs[:, 1], label='kfp', color='green', alpha=0.6)
-    # axs[1, 0].axvline(x=x_plot[idx_min], linestyle='--', label='Best Point', color='k')
-    # axs[1, 0].plot(x_plot, norm_all_inputs[:, 1], color='green', alpha=0.6)
-    # axs[1, 0].set_xlabel('Function Calls')
-    # axs[1, 0].set_ylabel('Input Parameters')
-    # axs[1, 0].set_title('Normalized kfp')
-    # axs[1, 0].legend()
-
-    # # Plot b on the bottom-right plot
-    # axs[1, 1].scatter(x_plot, norm_all_inputs[:, 3], label='b', color='blue', alpha=0.6)
-    # axs[1, 1].axvline(x=x_plot[idx_min], linestyle='--', label='Best Point', color='k')
-    # axs[1, 1].plot(x_plot, norm_all_inputs[:, 3], color='blue', alpha=0.6)
-    # axs[1, 1].set_xlabel('Function Calls')
-    # axs[1, 1].set_ylabel('Input Parameters')
-    # axs[1, 1].set_title('Normalized b')
-    # axs[1, 1].legend()
-    # fig.suptitle('Optimization Trajectories')
-    
-    # # Enforce whole numbers on the x-axis
-    # for ax in axs.flat:
-    #     ax.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
-
-    # # axs.set_title(f'Optimization Trajectories')
-    # plt.tight_layout()
-    # plt.show()
+            # SAVE to JSON:
+            with open("BO_COL_REG.json", "w") as f:
+                json.dump(data_dict, f, indent=4)
 
 
-    # 2. Elution Curves
-    fig, bx = plt.subplots(1, 1, figsize=(15, 5))
-    # Experimental Data:
-    bx.scatter(t_data/60, col_elution_data, label='Experimental Data', color='red', alpha=0.6)
-    # Model:
-    # Initial Guess
-    bx.plot(t_data/60, elution_curve_initial_guess, linestyle='--', label='Initial Guess', color='grey', alpha=0.6)
-    # Fitted Model
-    bx.plot(t_data/60, elution_curve_best, label='Model', color='blue', alpha=0.6)
-    bx.scatter(t_data/60, elution_curve_best, marker='s', color='blue', alpha=0.6)
+            # ---------------- Visualise THE OUTPUTS
 
-    # Lables
-    bx.set_xlabel('time, min')
-    bx.set_ylabel('g/mL')
-    bx.set_title(f'{column_func_inputs[1]}\nElution Curves\n {best_inputs} [Da, kfp, Q_max, b]\n{optimization_budget+1} Interations')
-    bx.legend()
-    plt.show()
+            # 1. Function Progression:
+            idx_min = np.argmin(f_vals)
+            norm_best_inputs = norm_all_inputs[idx_min,:]
+            best_inputs = all_inputs[idx_min,:]
 
+            print(f'Best Fitted Points: {best_inputs}')
+            __, elution_curve_best = objective_function(norm_best_inputs, t_data, col_elution_data, column_func_inputs,max_of_each_input)
+            
+
+            fig, ax = plt.subplots(1, 1, figsize=(15, 5))
+            x_plot = range(len(f_vals))
+            ax.scatter(x_plot, f_vals, label='SSE', color='blue', alpha=0.6)
+            ax.plot(x_plot, f_vals, label='SSE', color='blue', alpha=0.6)
+
+            ax.scatter(x_plot[idx_min], f_vals[idx_min], marker='*', color='red', s=200, label='Minimum SSE')
+            ax.axvline(x=x_plot[0], linestyle='--', label='Initial Guess', color='green')
+
+            ax.set_xlabel('Function Calls')
+            ax.set_ylabel('SSE')
+            ax.set_title(f'BO of {column_func_inputs[1]}\nElution Curves\n [Da, kfp, Q_max, b]]\n{optimization_budget+1} Interations')
+            ax.legend()
+                # Enforce whole numbers on the x-axis
+            ax.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
+            plt.show()
+
+            # How did the inputs change?
+            fig, axs = plt.subplots(2, 2, figsize=(15, 10))
+
+            # Plot Da on the top-left plot
+            axs[0, 0].scatter(x_plot, norm_all_inputs[:, 0], label='Da', color='blue', alpha=0.6)
+            axs[0, 0].axvline(x=x_plot[idx_min], linestyle='--', label='Best Point', color='k')
+            axs[0, 0].plot(x_plot, norm_all_inputs[:, 0], color='blue', alpha=0.6)
+            axs[0, 0].set_xlabel('Function Calls')
+            axs[0, 0].set_ylabel('Input Parameters')
+            axs[0, 0].set_title('Normalized Da')
+            axs[0, 0].legend()
+
+            # Plot Q_max on the top-right plot
+            axs[0, 1].scatter(x_plot, norm_all_inputs[:, 2], label='Q_max', color='orange', alpha=0.6)
+            axs[0, 1].axvline(x=x_plot[idx_min], linestyle='--', label='Best Point', color='k')
+            axs[0, 1].plot(x_plot, norm_all_inputs[:, 2], color='orange', alpha=0.6)
+            axs[0, 1].set_xlabel('Function Calls')
+            axs[0, 1].set_ylabel('Input Parameters')
+            axs[0, 1].set_title('Normalized Q_max')
+            axs[0, 1].legend()
+
+            # Plot kfp on the bottom-left plot
+            axs[1, 0].scatter(x_plot, norm_all_inputs[:, 1], label='kfp', color='green', alpha=0.6)
+            axs[1, 0].axvline(x=x_plot[idx_min], linestyle='--', label='Best Point', color='k')
+            axs[1, 0].plot(x_plot, norm_all_inputs[:, 1], color='green', alpha=0.6)
+            axs[1, 0].set_xlabel('Function Calls')
+            axs[1, 0].set_ylabel('Input Parameters')
+            axs[1, 0].set_title('Normalized kfp')
+            axs[1, 0].legend()
+
+            # Plot b on the bottom-right plot
+            axs[1, 1].scatter(x_plot, norm_all_inputs[:, 3], label='b', color='blue', alpha=0.6)
+            axs[1, 1].axvline(x=x_plot[idx_min], linestyle='--', label='Best Point', color='k')
+            axs[1, 1].plot(x_plot, norm_all_inputs[:, 3], color='blue', alpha=0.6)
+            axs[1, 1].set_xlabel('Function Calls')
+            axs[1, 1].set_ylabel('Input Parameters')
+            axs[1, 1].set_title('Normalized b')
+            axs[1, 1].legend()
+            fig.suptitle('Optimization Trajectories')
+            
+            # Enforce whole numbers on the x-axis
+            for ax in axs.flat:
+                ax.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
+
+            # axs.set_title(f'Optimization Trajectories')
+            plt.tight_layout()
+            plt.show()
+
+
+            # 2. Elution Curves
+            fig, bx = plt.subplots(1, 1, figsize=(15, 5))
+            # Experimental Data:
+            bx.scatter(t_data/60, col_elution_data, label='Experimental Data', color='red', alpha=0.6)
+            # Model:
+            # Initial Guess
+            bx.plot(t_data/60, elution_curve_initial_guess, linestyle='--', label='Initial Guess', color='grey', alpha=0.6)
+            # Fitted Model
+            bx.plot(t_data/60, elution_curve_best, label='Model', color='blue', alpha=0.6)
+            bx.scatter(t_data/60, elution_curve_best, marker='s', color='blue', alpha=0.6)
+
+            # Lables
+            bx.set_xlabel('time, min')
+            bx.set_ylabel('g/mL')
+            bx.set_title(f'{column_func_inputs[1]}\nElution Curves\n {best_inputs} [Da, kfp, Q_max, b]\n{optimization_budget+1} Interations')
+            bx.legend()
+            plt.show()
+
+            # Store the Profile data for each component
+            comp_data.append([t_data/60,col_elution_data])
+            comp_best_profiles.append([t_data/60,elution_curve_best])
+            counter += 1
+
+#%%
+# 2. Elution Curves
+fig, cx = plt.subplots(1, 1, figsize=(15, 5))
+# Experimental Data:
+cx.scatter(comp_data[0][0],comp_data[0][1], label='Borate Experimental Data', color='red', alpha=0.6)
+cx.scatter(comp_data[1][0], comp_data[1][1], label='HCl Experimental Data', color='green', alpha=0.6)
+# Model:
+# Fitted Model
+cx.plot(comp_best_profiles[0][0], comp_best_profiles[0][1], label='Borate Model', color='red', alpha=0.6)
+# cx.scatter(comp_best_profiles[0][0], comp_best_profiles[0][1], marker='s', color='red', alpha=0.6)
+
+cx.plot(comp_best_profiles[1][0],comp_best_profiles[1][1], label='HCl Model', color='green', alpha=0.6)
+# cx.scatter(comp_best_profiles[1][0],comp_best_profiles[1][1], marker='s', color='green', alpha=0.6)
+
+# Lables
+cx.set_xlabel('time, min')
+cx.set_ylabel('g/mL')
+cx.set_title(f'Regression Profiles of Borate and HCl on {resin_select}')
+cx.legend()
+plt.show()
 
 
 # %%

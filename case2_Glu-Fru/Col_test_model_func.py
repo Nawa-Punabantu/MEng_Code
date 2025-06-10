@@ -103,20 +103,20 @@ def column_func(column_func_inputs):
 
         #------------------- 1. Single Parameters Models
         # Linear
-        K1 = cusotom_isotherm_params[0]
-        H = K1 # Henry's Constant
-        q_star_1 = H*c
+        # K1 = cusotom_isotherm_params[0]
+        # H = K1 # Henry's Constant
+        # q_star_1 = H*c
 
         #------------------- 2. Two-Parameter Models
-        # K1 = cusotom_isotherm_params[0]
-        # K2 = cusotom_isotherm_params[1]
+        K1 = cusotom_isotherm_params[0]
+        K2 = cusotom_isotherm_params[1]
 
-        # #  2.1 Langmuir  
-        # Q_max = K1
-        # b = K2
-        # #-------------------------------
-        # q_star_2_1 = Q_max*b*c/(1 + b*c)
-        # #-------------------------------
+        #  2.1 Langmuir  
+        Q_max = K1
+        b = K2
+        #-------------------------------
+        q_star_2_1 = Q_max*b*c/(1 + b*c)
+        #-------------------------------
 
         # 2.2 Freundlich
         # a = K1
@@ -138,7 +138,7 @@ def column_func(column_func_inputs):
         # q_star_3 = H*c + Q_max*b*c/(1 + b*c)
         #-------------------------------
 
-        return q_star_1 # [qA, ...]
+        return q_star_2_1 # [qA, ...]
     # 1.2. Defining the Isotherm Given that it is COUPLED (CUP)
     # CUP
     # NOTE: You need to manually set the equation you want 
@@ -1130,52 +1130,54 @@ Da_all = np.array([3.218e-5, 8.38e-6 ])
 
 column_func_inputs = [iso_type,  Names, color, parameter_sets, Da_all, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all]
 
-start = time.time()
-col_elution, y_matrices, nx, t, t_sets, t_schedule, C_feed, m_in, m_out, Model_Acc, Expected_Acc, Error_percent = column_func(column_func_inputs) 
-end = time.time()
-print('---------------------------')
-print(f'Computation Time: {end-start} s || {(end-start)/60} min')
-print('---------------------------\n\n')
 
-def col_elution_profile(t_vals, col_elution, num_comp):
-    # t_vals = np.array(t_vals)
-    fig, ax = plt.subplots(1, 1, figsize=(15, 5))
-    for i in range(1):
-
-        if iso_type == 'UNC':
-            # print(f'size of t_vals: {len(t_vals)}')
-            ax.plot(t_vals[i]/60, col_elution[i], color = color[i], label = f"Model: {Names[i]}")
-            # print(f"done 1 doing 2..")
-            ax.plot(t_vals[i+1]/60, col_elution[i+1], color = color[i+1], label = f"Model: {Names[i+1]}")
-
-
-        elif iso_type == 'CUP':
-            ax.plot(t_vals/60, col_elution[i], color = color[i], label = f"Model: {Names[i]}")
-            ax.plot(t_vals/60, col_elution[i+1], color = color[i+1], label = f"Model: {Names[i+1]}")
-           
-        ax.set_xlabel('Time (min)')
-        ax.set_ylabel('Concentration g/mL')
-        ax.legend()
-        ax.set_title(f"Single Column Elution Curves\n{Names}\nDa: {Da_all},kfp:[{parameter_sets[0]['kfp']}, {parameter_sets[1]['kfp']}],Isoth:{cusotom_isotherm_params_all}")
-    plt.show()
-
-
-if iso_type == "UNC":
-    col_elution_profile(t_sets, col_elution, num_comp)
-elif iso_type == "CUP":
-    col_elution_profile(t, col_elution, num_comp)
-
-
-
-# print("\n\n\nStarting Animation. . . ")
-# if iso_type == "UNC":
-#     animate_profiles(t_sets, "4_col", y_matrices, nx, Names, color, t_schedule, t_index)
-# elif iso_type == "CUP":
-#     animate_profiles([t, t], "4_col", y_matrices, nx, Names, color, t_schedule, t_index)
-# print("End of Animation. . . . ")
 
 # start = time.time()
+# col_elution, y_matrices, nx, t, t_sets, t_schedule, C_feed, m_in, m_out, Model_Acc, Expected_Acc, Error_percent = column_func(column_func_inputs) 
 # end = time.time()
 # print('---------------------------')
-# print(f'Computation Time: {end-start} s')
+# print(f'Computation Time: {end-start} s || {(end-start)/60} min')
 # print('---------------------------\n\n')
+
+# def col_elution_profile(t_vals, col_elution, num_comp):
+#     # t_vals = np.array(t_vals)
+#     fig, ax = plt.subplots(1, 1, figsize=(15, 5))
+#     for i in range(1):
+
+#         if iso_type == 'UNC':
+#             # print(f'size of t_vals: {len(t_vals)}')
+#             ax.plot(t_vals[i]/60, col_elution[i], color = color[i], label = f"Model: {Names[i]}")
+#             # print(f"done 1 doing 2..")
+#             ax.plot(t_vals[i+1]/60, col_elution[i+1], color = color[i+1], label = f"Model: {Names[i+1]}")
+
+
+#         elif iso_type == 'CUP':
+#             ax.plot(t_vals/60, col_elution[i], color = color[i], label = f"Model: {Names[i]}")
+#             ax.plot(t_vals/60, col_elution[i+1], color = color[i+1], label = f"Model: {Names[i+1]}")
+           
+#         ax.set_xlabel('Time (min)')
+#         ax.set_ylabel('Concentration g/mL')
+#         ax.legend()
+#         ax.set_title(f"Single Column Elution Curves\n{Names}\nDa: {Da_all},kfp:[{parameter_sets[0]['kfp']}, {parameter_sets[1]['kfp']}],Isoth:{cusotom_isotherm_params_all}")
+#     plt.show()
+
+
+# if iso_type == "UNC":
+#     col_elution_profile(t_sets, col_elution, num_comp)
+# elif iso_type == "CUP":
+#     col_elution_profile(t, col_elution, num_comp)
+
+
+
+# # print("\n\n\nStarting Animation. . . ")
+# # if iso_type == "UNC":
+# #     animate_profiles(t_sets, "4_col", y_matrices, nx, Names, color, t_schedule, t_index)
+# # elif iso_type == "CUP":
+# #     animate_profiles([t, t], "4_col", y_matrices, nx, Names, color, t_schedule, t_index)
+# # print("End of Animation. . . . ")
+
+# # start = time.time()
+# # end = time.time()
+# # print('---------------------------')
+# # print(f'Computation Time: {end-start} s')
+# # print('---------------------------\n\n')
