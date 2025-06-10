@@ -108,6 +108,7 @@ def column_func(column_func_inputs):
         # q_star_1 = H*c
 
         #------------------- 2. Two-Parameter Models
+        # print(f'cusotom_isotherm_params:{cusotom_isotherm_params}')
         K1 = cusotom_isotherm_params[0]
         K2 = cusotom_isotherm_params[1]
 
@@ -525,9 +526,9 @@ def column_func(column_func_inputs):
         # Isotherm:
         #########################################################################
         # IF DOING REGRESSION (one component at a time):
-        # isotherm = cusotom_isotherm_func(cusotom_isotherm_params_all, c)
+        isotherm = cusotom_isotherm_func(cusotom_isotherm_params_all, c)
         # Otherwise if normally simulating - for mulitple components
-        isotherm = cusotom_isotherm_func(cusotom_isotherm_params_all[comp_idx,:], c)
+        # isotherm = cusotom_isotherm_func(cusotom_isotherm_params_all[comp_idx,:], c)
 
         # Mass Transfer:
         #########################################################################
