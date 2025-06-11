@@ -435,17 +435,17 @@ if __name__ == "__main__":
     
 
     # Da guesses:
-    Da_bor_guess = 7.45e-5 # cm^2/s
-    Da_hcl_guess = 7.11e-7 # cm^2/s
+    Da_bor_guess = 4.72e-5 # cm^2/s
+    Da_hcl_guess = 7.45e-5 # cm^2/s
     # kfp guesses:
-    kfp_bor_guess = 0.6322
-    kfp_hcl_guess = 0.00896
+    kfp_bor_guess = 0.684
+    kfp_hcl_guess = 0.632
     # Isotherm Guesses
-    K1_bor_guess = 0.742
-    K1_hcl_guess = 2.72 
+    K1_bor_guess = 4.60
+    K1_hcl_guess = 0.742 
     #//
-    K2_bor_guess = 2.892
-    K2_hcl_guess = 2.95
+    K2_bor_guess = 5.76
+    K2_hcl_guess = 2.89
 
     # Load Initial Guesses in vector:
     # Note that regression is performed on 1 component at a time, so load for Glu or Fru:
@@ -453,7 +453,7 @@ if __name__ == "__main__":
 
     
 
-    optimization_budget = 50
+    optimization_budget = 1
     bounds = [  (0.01, 1), # Da
                 (0.0001, 1), # kfp
                 (0.0001, 1), # K1 - Q_max OR H
@@ -509,21 +509,22 @@ if __name__ == "__main__":
     resin_select = PCR_comps[-1] # PCR_comps OR UBK_comps
 
     # Step 2: Use # UBK_comps[:-1] OR PCR_comps[:-1]:
-
+    counter = 0
     for comp in PCR_comps[:-1]: # UBK_comps[:-1] OR PCR_comps[:-1]
-            counter = 0
+            
             if  counter == 0:
                     x_initial_guess = np.array([Da_bor_guess, kfp_bor_guess, K1_bor_guess, K2_bor_guess])  # [Da, kfp, K1, K2, ... Kn]
                     print(f'x_initial_guess: {x_initial_guess}')
                     # Normalize Initial Guess
                     x_initial_guess = x_initial_guess/max_of_each_input
-            elif counter == 1:
+            else:
                     x_initial_guess = np.array([Da_hcl_guess, kfp_hcl_guess, K1_hcl_guess, K2_hcl_guess]) #, K2_hcl_guess])  # [Da, kfp, K1, K2, ... Kn] ])
                     print(f'x_initial_guess: {x_initial_guess}')
                     # Normalize Initial Guess
                     x_initial_guess = x_initial_guess/max_of_each_input
             
             counter = counter + 1
+            print(f'counter!!!!!!!!!!!!: {counter}')
             # --------------------------------
             t_data, col_elution_data, column_func_inputs = get_data_from_excel(file_path= comp, t_start=2,t_end=23, resolution=None)
             num_points = len(t_data)
