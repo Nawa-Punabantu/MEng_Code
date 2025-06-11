@@ -2,6 +2,47 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize
 
+def linear(params, c):
+    """
+    Linear isotherm
+    """
+    K1 = params[0]
+    H = K1 # Henry's Constant
+    q_star = H*c
+    return q_star
+
+def langmuir(params, c):
+    """
+    Langmuir isotherm
+    """
+    K1 = params[0]
+    K2 = params[1]
+
+    #  2.1 Langmuir  
+    Q_max = K1
+    b = K2
+    #-------------------------------
+    q_star = Q_max*b*c/(1 + b*c)
+
+    return q_star
+
+def freundlich(params, c):
+    """
+    Freundlich isotherm
+    """
+    K1 = params[0]
+    K2 = params[1]
+
+    n = K1
+    b = K2
+    #-------------------------------
+    q_star = b*c**(1/n)
+    #-------------------------------
+
+    return q_star
+
+
+    
 def custom_isotherm(params, c):
     """
     Langmuir isotherm function: q = (Q_max * b * c) / (1 + b * c)
@@ -168,3 +209,5 @@ if __name__ == "__main__":
         # plot_fit(c_data, q_data, q_model, fitted_params, name, colours)
     
     plot_fit(c_plot, q_data_all, q_model_all, fitted_params_all, Names, colours)
+
+
