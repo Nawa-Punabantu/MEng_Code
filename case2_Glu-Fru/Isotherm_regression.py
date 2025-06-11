@@ -1,75 +1,50 @@
-# The general form of the advection-diffusion equation with reaction for any number of components, n:
-
-# $$\frac{\partial C_n}{\partial t} = D \frac{\partial^2 C_n}{\partial x^2} - v \frac{\partial C_n}{\partial x} - F\frac{\partial q_n}{\partial t}$$
-
-# $$F = \frac{1-e}{e}$$
-
-# where:
-# - $C$ is the liquid concentration of the diffusing substance.
-# - $q$ is the solid concentration of the diffusing substance.
-# - $F$ is the phase ratio
-# - $e$ bed voidage
-# - $t$ is time.
-# - $D$ is the diffusion coefficient.
-# - $v$ is the velocity field (advection speed).
-# - $x$ is the spatial coordinate.
-
-# # tips:
-# - the Error: "IndexError: index 10 is out of bounds for axis 0 with size 9"
-# may be due to a miss-match in size between the initial conditons and c, q in the ode func.
-
 import numpy as np
-from scipy.integrate import solve_ivp
 import matplotlib.pyplot as plt
-import pandas as pd
-# Loading the Plotting Libraries
-from matplotlib.pyplot import subplots
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-from PIL import Image
-from scipy import integrate
 from scipy.optimize import minimize
-import time
-# import plotly.graph_objects as go
 
+def custom_isotherm(params, c):
+    """
+    Langmuir isotherm function: q = (Q_max * b * c) / (1 + b * c)
 
-def cusotom_isotherm_func(cusotom_isotherm_params, c):
+    Parameters:
+    - params: list or array of Langmuir parameters [Q_max, b]
+    - c: array of liquid concentrations
+
+    Returns:
+    - q_star: equilibrium solid concentration
     """
-    c => liquid concentration of ci
-    q_star => solid concentration of ci @ equilibrium
-    cusotom_isotherm_params[i] => given parameter set of component, i
-    """
+
 
     # Uncomment as necessary
 
     #------------------- 1. Single Parameters Models
     # Linear
-    # K1 = cusotom_isotherm_params[0]
+    # K1 = params[0]
     # H = K1 # Henry's Constant
     # q_star_1 = H*c
 
     #------------------- 2. Two-Parameter Models
-    K1 = cusotom_isotherm_params[0]
-    K2 = cusotom_isotherm_params[1]
+    K1 = params[0]
+    K2 = params[1]
 
     # #  2.1 Langmuir  
-    Q_max = K1
-    b = K2
-    #-------------------------------
-    q_star_2_1 = Q_max*b*c/(1 + b*c)
-    #-------------------------------
-
-    # 2.2 Freundlich
-    # a = K1
+    # Q_max = K1
     # b = K2
     # #-------------------------------
-    # q_star_2_2 = b*c**(1/a)
+    # q_star_2_1 = Q_max*b*c/(1 + b*c)
     # #-------------------------------
 
+    # # 2.2 Freundlich
+    n = K1
+    b = K2
+    #-------------------------------
+    q_star_2_2 = b*c**(1/n)
+    #-------------------------------
+
     #------------------- 3. Three-Parameter models 
-    # K1 = cusotom_isotherm_params[0]
-    # K2 = cusotom_isotherm_params[1]
-    # K3 = cusotom_isotherm_params[2]
+    # K1 = params[0]
+    # K2 = params[1]
+    # K3 = params[2]
 
     # Linear + Langmuir
     # H = K1
@@ -78,77 +53,118 @@ def cusotom_isotherm_func(cusotom_isotherm_params, c):
     #-------------------------------
     # q_star_3 = H*c + Q_max*b*c/(1 + b*c)
     #-------------------------------
+    return q_star_2_2
 
-    return q_star_2_1 # [qA, ...]
-
-
-# Define the objective function
-
-def objective(func_params, func, data):
+def regression_error(params, isotherm_func, c_data, q_data):
     """
-    Returns the RSE and other relevant regression parameters for downstream modelling
-    func => The cusotom_isotherm_func selected
-    func_params => proposed parameter values
-    data = [c_data, q_data]
-    c_data => Liquid concentration data
-    q_data => Solid concentration data
-    
+    Objective function for minimization (Residual Sum of Squares)
+
+    Parameters:
+    - params: parameter guesses
+    - isotherm_func: function handle for the isotherm model
+    - c_data: measured liquid concentrations
+    - q_data: measured solid concentrations
+
+    Returns:
+    - RSS (Residual Sum of Squares)
     """
-    # Evaluate the concentration profile
-    c_data, q_data =  data[0,:], data[1,:] 
+    q_pred = isotherm_func(params, c_data)
+    rss = np.sum((q_data - q_pred) ** 2)
+    return rss
 
-    q_model = func(func_params, c_data)
+def fit_isotherm(c_data, q_data, isotherm_func, initial_guess):
+    """
+    Fits the given isotherm model to experimental data.
 
-    error = np.sum((q_data - q_model) ** 2)
+    Returns:
+    - result: Optimization result object
+    - r_squared: coefficient of determination
+    """
+    result = minimize(regression_error, initial_guess, args=(isotherm_func, c_data, q_data), method='L-BFGS-B')
 
-    return error
+    if not result.success:
+        raise RuntimeError(f"Optimization failed: {result.message}")
 
+    fitted_params = result.x
+    q_pred = isotherm_func(fitted_params, c_data)
+    ss_res = np.sum((q_data - q_pred) ** 2)
+    ss_tot = np.sum((q_data - np.mean(q_data)) ** 2)
+    r_squared = 1 - (ss_res / ss_tot)
 
+    return result, r_squared
 
-if __name__ == "__main__":
-    Names = ['Glucose', 'Fructose']
-    # NOTE, UNITS!!!
-    # c_data => grams of solute/vol of liquid cm^3
-    # q_data => grams of solute/vol of resin (cm^3)
-
-    glu_data = np.array([[3.05,2.14,1.55,1.04,0.73,0.00,0.00], [0.0021,0.0015,0.0011,0.0007,0.0007,0.0004, 0.0005]]) # [c_data, q_data]
-    fru_data = np.array([[3.37,2.46,1.70,1.13,0.40,0.00,0.00], [0.0021,0.0015,0.0011,0.0007,0.0007,0.0004, 0.0005]] )# [c_data, q_data]
-    data_all = [glu_data, fru_data]
-
-    for i in range(len(data_all)):
-        data = data_all[i]
-        # Initial guess for parameters [slope, intercept]
-        initial_guess =[0,0]
-
-        # Minimize the loss
-        func = cusotom_isotherm_func
-        result = minimize(objective, initial_guess, args=(func, data), method='L-BFGS-B')
-
-        # Extract fitted parameters
-        fitted_params = result.x
-        print("Fitted parameters:", fitted_params)
-
-        # Plot 
-        plt.scatter(data[0,:], data[1,:], label='Data')
-        plt.plot(data[0,:], cusotom_isotherm_func(fitted_params, data[0,:]), color='red', label='Fitted Line')
-        plt.title(f'{Names[i]}')
+def plot_fit(c_data, q_data, q_model, fitted_params, name, colours):
+    """
+    Plot experimental vs fitted data.
+    """
+    if len(q_model) == 1:
+        plt.scatter(c_data, q_data, label='Experimental Data')
+        plt.plot(c_data, q_model, 'r-', label='Fitted Model')
+        plt.title(f'Isotherm Fit - {name} \n Fitted Parameters: {fitted_params}')
+        plt.xlabel('Liquid Concentration [g/mL]')
+        plt.ylabel('Solid Concentration [g/mL]')
         plt.legend()
+        plt.grid(True)
+        plt.show()
+    else:
+        print('Here!')
+        # print(f'q_data[0]:{q_data[0]}')
+        # print(f'c_data:{c_data}')
+        # print(f'len(q_model):{len(q_model)}')
+        plt.scatter(c_data[0], q_data[0], label=f' {name[0]} Experimental Data', color=f'{colours[0]}')
+        plt.scatter(c_data[1], q_data[1], label=f' {name[1]} Experimental Data', color=f'{colours[1]}')
+
+        plt.plot(c_data[0], q_model[0], '-', label=f'{name[0]} Fitted Model', color=f'{colours[0]}')
+        plt.plot(c_data[1], q_model[1], '-', label=f'{name[1]} Fitted Model', color=f'{colours[1]}')
+
+
+
+        plt.title(f'Isotherm Fit - {name} \n Fitted Parameters: {fitted_params}')
+        plt.xlabel('Liquid Concentration [g/mL]')
+        plt.ylabel('Solid Concentration [g/mL]')
+        plt.legend()
+        plt.grid(True)
         plt.show()
 
 
+# Main routine
+if __name__ == "__main__":
+    Names = ['Glucose', 'Fructose']
+    colours = ['Green', 'orange']
+    q_model_all = []
+    q_data_all = []
+    fitted_params_all = []
+    c_plot = []
 
+    datasets = [
+        np.array([[0.00, 0.00, 0.73, 1.04,1.55, 2.14, 3.05],
+                  [0.0013, 0.0018, 0.0028, 0.0031, 0.0032, 0.0033, 0.0034]]),
+        np.array([[0.00, 0.00, 0.40,1.13, 1.70, 2.46,  3.37],
+                  [0.0023, 0.0036, 0.0038, 0.0009, 0.001, 0.0014, 0.002]])
+    ]
 
+    for name, data in zip(Names, datasets):
+        c_data, q_data = data[0], data[1]
 
+        # Reasonable initial guess for [Q_max, b]
+        initial_guess = [0.1, 1.0]
+        # initial_guess = [0.1]
 
+        result, r2 = fit_isotherm(c_data, q_data, custom_isotherm, initial_guess)
+        fitted_params = result.x
+
+        print(f"\n\nComponent: {name}")
+        print(f"Fitted Parameters: {fitted_params}")
+        print(f"R²: {r2:.4f}\n")
+
+        
+        q_model = custom_isotherm(fitted_params, c_data)
+        print(f'q_model: {q_model}')
+
+        q_model_all.append(q_model)
+        q_data_all.append(q_data)
+        fitted_params_all.append(fitted_params)
+        c_plot.append(c_data)
+        # plot_fit(c_data, q_data, q_model, fitted_params, name, colours)
     
-
-
-
-
-
-
-
-
-
-
-
+    plot_fit(c_plot, q_data_all, q_model_all, fitted_params_all, Names, colours)
