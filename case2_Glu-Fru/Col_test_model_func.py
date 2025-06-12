@@ -40,7 +40,7 @@ import time
 def column_func(column_func_inputs):
     
     #### UNPACK INPUT PARAMETERS ########
-    iso_type,  Names, color, parameter_sets, Da_all, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all =  column_func_inputs[0:]
+    iso_type, Names, color, parameter_sets, Da_all, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all =  column_func_inputs[0:]
     
     ############## Calculated (Secondary) Input Parameters:
     Ncol_num = 1
@@ -108,10 +108,11 @@ def column_func(column_func_inputs):
         # q_star_1 = H*c
 
         #------------------- 2. Two-Parameter Models
+        # print(f'cusotom_isotherm_params:{cusotom_isotherm_params}')
         K1 = cusotom_isotherm_params[0]
         K2 = cusotom_isotherm_params[1]
 
-        #  2.1 Langmuir  
+        # # #  2.1 Langmuir  
         Q_max = K1
         b = K2
         #-------------------------------
@@ -123,7 +124,8 @@ def column_func(column_func_inputs):
         # b = K2
         # #-------------------------------
         # q_star_2_2 = b*c**(1/a)
-        # #-------------------------------
+        # print(f'q_star_2_2:{q_star_2_2}')
+        #-------------------------------
 
         #------------------- 3. Three-Parameter models 
         # K1 = cusotom_isotherm_params[0]
@@ -525,9 +527,9 @@ def column_func(column_func_inputs):
         # Isotherm:
         #########################################################################
         # IF DOING REGRESSION (one component at a time):
-        # isotherm = cusotom_isotherm_func(cusotom_isotherm_params_all, c)
+        isotherm = cusotom_isotherm_func(cusotom_isotherm_params_all, c)
         # Otherwise if normally simulating - for mulitple components
-        isotherm = cusotom_isotherm_func(cusotom_isotherm_params_all[comp_idx,:], c)
+        # isotherm = cusotom_isotherm_func(cusotom_isotherm_params_all[comp_idx,:], c)
 
         # Mass Transfer:
         #########################################################################
@@ -1077,61 +1079,59 @@ def animate_profiles(t_sets, title, y, nx, labels, colors, t_start_inject_all, t
 
 ######################################### FUNCTION EXECUTIONS ########################
 
-###################### PRIMARY INPUTS #########################
-# What tpye of isoherm is required?
-# Coupled: "CUP"
-# Uncoupled: "UNC"
-iso_type = "CUP" 
-Names = ["Borate", "HCl"] #, "C"]#, "D", "E", "F"]
-color = ["red", "green"] #, "b"]#, "r", "purple", "brown"]
-num_comp = len(Names)
+# ###################### PRIMARY INPUTS #########################
+# # What tpye of isoherm is required?
+# # Coupled: "CUP"
+# # Uncoupled: "UNC"
+# iso_type = "UNC" 
+# Names = ["Glucose", "Fructose"] #, "C"]#, "D", "E", "F"]
+# color = ["green", "orange"] #, "b"]#, "r", "purple", "brown"]
+# num_comp = len(Names)
 
 
 
 
-e = 0.4      # assuming shperical packing, voidage (0,1]
-Q_S = 8.4*0.0166666667 # cm^3/s | The volumetric flowrate of the feed to the left of the feed port (pure solvent)
-t_index = 70 # s # Index time # How long the SINGLE pulse holds for
-slug_vol = 15 #cm^3
-Q_inj = slug_vol/t_index # cm^3/s | The volumetric flowrate of the injected concentration slug
+# e = 0.4      # assuming shperical packing, voidage (0,1]
+# Q_S = 8.4*0.0166666667 # cm^3/s | The volumetric flowrate of the feed to the left of the feed port (pure solvent)
+# t_index = 70 # s # Index time # How long the SINGLE pulse holds for
+# slug_vol = 15 #cm^3
+# Q_inj = slug_vol/t_index # cm^3/s | The volumetric flowrate of the injected concentration slug
 
-Ncol_num = 1
-tend_min = 20 # min # How long the simulation is for
-nx = 50
-Bm = 300
-###################### COLUMN DIMENTIONS ########################
-L = 17.5 # cm
-d_col = 2 # cm
-
-
-
-
-# # Uncomment as necessary:
-# # Linear 
-# cusotom_isotherm_params_all = np.array([[0.27],[0.53]])
-cusotom_isotherm_params_all = np.array([[3.2069715], [3.54]]) # H_glu, H_fru 
-# # # Langmuir
-# # cusotom_isotherm_params_all = [[3,3]]
-# cusotom_isotherm_params_all = np.array([[2.51181596, 1.95381598], [2.55314612, 1.65186647]])
-
-# # Linear + Langmuir
-# # cusotom_isotherm_params_all = [[0.3, 1, 2]]
-
-# Parameter sets for different components
-# Units:
-# - Concentrations: g/cm^3
-# - kfp: 1/s
-parameter_sets = [
-    {"kfp": 0.467, "C_feed": 0.42},    # Glucose SMB Launch
-    {"kfp": 0.462, "C_feed": 0.42}] #, # Fructose
-
-
-Da_all = np.array([3.218e-5, 8.38e-6 ]) 
-
-column_func_inputs = [iso_type,  Names, color, parameter_sets, Da_all, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all]
+# Ncol_num = 1
+# tend_min = 20 # min # How long the simulation is for
+# nx = 50
+# Bm = 300
+# ###################### COLUMN DIMENTIONS ########################
+# L = 17.5 # cm
+# d_col = 2 # cm
 
 
 
+
+# # # Uncomment as necessary:
+# # # Linear 
+# # cusotom_isotherm_params_all = np.array([[0.27],[0.53]])
+# cusotom_isotherm_params_all = np.array([[3.2069715], [3.54]]) # H_glu, H_fru 
+# # # # Langmuir
+# # # cusotom_isotherm_params_all = [[3,3]]
+# # cusotom_isotherm_params_all = np.array([[2.51181596, 1.95381598], [2.55314612, 1.65186647]])
+
+# # # Linear + Langmuir
+# # # cusotom_isotherm_params_all = [[0.3, 1, 2]]
+
+# # Parameter sets for different components
+# # Units:
+# # - Concentrations: g/cm^3
+# # - kfp: 1/s
+# parameter_sets = [
+#     {"kfp": 0.467, "C_feed": 0.42},    # Glucose SMB Launch
+#     {"kfp": 0.462, "C_feed": 0.42}] #, # Fructose
+
+
+# Da_all = np.array([3.218e-5, 8.38e-6 ]) 
+
+# column_func_inputs = [iso_type,  Names, color, parameter_sets, Da_all, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all]
+#                     #   iso_type,  Names, color, parameter_sets, Da_all, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all
 # start = time.time()
 # col_elution, y_matrices, nx, t, t_sets, t_schedule, C_feed, m_in, m_out, Model_Acc, Expected_Acc, Error_percent = column_func(column_func_inputs) 
 # end = time.time()

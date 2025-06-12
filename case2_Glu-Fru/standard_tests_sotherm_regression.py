@@ -113,6 +113,7 @@ for i, isotherm_func in enumerate(standard_isotherms):
     model_name = isotherm_func.__name__.capitalize()
     for name, (c_data, q_data) in zip(Names, datasets):
         result, r2 = fit_isotherm_multistart(isotherm_func, c_data, q_data, bounds)
+        c_data = np.linspace(c_data[0], c_data[-1], 1000)
         q_model = isotherm_func(result.x, c_data)
         label = f"{model_name} (R²={r2:.4f})"
         if name == 'Glucose':

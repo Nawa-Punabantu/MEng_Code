@@ -148,7 +148,7 @@ def plot_fit(c_data, q_data, q_model, fitted_params, name, colours):
         plt.grid(True)
         plt.show()
     else:
-        print('Here!')
+
         # print(f'q_data[0]:{q_data[0]}')
         # print(f'c_data:{c_data}')
         # print(f'len(q_model):{len(q_model)}')
