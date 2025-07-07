@@ -1356,8 +1356,8 @@ def SMB(SMB_inputs):
             'Extract Purity [A, B,. . ]',
             # 'Final Raffinate Dimensionless Stream Concentration  [A, B,. . ]',
             # 'Final Extract Dimensionless Stream Concentration  [A, B,. . ]',
-            'Final Raffinate Recovery[A, B,. . ]',
-            'Final Extract Recovery[A, B,. . ]'
+            'Raffinate Recovery[A, B,. . ]',
+            'Extract Recovery[A, B,. . ]'
         ],
         'Value': [
             f"{m_in} g",
@@ -1440,7 +1440,6 @@ import plotly.graph_objects as go
 ###########################################
 # IMPORTING MY OWN FUNCTIONS
 ###########################################
-from SMB_func import SMB
 # Loading the Plotting Libraries
 from matplotlib.pyplot import subplots
 import matplotlib.pyplot as plt
@@ -1760,7 +1759,7 @@ def animate_profiles(t_sets, title, y, nx, labels, colors, t_start_inject_all, t
 # What tpye of isoherm is required?
 # Coupled: "CUP"
 # Uncoupled: "UNC"
-iso_type = "UNC"
+iso_type = "CUP"
 
 ###################### PRIMARY INPUTS #########################
 # Define the names, colors, and parameter sets for 6 components
@@ -1826,7 +1825,7 @@ parameter_sets = [
     {"kh": 0.0315, "C_feed": 0.222},    # Glucose SMB Launch
     {"kh": 0.0217, "C_feed": 0.222}] #, # Fructose
 
-Da_all = np.array([3.218e-6, 8.38e-6 ]) 
+Da_all = np.array([6.218e-6, 6.38e-6 ]) 
 
 # ISOTHERM PARAMETERS
 ###########################################################################################
@@ -1874,10 +1873,10 @@ data = {
         'Total Expected Acc (IN-OUT)', 
         'Total Model Acc (r+l)', 
         'Total Error Percent (relative to Exp_Acc)', 
-        'Final Raffinate Collected Purity [A, B,. . ]', 
-        'Final Extract Collected Purity [A, B,. . ]',
-        'Final Raffinate Recovery[A, B,. . ]', 
-        'Final Extract Recovery[A, B,. . ]'
+        'Raffinate Purity [A, B,. . ]', 
+        'Extract Purity [A, B,. . ]',
+        'Raffinate Recovery[A, B,. . ]', 
+        'Extract Recovery[A, B,. . ]'
     ],
     'Value': [
         f'{sum(Expected_Acc)} g', 
