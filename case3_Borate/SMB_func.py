@@ -130,20 +130,20 @@ def SMB(SMB_inputs):
 
         # cusotom_isotherm_params_all has linear constants for each comp
         # Unpack respective parameters
-        # K1 = cusotom_isotherm_params[comp_idx][0] # 1st (and only) parameter of HA or HB
-        # q_star_1 = K1*c_i[comp_idx]
+        K1 = cusotom_isotherm_params_all[comp_idx][0] # 1st (and only) parameter of HA or HB
+        q_star_1 = K1*c_i[comp_idx]
 
 
         #------------------- 2. Coupled Langmuir Models
         # The parameter in the numerator is dynamic, depends on comp_idx:
-        K =  cusotom_isotherm_params_all[comp_idx][0]
+        # K =  cusotom_isotherm_params_all[comp_idx][0]
         
-        # Fix the sum of parameters in the demoninator:
-        K1 = cusotom_isotherm_params_all[0][0] # 1st (and only) parameter of HA 
-        K2 = cusotom_isotherm_params_all[1][0] # 1st (and only) parameter of HB
+        # # Fix the sum of parameters in the demoninator:
+        # K1 = cusotom_isotherm_params_all[0][0] # 1st (and only) parameter of HA 
+        # K2 = cusotom_isotherm_params_all[1][0] # 1st (and only) parameter of HB
         
-        # q_star_2 = K*c_i[comp_idx]/(1+ K1*c_i[0]+ K2*c_i[1])
-        q_star_2 = K*c_i[comp_idx]/(1+ K*c_i[comp_idx])
+        # # q_star_2 = K*c_i[comp_idx]/(1+ K1*c_i[0]+ K2*c_i[1])
+        # q_star_2 = K*c_i[comp_idx]/(1+ K*c_i[comp_idx])
 
         #------------------- 3. Combined Coupled Models
         # The parameter in the numerator is dynamic, depends on comp_idx:
@@ -160,7 +160,7 @@ def SMB(SMB_inputs):
         # q_star_3 =  linear_part + langmuir_part
 
 
-        return q_star_2 # [qA, ...]
+        return q_star_1 # [qA, ...]
 
     # DOES NOT INCLUDE THE C0 NODE (BY DEFAULT)
     def set_x(L, Ncol_num,nx_col,dx):
@@ -643,6 +643,7 @@ def SMB(SMB_inputs):
     def coeff_matrix_builder_CUP(t, Q_col_all, Q_pulse_all, dx, start_CUP, alpha, c, nx_col, IDX): # note that c_length must include nx_BC
 
         # Define the functions that call the appropriate schedule matrices:
+
         # Because all scheudels are of the same from, only one function is required
         # Calling volumetric flows:
         get_X = lambda t, X_schedule, col_idx: next((X_schedule[col_idx][j] for j in range(len(X_schedule[col_idx])) if t_start_inject_all[col_idx][j] <= t < t_start_inject_all[col_idx][j] + t_index), 1/100000000)
@@ -654,17 +655,19 @@ def SMB(SMB_inputs):
         # 3. The large  coefficent matrix for each comp will then be combined into Final Matrix
 
         # 1.
-        def small_col_matrix(nx_col, col_idx):
+        def small_col_matrix(nx_col, col_idx, comp_idx):
 
         # Initialize small_col_coeff ('small' = for 1 col)
 
-            small_col_coeff = np.zeros((int(nx_col),int(nx_col))) #(5,5)
+            small_col_coeff = np.zeros((int(nx_col),int(nx_col))) # (5,5)
 
             # Where the 1st (0th) row and col are for c1
-            #
-            small_col_coeff[0,0], small_col_coeff[0,1] = get_X(t,coef_1,col_idx), get_X(t,coef_2,col_idx)
+            # get_C(t, coef_0_all, k, comp_idx)
+            # small_col_coeff[0,0], small_col_coeff[0,1] = get_X(t,coef_1,col_idx), get_X(t,coef_2,col_idx)
+            small_col_coeff[0,0], small_col_coeff[0,1] = get_C(t,coef_1_all,col_idx, comp_idx), get_C(t,coef_2_all,col_idx, comp_idx)
             # for c2:
-            small_col_coeff[1,0], small_col_coeff[1,1], small_col_coeff[1,2] = get_X(t,coef_0,col_idx), get_X(t,coef_1,col_idx), get_X(t,coef_2,col_idx)
+            # small_col_coeff[1,0], small_col_coeff[1,1], small_col_coeff[1,2] = get_X(t,coef_0,col_idx), get_X(t,coef_1,col_idx), get_X(t,coef_2,col_idx)
+            small_col_coeff[1,0], small_col_coeff[1,1], small_col_coeff[1,2] = get_C(t,coef_0_all,col_idx, comp_idx), get_C(t, coef_1_all, col_idx, comp_idx), get_C(t, coef_2_all,col_idx, comp_idx)
 
             for i in range(2,nx_col): # from row i=2 onwards
                 # np.roll the row entries from the previous row, for all the next rows
@@ -672,40 +675,42 @@ def SMB(SMB_inputs):
                 small_col_coeff[i:] = new_row
 
             small_col_coeff[-1,0] = 0
-            small_col_coeff[-1,-1] = small_col_coeff[-1,-1] +  get_X(t,coef_2,col_idx) # coef_1 + coef_2 account for rolling boundary
-
+            small_col_coeff[-1,-1] = small_col_coeff[-1,-1] +  get_C(t,coef_2_all,col_idx, comp_idx) # coef_1 + coef_2 account for rolling boundary
+            
             return small_col_coeff
 
         # 2. Func to Build Large Matrix
 
-        def matrix_builder(M, M0):
+        def matrix_builder(M):
+            """
+            M => Set of matricies describing the dynamics in all columns of 1 comp [M_A, M_B]
+            -------------------------------------
+            This func takes M and adds it to M0.
+            """
             # M = Matrix to add (small)
-            # M0 = Initial state of the larger matrix to be added to
-            nx_col = M.shape[0]
-            repeat = int(np.round(M0.shape[0]/M.shape[0]))# numbner of times the small is added to the larger matrix
-            for col_idx in range(repeat):
-                        M0[col_idx*nx_col:(col_idx+1)*nx_col, col_idx*nx_col:(col_idx+1)*nx_col] = M
+
+            n = len(M) # number of components
+            r = len(M[0][0,:])  # all members of M are equal in size, we just want the col num
+            nn = int(n * r)
+            # print(f'nn: {nn}')
+            M0 = np.zeros((nn, nn))
+            # M0 = Initial state of the matrix to be added to
+
+
+            positon_1 = 0
+            positon_2 = nx
+            positon_3 = 2*nx
+
+            M0[positon_1:positon_2, positon_1:positon_2] = M[0]
+
+            M0[positon_2:positon_3, positon_2:positon_3] = M[0]
+
+            M0[positon_1:positon_2, positon_2:positon_3] = M[1]
+
+            M0[positon_2:positon_3, positon_1:positon_2] = M[1]
+
             return M0
 
-
-        # 3. Generate and Store the Large Matrices
-        # Storage Space:
-        # NOTE: Assuming all components have the same Dispersion coefficients,
-        # all components will have the same large_col_matrix
-        # Add the cols
-        larger_coeff_matrix = np.zeros((nx,nx)) # ''large'' = for all cols # (20, 20)
-
-        for col_idx in range(Ncol_num):
-            larger_coeff_matrix[col_idx*nx_col:(col_idx+1)*nx_col, col_idx*nx_col:(col_idx+1)*nx_col] = small_col_matrix(nx_col,col_idx)
-
-        # print('np.shape(larger_coeff_matrix)\n',np.shape(larger_coeff_matrix))
-
-        # Inital final matrix:
-        n = nx*num_comp
-        final_matrix0 = np.zeros((n,n))
-
-
-        final_matrix = matrix_builder(larger_coeff_matrix, final_matrix0)
 
             # vector_add: vector that applies the boundary conditions to each boundary node
         def vector_add(nx, c, start):
@@ -790,8 +795,35 @@ def SMB(SMB_inputs):
                 vec_add[B + start[k]]  = get_X(t,coef_0,k)*c_BC[B+ k]
 
             return vec_add
-            # print('np.shape(vect_add)\n',np.shape(vec_add(nx, c, start)))
-        return final_matrix, vector_add(nx, c, start_CUP)
+        
+        # --------- Setting up the Variables
+
+        # 3. Generate and Store the Large Matrices
+        # Storage Space:
+        # NOTE: Assuming all components have the same Dispersion coefficients,
+        # all components will have the same large_col_matrix
+        # Add the cols
+        # Inital final matrix:
+
+        component_coeff_matrix_A = np.zeros((nx,nx)) 
+        component_coeff_matrix_B = np.zeros((nx,nx))
+        
+
+        for col_idx in range(Ncol_num):
+            component_coeff_matrix_A[col_idx*nx_col:(col_idx+1)*nx_col, col_idx*nx_col:(col_idx+1)*nx_col] = small_col_matrix(nx_col,col_idx, comp_idx=0)
+            component_coeff_matrix_B[col_idx*nx_col:(col_idx+1)*nx_col, col_idx*nx_col:(col_idx+1)*nx_col] = small_col_matrix(nx_col,col_idx, comp_idx=1)
+
+        component_coeff_matrix_all = [component_coeff_matrix_A, component_coeff_matrix_B]
+        # print('np.shape(larger_coeff_matrix)\n',np.shape(larger_coeff_matrix))
+
+
+
+
+        # ---------------------- Evaluate
+        final_matrix = matrix_builder(component_coeff_matrix_all)
+        final_vector = vector_add(nx, c, start_CUP)
+
+        return final_matrix, final_vector
 
     # ###########################################################################################
 
