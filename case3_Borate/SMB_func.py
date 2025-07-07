@@ -105,6 +105,62 @@ def SMB(SMB_inputs):
 
     # 3.
     # Func to divide the column into nodes
+    def cusotom_CUP_isotherm_func(cusotom_isotherm_params, c, IDX, comp_idx):
+        """
+        Returns  solid concentration, q_star vector for given comp_idx
+        *****
+        Variables:
+        cusotom_isotherm_params => parameters for each component [[A's parameters], [B's parameters]]
+        NOTE: This function is (currently) structured to assume A and B have 1 parameter each. 
+        c => liquid concentration of c all compenents
+        IDX => the first row-index in c for respective components
+        comp_idx => which of the components we are currently retreiving the solid concentration, q_star for
+        q_star => solid concentration of ci @ equilibrium
+
+        """
+        # Unpack the component vectors (currently just considers binary case of A and B however, could be more)
+        cA = c[IDX[0] + 0: IDX[0] + nx]
+        cB = c[IDX[1] + 0: IDX[1] + nx]
+        c_i = [cA, cB]
+        # Now, different isotherm Models can be built using c_i
+        
+        # (Uncomment as necessary)
+
+        #------------------- 1. Coupled Linear Models
+
+        # cusotom_isotherm_params has linear constants for each comp
+        # Unpack respective parameters
+        # K1 = cusotom_isotherm_params[comp_idx][0] # 1st (and only) parameter of HA or HB
+        # q_star_1 = K1*c_i[comp_idx]
+
+
+        #------------------- 2. Coupled Langmuir Models
+        # The parameter in the numerator is dynamic, depends on comp_idx:
+        K =  cusotom_isotherm_params[comp_idx][0]
+        
+        # Fix the sum of parameters in the demoninator:
+        K1 = cusotom_isotherm_params[0][0] # 1st (and only) parameter of HA 
+        K2 = cusotom_isotherm_params[1][0] # 1st (and only) parameter of HB
+        
+        # q_star_2 = K*c_i[comp_idx]/(1+ K1*c_i[0]+ K2*c_i[1])
+        q_star_2 = K*c_i[comp_idx]/(1+ K*c_i[comp_idx])
+
+        #------------------- 3. Combined Coupled Models
+        # The parameter in the numerator is dynamic, depends on comp_idx:
+        # K_lin =  cusotom_isotherm_params[comp_idx][0]
+        
+        # # Fix the sum of parameters in the demoninator:
+        # K1 = cusotom_isotherm_params[0][0] # 1st (and only) parameter of HA 
+        # K2 = cusotom_isotherm_params[1][0] # 1st (and only) parameter of HB
+        
+        # c_sum = K1 + K2
+        # linear_part = K_lin*c_i[comp_idx]
+        # langmuir_part = K*c_i[comp_idx]/(1+ K1*c_i[0] + K2*c_i[1])
+
+        # q_star_3 =  linear_part + langmuir_part
+
+
+        return q_star_2 # [qA, ...]
 
     # DOES NOT INCLUDE THE C0 NODE (BY DEFAULT)
     def set_x(L, Ncol_num,nx_col,dx):
@@ -430,6 +486,7 @@ def SMB(SMB_inputs):
     # print(f'u_col_all: {u_col_all}')
     # print(f'\nD_col_all: {D_col_all}')
     # Storage Spaces:
+
     coef_0 = np.zeros_like(u_col_all)
     coef_1 = np.zeros_like(u_col_all)
     coef_2 = np.zeros_like(u_col_all)
@@ -438,6 +495,10 @@ def SMB(SMB_inputs):
     # These depend on u and so change with time, thus have a schedule
 
     # From descritization:
+    coef_0_all = [[] for _ in range(num_comp)]
+    coef_1_all = [[] for _ in range(num_comp)]
+    coef_2_all = [[] for _ in range(num_comp)]
+
     coef_0_all = []
     coef_1_all = []
     coef_2_all = []
@@ -450,7 +511,7 @@ def SMB(SMB_inputs):
         coef_0_all.append(coef_0)
         coef_1_all.append(coef_1)
         coef_2_all.append(coef_2)
-
+    print(f'coef_0_all: {np.shape(coef_0_all)}')
     # All shedules:
     # For each shceudle, rows => col idx, columns => Time idx
     # :
@@ -477,6 +538,8 @@ def SMB(SMB_inputs):
         # Calling volumetric flows:
         get_X = lambda t, X_schedule, col_idx: next((X_schedule[col_idx][j] for j in range(len(X_schedule[col_idx])) if t_start_inject_all[col_idx][j] <= t < t_start_inject_all[col_idx][j] + t_index), 1/100000000)
         get_C = lambda t, C_schedule, col_idx, comp_idx: next((C_schedule[comp_idx][col_idx][j] for j in range(len(C_schedule[comp_idx][col_idx])) if t_start_inject_all[col_idx][j] <= t < t_start_inject_all[col_idx][j] + t_index), 1/100000000)
+
+        # tHE MAIN DIFFERENCE BETWEEEN get_X and get_C is that get_C considers teh component level 
 
         def small_col_matix(nx_col, col_idx):
         # Initialize small_col_coeff ('small' = for 1 col)
@@ -577,12 +640,13 @@ def SMB(SMB_inputs):
             # print('np.shape(vect_add)\n',np.shape(vec_add(nx, c, start)))
         return larger_coeff_matrix, vector_add(nx, c, start, comp_idx)
 
-    def coeff_matrix_builder_CUP(t, Q_col_all, Q_pulse_all, dx, start_CUP, alpha, c, nx_col,IDX): # note that c_length must include nx_BC
+    def coeff_matrix_builder_CUP(t, Q_col_all, Q_pulse_all, dx, start_CUP, alpha, c, nx_col, IDX): # note that c_length must include nx_BC
 
         # Define the functions that call the appropriate schedule matrices:
         # Because all scheudels are of the same from, only one function is required
         # Calling volumetric flows:
         get_X = lambda t, X_schedule, col_idx: next((X_schedule[col_idx][j] for j in range(len(X_schedule[col_idx])) if t_start_inject_all[col_idx][j] <= t < t_start_inject_all[col_idx][j] + t_index), 1/100000000)
+        get_C = lambda t, C_schedule, col_idx, comp_idx: next((C_schedule[comp_idx][col_idx][j] for j in range(len(C_schedule[comp_idx][col_idx])) if t_start_inject_all[col_idx][j] <= t < t_start_inject_all[col_idx][j] + t_index), 1/100000000)
 
 
         # 1. From coefficent "small" matrix for movement of single comp through single col
@@ -683,23 +747,44 @@ def SMB(SMB_inputs):
                 C_IN_B = W1 * c[B + i*nx_col-1] + W2 * get_X(t, Cj_pulse_all[1], i) # c[-1] conc out the last col
 
 
-                # Calcualte alpha, bata and gamma:
-                Da = get_X(t, D_col_all, i)
+                # All componenets expirence same liquid veclocity...
                 u =  get_X(t, u_col_all, i)
-                beta = 1 / alpha
-                gamma = 1 - 3 * Da / (2 * u * dx)
-
+                # print(f"u: {np.shape(u)}")
+                # print(f'u: {u}')
+                
+                # All components have respective dispersions....
+                # Calcualte alpha, bata and gamma:
+                Da_A = get_C(t, D_col_all, i, comp_idx=0)
+                beta_A = 1 / alpha
+                gamma_A = 1 - 3 * Da_A / (2 * u * dx)
                 ##
-                R1 = ((beta * alpha) / gamma)
-                R2 = ((2 * Da / (u * dx)) / gamma)
-                R3 = ((Da / (2 * u * dx)) / gamma)
+                R1_A = ((beta_A * alpha) / gamma_A)
+                R2_A = ((2 * Da_A / (u * dx)) / gamma_A)
+                R3_A = ((Da_A / (2 * u * dx)) / gamma_A)
+                # print(f"R1: {np.shape(R1)}")
+                # print(f"R3: {np.shape(R3)}")
+
+                # Calcualte alpha, bata and gamma:
+                Da_B = get_C(t, D_col_all, i, comp_idx=1)
+                beta_B = 1 / alpha
+                gamma_B = 1 - 3 * Da_B / (2 * u * dx)
+                ##
+                R1_B = ((beta_B * alpha) / gamma_B)
+                R2_B = ((2 * Da_B / (u * dx)) / gamma_B)
+                R3_B = ((Da_B / (2 * u * dx)) / gamma_B)
+                # print(f"R1: {np.shape(R1)}")
+                # print(f"R3: {np.shape(R3)}")
+
                 ##
 
                 # Calcualte the BC effects:
                 j = start[i]
-                # print('j:', j)
-                c_BC[i] = R1 * C_IN_A - R2 * c[j] + R3 * c[j+1] # the boundary concentration for that node
-                c_BC[B + i] = R1 * C_IN_B - R2 * c[B+j] + R3 * c[B+j+1]
+                print(f'Size of C_IN_A: {np.shape(C_IN_A)}')
+                
+                # -------------------------
+                c_BC[i] = R1_A * C_IN_A - R2_A * c[j] + R3_A * c[j+1] # the boundary concentration for that node
+
+                c_BC[B + i] = R1_B * C_IN_B - R2_B * c[B+j] + R3_B * c[B+j+1]
             # print('c_BC:\n', c_BC)
             # print('c_BC.shape:\n', c_BC.shape)
 
