@@ -36,7 +36,7 @@ import pandas as pd
 
 
 def SMB(SMB_inputs):
-    iso_type, Names, color, num_comp, nx_per_col, e, D_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets,  cusotom_isotherm_func, cusotom_isotherm_params_all = SMB_inputs[0:]
+    iso_type, Names, color, num_comp, nx_per_col, e, D_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_params_all = SMB_inputs[0:]
 
     ###################### (CALCUALTED) SECONDARY INPUTS #########################
 
@@ -105,7 +105,7 @@ def SMB(SMB_inputs):
 
     # 3.
     # Func to divide the column into nodes
-    def cusotom_CUP_isotherm_func(cusotom_isotherm_params, c, IDX, comp_idx):
+    def cusotom_CUP_isotherm_func(cusotom_isotherm_params_all, c, IDX, comp_idx):
         """
         Returns  solid concentration, q_star vector for given comp_idx
         *****
@@ -119,8 +119,8 @@ def SMB(SMB_inputs):
 
         """
         # Unpack the component vectors (currently just considers binary case of A and B however, could be more)
-        cA = c[IDX[0] + 0: IDX[0] + nx]
-        cB = c[IDX[1] + 0: IDX[1] + nx]
+        cA = c[IDX[0]: IDX[0] + nx]
+        cB = c[IDX[1]: IDX[1] + nx]
         c_i = [cA, cB]
         # Now, different isotherm Models can be built using c_i
         
@@ -128,7 +128,7 @@ def SMB(SMB_inputs):
 
         #------------------- 1. Coupled Linear Models
 
-        # cusotom_isotherm_params has linear constants for each comp
+        # cusotom_isotherm_params_all has linear constants for each comp
         # Unpack respective parameters
         # K1 = cusotom_isotherm_params[comp_idx][0] # 1st (and only) parameter of HA or HB
         # q_star_1 = K1*c_i[comp_idx]
@@ -136,22 +136,22 @@ def SMB(SMB_inputs):
 
         #------------------- 2. Coupled Langmuir Models
         # The parameter in the numerator is dynamic, depends on comp_idx:
-        K =  cusotom_isotherm_params[comp_idx][0]
+        K =  cusotom_isotherm_params_all[comp_idx][0]
         
         # Fix the sum of parameters in the demoninator:
-        K1 = cusotom_isotherm_params[0][0] # 1st (and only) parameter of HA 
-        K2 = cusotom_isotherm_params[1][0] # 1st (and only) parameter of HB
+        K1 = cusotom_isotherm_params_all[0][0] # 1st (and only) parameter of HA 
+        K2 = cusotom_isotherm_params_all[1][0] # 1st (and only) parameter of HB
         
         # q_star_2 = K*c_i[comp_idx]/(1+ K1*c_i[0]+ K2*c_i[1])
         q_star_2 = K*c_i[comp_idx]/(1+ K*c_i[comp_idx])
 
         #------------------- 3. Combined Coupled Models
         # The parameter in the numerator is dynamic, depends on comp_idx:
-        # K_lin =  cusotom_isotherm_params[comp_idx][0]
+        # K_lin =  cusotom_isotherm_params_all[comp_idx][0]
         
         # # Fix the sum of parameters in the demoninator:
-        # K1 = cusotom_isotherm_params[0][0] # 1st (and only) parameter of HA 
-        # K2 = cusotom_isotherm_params[1][0] # 1st (and only) parameter of HB
+        # K1 = cusotom_isotherm_params_all[0][0] # 1st (and only) parameter of HA 
+        # K2 = cusotom_isotherm_params_all[1][0] # 1st (and only) parameter of HB
         
         # c_sum = K1 + K2
         # linear_part = K_lin*c_i[comp_idx]
@@ -779,11 +779,8 @@ def SMB(SMB_inputs):
 
                 # Calcualte the BC effects:
                 j = start[i]
-                print(f'Size of C_IN_A: {np.shape(C_IN_A)}')
-                
                 # -------------------------
                 c_BC[i] = R1_A * C_IN_A - R2_A * c[j] + R3_A * c[j+1] # the boundary concentration for that node
-
                 c_BC[B + i] = R1_B * C_IN_B - R2_B * c[B+j] + R3_B * c[B+j+1]
             # print('c_BC:\n', c_BC)
             # print('c_BC.shape:\n', c_BC.shape)
@@ -875,7 +872,8 @@ def SMB(SMB_inputs):
 
             # Comment as necessary for required isotherm:
             # isotherm = iso_bi_langmuir(theta_blang[comp_idx], c, IDX, comp_idx)
-            isotherm = iso_cup_langmuir(theta_cup_lang, c, IDX, comp_idx)
+            # isotherm = iso_cup_langmuir(theta_cup_lang, c, IDX, comp_idx)
+            isotherm = cusotom_CUP_isotherm_func(cusotom_isotherm_params_all, c, IDX, comp_idx)
             # print('qstar:\n', isotherm.shape)
             ################### (ii) MT ##########################################################
             MT_comp = mass_transfer(kav_params[comp_idx], isotherm, q[IDX[comp_idx] + 0: IDX[comp_idx] + nx ])
@@ -1191,6 +1189,8 @@ def SMB(SMB_inputs):
         P_vflow = [[] for _ in range(num_comp)]
 
 
+        # First get the values of the volumetric flowrates in each column @ all times from 0 to t_ode[-1]
+        # Because UNC has different time intervals for each component, we need to get the time vecoters for each component
         if iso_type == 'UNC':
             for i in range(num_comp): # for each component
                 Q_all_flows_add, b = get_all_values(Q_col_all, t_odes[i], t_schedule, 'Column Flowrates')
@@ -1198,19 +1198,31 @@ def SMB(SMB_inputs):
                 Q_all_flows.append(Q_all_flows_add) # cm^3/s
                 t_idx_all_Q.append(b)
 
+
+
         elif iso_type == 'CUP':
             Q_all_flows, t_idx_all_Q = get_all_values(Q_col_all, t_odes, t_schedule, 'Column Flowrates')
-
+            print('Q_all_flows:\n', Q_all_flows)
+            print('Q_all_flows:\n', np.shape(Q_all_flows))
+            print(f't_idx_all_Q: {np.shape(t_idx_all_Q)}')
 
 
         for i in range(num_comp):# for each component
 
-            # Search the ODE matrix
-            C_R1_add = np.array(get_X_row( y_odes[i][:nx,:], row_start_matrix-1, jump_matrix, t_idx_all[i])) # exclude q
-            C_R2_add = np.array(get_X_row( y_odes[i][:nx,:], row_start_matrix, jump_matrix, t_idx_all[i]))
-            # Search the Flowrate Schedule
-            P_vflows_1_add = np.array(get_X_row(Q_all_flows[i], row_start_schedule-1, jump_schedule, t_idx_all_Q[i]))
-            P_vflows_2_add = np.array(get_X_row(Q_all_flows[i], row_start_schedule, jump_schedule, t_idx_all_Q[i]))
+            if iso_type == 'UNC':
+                # Search the ODE matrix
+                C_R1_add = np.array(get_X_row( y_odes[i][:nx,:], row_start_matrix-1, jump_matrix, t_idx_all_Q[i])) # exclude q
+                C_R2_add = np.array(get_X_row( y_odes[i][:nx,:], row_start_matrix, jump_matrix, t_idx_all_Q[i]))
+                # Search the Flowrate Schedule
+                P_vflows_1_add = np.array(get_X_row(Q_all_flows[i], row_start_schedule-1, jump_schedule, t_idx_all_Q[i]))
+                P_vflows_2_add = np.array(get_X_row(Q_all_flows[i], row_start_schedule, jump_schedule, t_idx_all_Q[i]))
+
+            elif iso_type == 'CUP':
+                C_R1_add = np.array(get_X_row( y_odes[i][:nx,:], row_start_matrix-1, jump_matrix, t_idx_all)) # exclude q
+                C_R2_add = np.array(get_X_row( y_odes[i][:nx,:], row_start_matrix, jump_matrix, t_idx_all))
+                P_vflows_1_add = np.array(get_X_row(Q_all_flows, row_start_schedule-1, jump_schedule, t_idx_all_Q))
+                P_vflows_2_add = np.array(get_X_row(Q_all_flows, row_start_schedule, jump_schedule, t_idx_all_Q))
+
 
             # Raffinate Massflow Curves
             # print('C_R1_add.type():\n',type(C_R1_add))
@@ -1549,14 +1561,14 @@ def see_prod_curves(t_odes, Y, t_index) :
     # Concentration Plots
     for i in range(num_comp): # for each component
         if iso_type == "UNC":
-            ax[0].plot(t_odes[i], Y[0][i], color = color[i], label = f"{Names[i]}, H{Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
-            ax[1].plot(t_odes[i], Y[1][i], color = color[i], label = f"{Names[i]}, H{Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
-            ax[2].plot(t_odes[i], Y[2][i], color = color[i], label = f"{Names[i]}, H{Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
+            ax[0].plot(t_odes[i], Y[0][i], color = color[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
+            ax[1].plot(t_odes[i], Y[1][i], color = color[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
+            ax[2].plot(t_odes[i], Y[2][i], color = color[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
         
         elif iso_type == "CUP":    
-            ax[0].plot(t_odes[i], Y[0][i], color = color[i], label = f"{Names[i]}, H{Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
-            ax[1].plot(t_odes[i], Y[1][i], color = color[i], label = f"{Names[i]}, H{Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
-            ax[2].plot(t_odes[i], Y[2][i], color = color[i], label = f"{Names[i]}, H{Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
+            ax[0].plot(t_odes, Y[0][i], color = color[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
+            ax[1].plot(t_odes, Y[1][i], color = color[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
+            ax[2].plot(t_odes, Y[2][i], color = color[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
         
     # Add Accessories
     ax[0].set_xlabel('Time, s')
@@ -1587,8 +1599,8 @@ def see_prod_curves(t_odes, Y, t_index) :
         
         elif iso_type == "CUP":    
             
-            vx[0].plot(t_odes[i], Y[3][i], color = color[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
-            vx[1].plot(t_odes[i], Y[4][i], color = color[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
+            vx[0].plot(t_odes, Y[3][i], color = color[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
+            vx[1].plot(t_odes, Y[4][i], color = color[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
         
     # Add Accessories
     vx[0].set_xlabel('Time, s')
@@ -1928,7 +1940,7 @@ cusotom_isotherm_params_all = np.array([[0.27], [0.53]]) # H_glu, H_fru
 
 
 # STORE/INITALIZE SMB VAIRABLES
-SMB_inputs = [iso_type, Names, color, num_comp, nx_per_col, e, Da_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_func, cusotom_isotherm_params_all]
+SMB_inputs = [iso_type, Names, color, num_comp, nx_per_col, e, Da_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_params_all]
 
 #%% ---------- SAMPLE RUN IF NECESSARY
 start_test = time.time()
