@@ -2308,31 +2308,31 @@ cusotom_isotherm_params_all = np.array([[3.2069715], [3.54]]) # H_glu, H_fru
 # Linear + Langmuir, [H, Q_max, b]
 # cusotom_isotherm_params_all = np.array([[1, 2.70420148, 1.82568197], [1, 3.4635919, 1.13858329]])
 
-#%%
+
 # STORE/INITALIZE SMB VAIRABLES
 SMB_inputs = [iso_type, Names, color, num_comp, nx_per_col, e, Da_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_func, cusotom_isotherm_params_all]
 
-# # ---------- SAMPLE RUN IF NECESSARY
-# start_test = time.time()
-# results = SMB(SMB_inputs)
-# # ref:  [y_matrices, nx, t, t_sets, t_schedule, C_feed, m_in, m_out, raff_cprofile, ext_cprofile, raff_intgral_purity, raff_recov, ext_intgral_purity, ext_recov, raff_vflow, ext_vflow, Model_Acc, Expected_Acc, Error_percent]
-# # STORE
-# Raffinate_Purity = results[10]
-# Raffinate_Recovery = results[11]
-# Extract_Purity = results[12]
-# Extract_Recovery = results[13]
-# Mass_Balance_Error_Percent = results[-1]
-# end_test = time.time()
-# test_duration = end_test-start_test
-# # DISPLAY
-# print(f'Time Taken for 1 SMB Run: {test_duration/60} min')
-# print(f'Raffinate_Recovery: {Raffinate_Recovery} ')
-# print(f'Extract_Recovery:  {Extract_Recovery}')
-# print(f'Raffinate_Purity: {Raffinate_Purity} ')
-# print(f'Extract_Purity: {Extract_Purity}')
-# print(f'Mass_Balance_Error_Percent: {Mass_Balance_Error_Percent}%')
+#%% ---------- SAMPLE RUN IF NECESSARY
+start_test = time.time()
+results = SMB(SMB_inputs)
+# ref:  [y_matrices, nx, t, t_sets, t_schedule, C_feed, m_in, m_out, raff_cprofile, ext_cprofile, raff_intgral_purity, raff_recov, ext_intgral_purity, ext_recov, raff_vflow, ext_vflow, Model_Acc, Expected_Acc, Error_percent]
+# STORE
+Raffinate_Purity = results[10]
+Raffinate_Recovery = results[11]
+Extract_Purity = results[12]
+Extract_Recovery = results[13]
+Mass_Balance_Error_Percent = results[-1]
+end_test = time.time()
+test_duration = end_test-start_test
+# DISPLAY
+print(f'Time Taken for 1 SMB Run: {test_duration/60} min')
+print(f'Raffinate_Recovery: {Raffinate_Recovery} ')
+print(f'Extract_Recovery:  {Extract_Recovery}')
+print(f'Raffinate_Purity: {Raffinate_Purity} ')
+print(f'Extract_Purity: {Extract_Purity}')
+print(f'Mass_Balance_Error_Percent: {Mass_Balance_Error_Percent}%')
 
-# #%%
+#%%
 
 # ----- MAIN ROUTINE
 if __name__ == "__main__":
