@@ -173,20 +173,20 @@ def SMB(SMB_inputs):
 
         # cusotom_isotherm_params_all has linear constants for each comp
         # # Unpack respective parameters
-        # K1 = cusotom_isotherm_params_all[comp_idx][0] # 1st (and only) parameter of HA or HB
-        # # print(f'H = {K1}')
-        # q_star_1 = K1*c_i[comp_idx]
+        K1 = cusotom_isotherm_params_all[comp_idx][0] # 1st (and only) parameter of HA or HB
+        # print(f'H = {K1}')
+        q_star_1 = K1*c_i[comp_idx]
 
 
         #------------------- 2. Coupled Langmuir Models
         # The parameter in the numerator is dynamic, depends on comp_idx:
-        K =  cusotom_isotherm_params_all[comp_idx][0]
+        # K =  cusotom_isotherm_params_all[comp_idx][0]
         
-        # Fix the sum of parameters in the demoninator:
-        K1 = cusotom_isotherm_params_all[0][0] # 1st (and only) parameter of HA 
-        K2 = cusotom_isotherm_params_all[1][0] # 1st (and only) parameter of HB
+        # # Fix the sum of parameters in the demoninator:
+        # K1 = cusotom_isotherm_params_all[0][0] # 1st (and only) parameter of HA 
+        # K2 = cusotom_isotherm_params_all[1][0] # 1st (and only) parameter of HB
         
-        q_star_2 = K*c_i[comp_idx]/(1+ K1*c_i[0] + K2*c_i[1])
+        # q_star_2 = K*c_i[comp_idx]/(1+ K1*c_i[0] + K2*c_i[1])
 
         #------------------- 3. Combined Coupled Models
         # The parameter in the numerator is dynamic, depends on comp_idx:
@@ -203,7 +203,7 @@ def SMB(SMB_inputs):
         # q_star_3 =  linear_part + langmuir_part
 
 
-        return q_star_2 # [qA, ...]
+        return q_star_1 # [qA, ...]
 
     # DOES NOT INCLUDE THE C0 NODE (BY DEFAULT)
     def set_x(L, Ncol_num,nx_col,dx):
