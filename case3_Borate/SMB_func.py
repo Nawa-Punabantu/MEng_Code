@@ -105,6 +105,49 @@ def SMB(SMB_inputs):
 
     # 3.
     # Func to divide the column into nodes
+    
+    def cusotom_isotherm_func(cusotom_isotherm_params, c):
+        """
+        c => liquid concentration of ci
+        q_star => solid concentration of ci @ equilibrium
+        cusotom_isotherm_params = cusotom_isotherm_params_all[i] => given parameter set of component, i
+        """
+
+        # Uncomment as necessary
+
+        #------------------- 1. Single Parameters Models
+        ## Linear
+        K1 = cusotom_isotherm_params[0]
+        # print(f'H = {K1}')
+        H = K1 # Henry's Constant
+        q_star_1 = H*c
+
+        # #------------------- 2. Two-Parameter Models
+        # K1 = cusotom_isotherm_params[0]
+        # K2 = cusotom_isotherm_params[1]
+
+        # # #  Langmuir  
+        # Q_max = K1
+        # b = K2
+        # #-------------------------------
+        # q_star_2 = Q_max*b*c/(1 + b*c)
+        # #-------------------------------
+
+        #------------------- 3. Three-Parameter models 
+        # K1 = cusotom_isotherm_params[0]
+        # K2 = cusotom_isotherm_params[1]
+        # K3 = cusotom_isotherm_params[2]
+
+        # # Linear + Langmuir
+        # H = K1
+        # Q_max = K2
+        # b = K3
+        # ##-------------------------------
+        # q_star_3 = H*c + Q_max*b*c/(1 + b*c)
+        # ##-------------------------------
+
+        return q_star_1 # [qA, ...]
+
     def cusotom_CUP_isotherm_func(cusotom_isotherm_params_all, c, IDX, comp_idx):
         """
         Returns  solid concentration, q_star vector for given comp_idx
@@ -126,24 +169,24 @@ def SMB(SMB_inputs):
         
         # (Uncomment as necessary)
 
-        #------------------- 1. Coupled Linear Models
+        #------------------- 1. Linear Models
 
         # cusotom_isotherm_params_all has linear constants for each comp
-        # Unpack respective parameters
-        K1 = cusotom_isotherm_params_all[comp_idx][0] # 1st (and only) parameter of HA or HB
-        q_star_1 = K1*c_i[comp_idx]
+        # # Unpack respective parameters
+        # K1 = cusotom_isotherm_params_all[comp_idx][0] # 1st (and only) parameter of HA or HB
+        # # print(f'H = {K1}')
+        # q_star_1 = K1*c_i[comp_idx]
 
 
         #------------------- 2. Coupled Langmuir Models
         # The parameter in the numerator is dynamic, depends on comp_idx:
-        # K =  cusotom_isotherm_params_all[comp_idx][0]
+        K =  cusotom_isotherm_params_all[comp_idx][0]
         
-        # # Fix the sum of parameters in the demoninator:
-        # K1 = cusotom_isotherm_params_all[0][0] # 1st (and only) parameter of HA 
-        # K2 = cusotom_isotherm_params_all[1][0] # 1st (and only) parameter of HB
+        # Fix the sum of parameters in the demoninator:
+        K1 = cusotom_isotherm_params_all[0][0] # 1st (and only) parameter of HA 
+        K2 = cusotom_isotherm_params_all[1][0] # 1st (and only) parameter of HB
         
-        # # q_star_2 = K*c_i[comp_idx]/(1+ K1*c_i[0]+ K2*c_i[1])
-        # q_star_2 = K*c_i[comp_idx]/(1+ K*c_i[comp_idx])
+        q_star_2 = K*c_i[comp_idx]/(1+ K1*c_i[0] + K2*c_i[1])
 
         #------------------- 3. Combined Coupled Models
         # The parameter in the numerator is dynamic, depends on comp_idx:
@@ -160,7 +203,7 @@ def SMB(SMB_inputs):
         # q_star_3 =  linear_part + langmuir_part
 
 
-        return q_star_1 # [qA, ...]
+        return q_star_2 # [qA, ...]
 
     # DOES NOT INCLUDE THE C0 NODE (BY DEFAULT)
     def set_x(L, Ncol_num,nx_col,dx):
@@ -385,73 +428,14 @@ def SMB(SMB_inputs):
     # print("Respective Column Flowrate Schedule:\nShape:",np.shape(Q_col_all),'\n', Q_col_all, "\n")
 
 
-
-    # ###########################################################################################
-
-    # Isotherm Models:
-
-
-    ###########################################################################################
-
-    # 1. LINEAR
-    def iso_lin(theta_lin, c):
-        # params: [HA, HB]
-        H = theta_lin
-        q_star = H*c
-
-        return q_star # [qA, qB, ...]
-
-    # 2.  LANGMUIR
-
-    # 2.1 Independent Langmuir
-    def iso_langmuir(theta_lang, c, comp_idx): # already for specific comp
-        H = theta_lang
-        q_star = H*c/(1 + H*c)
-        #q_star = H[comp_idx]*c/(1 + K[0]*c + K[1]*c)
-        # q_star = theta_lang[0]*c/(1 + theta_lang[1]*c + theta_lang[2]*c) +\
-        #     theta_lang[3]*c/(1 + theta_lang[4]*c + theta_lang[5]*c)
-        return q_star
-
-    # 2.3 Coupled Langmuir
-    def iso_cup_langmuir(theta_cuplang, c, IDX, comp_idx): # already for specific comp
-        H = theta_cuplang[:2] # [HA, HB]
-        K = theta_cuplang[2:] # [KA, KB]
-        cA = c[IDX[0] + 0: IDX[0] + nx ]
-        cB = c[IDX[1] + 0: IDX[1] + nx ]
-        c_i = [cA, cB]
-        q_star = H[comp_idx]*c_i[comp_idx]/(1 + K[0]*cA + K[1]*cB)
-        return q_star
-
-    # 2.3 Bi-Langmuir
-    def iso_bi_langmuir(theta_bl, c, IDX, comp_idx): # already for specific comp
-        cA = c[IDX[0] + 0: IDX[0] + nx ]
-        cB = c[IDX[1] + 0: IDX[1] + nx ]
-        c_i = [cA, cB]
-
-        q_star = theta_bl[0]*c_i[comp_idx]/(1 + theta_bl[1]*cA + theta_bl[2]*cB) +\
-                theta_bl[3]*c_i[comp_idx]/(1 + theta_bl[4]*cA + theta_bl[5]*cB)
-
-        return q_star
-
-
-    # 3. FREUDLICH:
-    def iso_freundlich(theta_fre, c): # already for specific comp
-        q_star = theta_fre[0]*c**(1/theta_fre[1])
-        return q_star
-
-
-
-
-
     ###########################################################################################
 
     ###########################################################################################
 
     # Mass Transfer (MT) Models:
 
-    def mass_transfer(kav_params, q_star, q): # already for specific comp
-        # kav_params: [kA, kB]
-        kav =  kav_params
+    def mass_transfer(kav, q_star, q): # already for specific comp
+
         MT = kav * Bm/(5 + Bm) * (q_star - q)
         # MT = kav * (q_star - q)
         return MT
@@ -460,6 +444,7 @@ def SMB(SMB_inputs):
     ###########################################################################################
     # print('np.shape(parameter_sets[:]["kh"]):', np.shape(parameter_sets[3]))
     kav_params = [parameter_sets[i]["kh"] for i in range(num_comp)]  # [kA, kB, kC, kD, kE, kF]
+    
     # print('kav_params:', kav_params)
     # print('----------------------------------------------------------------')
     ###########################################################################################
@@ -511,7 +496,7 @@ def SMB(SMB_inputs):
         coef_0_all.append(coef_0)
         coef_1_all.append(coef_1)
         coef_2_all.append(coef_2)
-    print(f'coef_0_all: {np.shape(coef_0_all)}')
+    # print(f'coef_0_all: {np.shape(coef_0_all)}')
     # All shedules:
     # For each shceudle, rows => col idx, columns => Time idx
     # :
@@ -565,12 +550,16 @@ def SMB(SMB_inputs):
 
             return small_col_coeff
 
-
-        larger_coeff_matrix = np.zeros((nx,nx)) # ''large'' = for all cols # (20, 20)
+        # Initialize:
+        component_coeff_matrix = np.zeros((nx,nx)) # ''large'' = for all cols # (20, 20)
 
         # Add the cols
         for col_idx in range(Ncol_num):
-            larger_coeff_matrix[col_idx*nx_col:(col_idx+1)*nx_col, col_idx*nx_col:(col_idx+1)*nx_col] = small_col_matix(nx_col,col_idx)
+
+            srt = col_idx*nx_col
+            end = (col_idx+1)*nx_col
+
+            component_coeff_matrix[srt:end, srt:end] = small_col_matix(nx_col,col_idx)
         # print('np.shape(larger_coeff_matrix)\n',np.shape(larger_coeff_matrix))
 
         # vector_add: vector that applies the boundary conditions to each boundary node
@@ -638,7 +627,34 @@ def SMB(SMB_inputs):
 
             return vec_add
             # print('np.shape(vect_add)\n',np.shape(vec_add(nx, c, start)))
-        return larger_coeff_matrix, vector_add(nx, c, start, comp_idx)
+        return component_coeff_matrix, vector_add(nx, c, start, comp_idx)
+    
+    def matrix_builder(M):
+        """
+        M => Set of matricies describing the dynamics in all columns of each comp [M_A, M_B]
+        -------------------------------------
+        This func takes M and adds it to M0.
+        """
+        # M = Matrix to add (small)
+
+        n = len(M) # number of components
+        rx = len(M[0][0,:])  # all members of M are square and equal in size, we just want the col num
+        nn = int(n * rx)
+        # print(f'nn: {nn}')
+        
+        M0 = np.zeros((nn, nn))
+        # M0 = Initial state of the matrix to be added to
+
+
+        positon_1 = 0
+        positon_2 = rx
+        positon_3 = 2*rx
+
+        M0[positon_1:positon_2, positon_1:positon_2] = M[0]
+
+        M0[positon_2:positon_3, positon_2:positon_3] = M[1]
+
+        return M0
 
     def coeff_matrix_builder_CUP(t, Q_col_all, Q_pulse_all, dx, start_CUP, alpha, c, nx_col, IDX): # note that c_length must include nx_BC
 
@@ -658,18 +674,17 @@ def SMB(SMB_inputs):
         def small_col_matrix(nx_col, col_idx, comp_idx):
 
         # Initialize small_col_coeff ('small' = for 1 col)
-
             small_col_coeff = np.zeros((int(nx_col),int(nx_col))) # (5,5)
 
             # Where the 1st (0th) row and col are for c1
             # get_C(t, coef_0_all, k, comp_idx)
             # small_col_coeff[0,0], small_col_coeff[0,1] = get_X(t,coef_1,col_idx), get_X(t,coef_2,col_idx)
-            small_col_coeff[0,0], small_col_coeff[0,1] = get_C(t,coef_1_all,col_idx, comp_idx), get_C(t,coef_2_all,col_idx, comp_idx)
+            small_col_coeff[0,0], small_col_coeff[0,1] = get_C(t,coef_1_all, col_idx, comp_idx), get_C(t,coef_2_all,col_idx, comp_idx)
             # for c2:
             # small_col_coeff[1,0], small_col_coeff[1,1], small_col_coeff[1,2] = get_X(t,coef_0,col_idx), get_X(t,coef_1,col_idx), get_X(t,coef_2,col_idx)
             small_col_coeff[1,0], small_col_coeff[1,1], small_col_coeff[1,2] = get_C(t,coef_0_all,col_idx, comp_idx), get_C(t, coef_1_all, col_idx, comp_idx), get_C(t, coef_2_all,col_idx, comp_idx)
 
-            for i in range(2,nx_col): # from row i=2 onwards
+            for i in range(2,nx_col): # from (3rd) row i=2 onwards
                 # np.roll the row entries from the previous row, for all the next rows
                 new_row = np.roll(small_col_coeff[i-1,:],1)
                 small_col_coeff[i:] = new_row
@@ -681,41 +696,14 @@ def SMB(SMB_inputs):
 
         # 2. Func to Build Large Matrix
 
-        def matrix_builder(M):
-            """
-            M => Set of matricies describing the dynamics in all columns of 1 comp [M_A, M_B]
-            -------------------------------------
-            This func takes M and adds it to M0.
-            """
-            # M = Matrix to add (small)
 
-            n = len(M) # number of components
-            r = len(M[0][0,:])  # all members of M are equal in size, we just want the col num
-            nn = int(n * r)
-            # print(f'nn: {nn}')
-            M0 = np.zeros((nn, nn))
-            # M0 = Initial state of the matrix to be added to
-
-
-            positon_1 = 0
-            positon_2 = nx
-            positon_3 = 2*nx
-
-            M0[positon_1:positon_2, positon_1:positon_2] = M[0]
-
-            M0[positon_2:positon_3, positon_2:positon_3] = M[0]
-
-            M0[positon_1:positon_2, positon_2:positon_3] = M[1]
-
-            M0[positon_2:positon_3, positon_1:positon_2] = M[1]
-
-            return M0
 
 
             # vector_add: vector that applies the boundary conditions to each boundary node
         def vector_add(nx, c, start):
             vec_add = np.zeros(nx*num_comp)
             c_BC = np.zeros(nx*num_comp)
+
             # Indeceis for the boundary nodes are stored in "start"
             # Each boundary node is affected by the form:
             # c_BC = V1 * C_IN - V2 * c[i] + V3 * c[i+1]
@@ -791,8 +779,8 @@ def SMB(SMB_inputs):
             # print('c_BC.shape:\n', c_BC.shape)
 
             for k in range(len(start)):
-                vec_add[start[k]]  = get_X(t,coef_0,k)*c_BC[k]
-                vec_add[B + start[k]]  = get_X(t,coef_0,k)*c_BC[B+ k]
+                vec_add[start[k]]  = get_X(t,coef_0_all[0],k) * c_BC[k]
+                vec_add[B + start[k]]  = get_X(t,coef_0_all[1],k) * c_BC[B+ k]
 
             return vec_add
         
@@ -804,14 +792,17 @@ def SMB(SMB_inputs):
         # all components will have the same large_col_matrix
         # Add the cols
         # Inital final matrix:
-
+        #  nx -> all the nodes in the system
         component_coeff_matrix_A = np.zeros((nx,nx)) 
         component_coeff_matrix_B = np.zeros((nx,nx))
         
 
-        for col_idx in range(Ncol_num):
-            component_coeff_matrix_A[col_idx*nx_col:(col_idx+1)*nx_col, col_idx*nx_col:(col_idx+1)*nx_col] = small_col_matrix(nx_col,col_idx, comp_idx=0)
-            component_coeff_matrix_B[col_idx*nx_col:(col_idx+1)*nx_col, col_idx*nx_col:(col_idx+1)*nx_col] = small_col_matrix(nx_col,col_idx, comp_idx=1)
+        for col_idx in range(Ncol_num): # for each column
+            srt = col_idx*nx_col
+            end = (col_idx+1)*nx_col
+
+            component_coeff_matrix_A[srt:end, srt:end] = small_col_matrix(nx_col,col_idx, comp_idx=0)
+            component_coeff_matrix_B[srt:end, srt:end] = small_col_matrix(nx_col,col_idx, comp_idx=1)
 
         component_coeff_matrix_all = [component_coeff_matrix_A, component_coeff_matrix_B]
         # print('np.shape(larger_coeff_matrix)\n',np.shape(larger_coeff_matrix))
@@ -844,7 +835,7 @@ def SMB(SMB_inputs):
 
         # Isotherm:
         #########################################################################
-        isotherm = cusotom_isotherm_func(cusotom_isotherm_params_all[comp_idx,:],c)
+        isotherm = cusotom_isotherm_func(cusotom_isotherm_params_all[comp_idx],c)
         # isotherm = iso_lin(theta_lin[comp_idx], c)
         #isotherm = iso_langmuir(theta_lang[comp_idx], c, comp_idx)
         #isotherm = iso_freundlich(theta_fre, c)
@@ -886,11 +877,14 @@ def SMB(SMB_inputs):
         dq_dt = np.zeros_like(q)
 
 
-        coeff_matrix, vec_add = coeff_matrix_builder_CUP(t, Q_col_all, Q_pulse_all, dx, start, alpha, c, nx_col, IDX)
+        # coeff_matrix, vec_add = coeff_matrix_builder_CUP(t, Q_col_all, Q_pulse_all, dx, start, alpha, c, nx_col, IDX)
         # print('coeff_matrix:\n',coeff_matrix)
         # print('vec_add:\n',vec_add)
+        coeff_matrix_A, vec_add_A = coeff_matrix_builder_UNC(t, Q_col_all, Q_pulse_all, dx, start, alpha, c[0:nx], nx_col, 0)
+        coeff_matrix_B, vec_add_B = coeff_matrix_builder_UNC(t, Q_col_all, Q_pulse_all, dx, start, alpha, c[nx:2*nx], nx_col, 1)
 
-
+        coeff_matrix  = matrix_builder([coeff_matrix_A, coeff_matrix_B])
+        vec_add = np.concatenate([vec_add_A, vec_add_B])
 
         ####################### Building MT Terms ####################################################################
 
@@ -899,8 +893,10 @@ def SMB(SMB_inputs):
         MT = np.zeros(len(c)) # column vector: MT kinetcis for each comp: MT = [MT_A MT_B]
 
         for comp_idx in range(num_comp): # for each component
+            
+            
 
-            ######################(i) Isotherm ####################################################################
+            ######################(ii) Isotherm ####################################################################
 
             # Comment as necessary for required isotherm:
             # isotherm = iso_bi_langmuir(theta_blang[comp_idx], c, IDX, comp_idx)
@@ -908,11 +904,10 @@ def SMB(SMB_inputs):
             isotherm = cusotom_CUP_isotherm_func(cusotom_isotherm_params_all, c, IDX, comp_idx)
             # print('qstar:\n', isotherm.shape)
             ################### (ii) MT ##########################################################
-            MT_comp = mass_transfer(kav_params[comp_idx], isotherm, q[IDX[comp_idx] + 0: IDX[comp_idx] + nx ])
-            MT[IDX[comp_idx] + 0: IDX[comp_idx] + nx ] = MT_comp
+            MT_comp = mass_transfer(kav_params[comp_idx], isotherm, q[IDX[comp_idx]: IDX[comp_idx] + nx ])
+            MT[IDX[comp_idx]: IDX[comp_idx] + nx ] = MT_comp
+
             # [MT_A, MT_B, . . . ] KINETICS FOR EACH COMP
-
-
 
         dc_dt = coeff_matrix @ c + vec_add - F * MT
         dq_dt = MT
@@ -1516,46 +1511,6 @@ def SMB(SMB_inputs):
 
 
 
-def cusotom_isotherm_func(cusotom_isotherm_params, c):
-    """
-    c => liquid concentration of ci
-    q_star => solid concentration of ci @ equilibrium
-    cusotom_isotherm_params[i] => given parameter set of component, i
-    """
-
-    # Uncomment as necessary
-
-    #------------------- 1. Single Parameters Models
-    ## Linear
-    K1 = cusotom_isotherm_params[0]
-    H = K1 # Henry's Constant
-    q_star_1 = H*c
-
-    # #------------------- 2. Two-Parameter Models
-    # K1 = cusotom_isotherm_params[0]
-    # K2 = cusotom_isotherm_params[1]
-
-    # # #  Langmuir  
-    # Q_max = K1
-    # b = K2
-    # #-------------------------------
-    # q_star_2 = Q_max*b*c/(1 + b*c)
-    # #-------------------------------
-
-    #------------------- 3. Three-Parameter models 
-    # K1 = cusotom_isotherm_params[0]
-    # K2 = cusotom_isotherm_params[1]
-    # K3 = cusotom_isotherm_params[2]
-
-    # # Linear + Langmuir
-    # H = K1
-    # Q_max = K2
-    # b = K3
-    # ##-------------------------------
-    # q_star_3 = H*c + Q_max*b*c/(1 + b*c)
-    # ##-------------------------------
-
-    return q_star_1 # [qA, ...]
 
 # Plotting Fucntions
 ###########################################################################################
@@ -1579,7 +1534,6 @@ import plotly.graph_objects as go
 ###########################################
 # IMPORTING MY OWN FUNCTIONS
 ###########################################
-from SMB_func import SMB
 def see_prod_curves(t_odes, Y, t_index) :
     # Y = C_feed, C_raff, C_ext
     # X = t_sets
@@ -1589,7 +1543,7 @@ def see_prod_curves(t_odes, Y, t_index) :
     # 0 - Feed Profile
     # 1 - Raffinate Profile
     # 2 - Extract Profile
-    
+    t_odes  = t_odes/60/60
     # Concentration Plots
     for i in range(num_comp): # for each component
         if iso_type == "UNC":
@@ -1603,20 +1557,20 @@ def see_prod_curves(t_odes, Y, t_index) :
             ax[2].plot(t_odes, Y[2][i], color = color[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
         
     # Add Accessories
-    ax[0].set_xlabel('Time, s')
+    ax[0].set_xlabel('Time, hrs')
     ax[0].set_ylabel('($\mathregular{g/cm^3}$)')
     ax[0].set_title(f'Feed Concentration Curves\nConfig: {Z1}:{Z2}:{Z3}:{Z4},\nNumber of Cycles:{n_num_cycles}\nIndex Time: {t_index}s')
-    ax[0].legend()
+    # ax[0].legend()
 
-    ax[1].set_xlabel('Time, s')
+    ax[1].set_xlabel('Time, hrs')
     ax[1].set_ylabel('($\mathregular{g/cm^3}$)')
     ax[1].set_title(f'Raffinate Elution Curves\nConfig: {Z1}:{Z2}:{Z3}:{Z4},\nNumber of Cycles:{n_num_cycles}\nIndex Time: {t_index}s')
-    ax[1].legend()
+    # ax[1].legend()
 
-    ax[2].set_xlabel('Time, s')
+    ax[2].set_xlabel('Time, hrs')
     ax[2].set_ylabel('($\mathregular{g/cm^3}$)')
     ax[2].set_title(f'Extract Elution Curves\nConfig: {Z1}:{Z2}:{Z3}:{Z4},\nNumber of Cycles:{n_num_cycles}\nIndex Time: {t_index}s')
-    ax[2].legend()
+    # ax[2].legend()
 
 
     plt.show()
@@ -1635,15 +1589,15 @@ def see_prod_curves(t_odes, Y, t_index) :
             vx[1].plot(t_odes, Y[4][i], color = color[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
         
     # Add Accessories
-    vx[0].set_xlabel('Time, s')
+    vx[0].set_xlabel('Time, hrs')
     vx[0].set_ylabel('($\mathregular{cm^3/s}$)')
     vx[0].set_title(f'Raffinate Volumetric Flowrates')
     vx[0].legend()
 
-    vx[1].set_xlabel('Time, s')
+    vx[1].set_xlabel('Time, hrs')
     vx[1].set_ylabel('($\mathregular{cm^3/s}$)')
     vx[1].set_title(f'Extract Volumetric Flowrates')
-    vx[1].legend()
+    # vx[1].legend()
 
     plt.show()
 
@@ -1676,7 +1630,7 @@ def col_liquid_profile(t, y, Axis_title, c_in, Ncol_num, L_total):
     ax[0].set_xlabel('Column Length, m')
     ax[0].set_ylabel('($\mathregular{g/l}$)')
     ax[0].axhline(y=c_in, color='g', linestyle= '--', linewidth=1, label="Inlet concentration")  # Inlet concentration
-    ax[0].legend()
+    # ax[0].legend()
 
     # Progressive Change at all ts:
     for j in range(np.shape(y_plot)[1]):
@@ -1902,7 +1856,7 @@ Bm = 300
 
 # How many columns in each Zone?
 
-Z1, Z2, Z3, Z4 = 1,1,1,1 # *3 for smb config
+Z1, Z2, Z3, Z4 = 3,3,3,3 # *3 for smb config
 zone_config = np.array([Z1, Z2, Z3, Z4])
 nnn = Z1 + Z2 + Z3 + Z4
 
