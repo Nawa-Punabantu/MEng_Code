@@ -10,7 +10,7 @@
 # - $F$ is the phase ratio
 # - $e$ bed voidage
 # - $t$ is time.
-# - $D$ is the diffusion coefficient.
+# - $D$ is the diffusion coefficient. 
 # - $v$ is the velocity field (advection speed).
 # - $x$ is the spatial coordinate.
 
@@ -112,19 +112,19 @@ def column_func(column_func_inputs):
         K1 = cusotom_isotherm_params[0]
         K2 = cusotom_isotherm_params[1]
 
-        # #  2.1 Langmuir  
-        Q_max = K1
-        b = K2
-        #-------------------------------
-        q_star_2_1 = Q_max*b*c/(1 + b*c)
-        #-------------------------------
-
-        # 2.2 Freundlich
-        # a = K1
+        # # #  2.1 Langmuir  
+        # Q_max = K1
         # b = K2
         # #-------------------------------
-        # q_star_2_2 = b*c**(1/a)
+        # q_star_2_1 = Q_max*b*c/(1 + b*c)
         # #-------------------------------
+
+        # 2.2 Freundlich
+        a = K1
+        b = K2
+        #-------------------------------
+        q_star_2_2 = b*c**(1/a)
+        #-------------------------------
 
         #------------------- 3. Three-Parameter models 
         # K1 = cusotom_isotherm_params[0]
@@ -139,7 +139,7 @@ def column_func(column_func_inputs):
         # q_star_3 = H*c + Q_max*b*c/(1 + b*c)
         #-------------------------------
 
-        return q_star_2_1 # [qA, ...]
+        return q_star_2_2 # [qA, ...]
     # 1.2. Defining the Isotherm Given that it is COUPLED (CUP)
     # CUP
     # NOTE: You need to manually set the equation you want 
@@ -436,9 +436,9 @@ def column_func(column_func_inputs):
         coeff_matrix[-1,0] = 0
         coeff_matrix[-1,-1] = coeff_matrix[-1,-1] + coef_2 # coef_1 + coef_2 account for rolling boundary 
 
-        if iso_type == "CUP": #(check phone for my video on this)
-            coeff_matrix[nx-1, nx-1] = coeff_matrix[nx-1, nx-1] + coeff_matrix[nx-1, nx]
-            coeff_matrix[nx-1, nx], coeff_matrix[nx, nx-1]= 0, 0
+        # if iso_type == "CUP": #(check phone for my video on this)
+        #     coeff_matrix[nx-1, nx-1] = coeff_matrix[nx-1, nx-1] + coeff_matrix[nx-1, nx]
+        #     coeff_matrix[nx-1, nx], coeff_matrix[nx, nx-1]= 0, 0
 
 
         #print(coeff_matrix)
@@ -607,13 +607,18 @@ def column_func(column_func_inputs):
         # beta = 1 / alpha
         # gamma = 1 - 3 * Da / (2 * u * dx)
             
-        # Building MT
+        coeff_matrix = np.zeros((num_comp*nx, num_comp*nx))
+
         for comp_idx in range(num_comp): # for each component
             # Dispersion in the column:
             Da = -Da_all[comp_idx]
 
-            coeff_matrix, coef_0, coef_1, coef_2 = coeff_matrix_builder(Da, u, dx, len(c))
-
+            # Lquid Phase Dynamics of Each Component
+            comp_coeff_matrix, coef_0, coef_1, coef_2 = coeff_matrix_builder(Da, u, dx, len(c[IDX[comp_idx] : IDX[comp_idx] + nx]))
+            
+            # Add to coeff matrix:
+            coeff_matrix[IDX[comp_idx] : IDX[comp_idx] + nx, IDX[comp_idx] : IDX[comp_idx] + nx] = comp_coeff_matrix
+            
             beta = 1 / alpha
             gamma = 1 - 3 * Da / (2 * u * dx)
 
@@ -1076,61 +1081,62 @@ def animate_profiles(t_sets, title, y, nx, labels, colors, t_start_inject_all, t
 
 
 
-######################################### FUNCTION EXECUTIONS ########################
+# ######################################### FUNCTION EXECUTIONS ########################
 
-###################### PRIMARY INPUTS #########################
-# What tpye of isoherm is required?
-# Coupled: "CUP"
-# Uncoupled: "UNC"
-iso_type = "UNC" 
-Names = ["Borate", "HCl"] #, "C"]#, "D", "E", "F"]
-color = ["red", "green"] #, "b"]#, "r", "purple", "brown"]
-num_comp = len(Names)
-
-
-
-
-e = 0.4      # assuming shperical packing, voidage (0,1]
-Q_S = 8.4*0.0166666667 # cm^3/s | The volumetric flowrate of the feed to the left of the feed port (pure solvent)
-t_index = 70 # s # Index time # How long the SINGLE pulse holds for
-slug_vol = 15 #cm^3
-Q_inj = slug_vol/t_index # cm^3/s | The volumetric flowrate of the injected concentration slug
-
-Ncol_num = 1
-tend_min = 20 # min # How long the simulation is for
-nx = 50
-Bm = 300
-###################### COLUMN DIMENTIONS ########################
-L = 17.5 # cm
-d_col = 2 # cm
+# ###################### PRIMARY INPUTS #########################
+# # What tpye of isoherm is required?
+# # Coupled: "CUP"
+# # Uncoupled: "UNC"
+# iso_type = "CUP" 
+# Names = ["Borate", "HCl"] #, "C"]#, "D", "E", "F"]
+# color = ["red", "green"] #, "b"]#, "r", "purple", "brown"]
+# num_comp = len(Names)
 
 
 
 
-# # Uncomment as necessary:
-# # Linear 
-# cusotom_isotherm_params_all = np.array([[0.27],[0.53]])
-cusotom_isotherm_params_all = np.array([[3.2069715], [3.54]]) # H_glu, H_fru 
-# # # Langmuir
-# # cusotom_isotherm_params_all = [[3,3]]
-# cusotom_isotherm_params_all = np.array([[2.51181596, 1.95381598], [2.55314612, 1.65186647]])
+# e = 0.4      # assuming shperical packing, voidage (0,1]
+# Q_S = 8.4*0.0166666667 # cm^3/s | The volumetric flowrate of the feed to the left of the feed port (pure solvent)
+# t_index = 70 # s # Index time # How long the SINGLE pulse holds for
+# slug_vol = 15 #cm^3
+# Q_inj = slug_vol/t_index # cm^3/s | The volumetric flowrate of the injected concentration slug
 
-# # Linear + Langmuir
-# # cusotom_isotherm_params_all = [[0.3, 1, 2]]
-
-# Parameter sets for different components
-# Units:
-# - Concentrations: g/cm^3
-# - kfp: 1/s
-parameter_sets = [
-    {"kfp": 0.467, "C_feed": 0.42},    # Glucose SMB Launch
-    {"kfp": 0.462, "C_feed": 0.42}] #, # Fructose
+# Ncol_num = 1
+# tend_min = 20 # min # How long the simulation is for
+# nx = 5
+# Bm = 300
+# ###################### COLUMN DIMENTIONS ########################
+# L = 17.5 # cm
+# d_col = 2 # cm
 
 
-Da_all = np.array([3.218e-5, 8.38e-6 ]) 
 
-column_func_inputs = [iso_type,  Names, color, parameter_sets, Da_all, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all]
-                    #   iso_type,  Names, color, parameter_sets, Da_all, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all
+
+# # # Uncomment as necessary:
+# # # Linear 
+# # cusotom_isotherm_params_all = np.array([[0.27],[0.53]])
+# cusotom_isotherm_params_all = np.array([[3.2069715], [3.54]]) # H_glu, H_fru 
+# # # # Langmuir
+# # # cusotom_isotherm_params_all = [[3,3]]
+# # cusotom_isotherm_params_all = np.array([[2.51181596, 1.95381598], [2.55314612, 1.65186647]])
+
+# # # Linear + Langmuir
+# # # cusotom_isotherm_params_all = [[0.3, 1, 2]]
+
+# # Parameter sets for different components
+# # Units:
+# # - Concentrations: g/cm^3
+# # - kfp: 1/s
+# parameter_sets = [
+#     {"kfp": 0.467, "C_feed": 0.42},    # Glucose SMB Launch
+#     {"kfp": 0.462, "C_feed": 0.42}] #, # Fructose
+
+
+# Da_all = np.array([3.218e-5, 8.38e-6 ]) 
+
+# column_func_inputs = [iso_type,  Names, color, parameter_sets, Da_all, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all]
+#                     #   iso_type,  Names, color, parameter_sets, Da_all, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all
+
 # start = time.time()
 # col_elution, y_matrices, nx, t, t_sets, t_schedule, C_feed, m_in, m_out, Model_Acc, Expected_Acc, Error_percent = column_func(column_func_inputs) 
 # end = time.time()

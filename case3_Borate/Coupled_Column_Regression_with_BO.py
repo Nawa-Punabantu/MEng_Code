@@ -20,16 +20,8 @@ import time
 # import numba
 
 # Import the column model
-from Col_test_model_func import column_func
+from Col_test_model_func_bh import column_func
 
-
-
-
-
-# column_func_inputs = [
-#     iso_type, Names, color, parameter_sets, Pe, Bm, e, 
-#     Q_S, Q_inj, Ncol_num, t_index, tend_min, nx, L, d_col
-# ]
 
 
 
@@ -484,7 +476,7 @@ if __name__ == "__main__":
     x_initial_guess = x_initial_guess/max_of_each_input
     
 
-    optimization_budget = 20
+    optimization_budget = 5
     bounds = [  (0.01, 1), # Da_bor
                 (0.01, 1), # Da_hcl
 
