@@ -446,9 +446,9 @@ if __name__ == "__main__":
     # PLease note that most inputs are obtained from the Excel Sheets and in the 'GENERATE SYNTHETIC DATA' func
     # Because the system is coupled, is solves for all parameters at the same time
     ##
-    max_of_each_input = np.array([1e-4, 1e-4, # Da_max,
-                                  0.8, 0.8,   # kfp_max
-                                  5, 5])      # K_max]
+    max_of_each_input = np.array([1e-5, 1e-5, # Da_max,
+                                  5, 5,   # kfp_max
+                                  10, 10])      # K_max]
     ##
 
     # Da guesses:
@@ -476,7 +476,7 @@ if __name__ == "__main__":
     x_initial_guess = x_initial_guess/max_of_each_input
     
 
-    optimization_budget = 5
+    optimization_budget = 50
     bounds = [  (0.01, 1), # Da_bor
                 (0.01, 1), # Da_hcl
 

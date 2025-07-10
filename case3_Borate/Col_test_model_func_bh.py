@@ -113,18 +113,18 @@ def column_func(column_func_inputs):
         K2 = cusotom_isotherm_params[1]
 
         # # #  2.1 Langmuir  
-        # Q_max = K1
-        # b = K2
-        # #-------------------------------
-        # q_star_2_1 = Q_max*b*c/(1 + b*c)
-        # #-------------------------------
-
-        # 2.2 Freundlich
-        a = K1
+        Q_max = K1
         b = K2
         #-------------------------------
-        q_star_2_2 = b*c**(1/a)
+        q_star_2_1 = Q_max*b*c/(1 + b*c)
         #-------------------------------
+
+        # 2.2 Freundlich
+        # a = K1
+        # b = K2
+        # #-------------------------------
+        # q_star_2_2 = b*c**(1/a)
+        # #-------------------------------
 
         #------------------- 3. Three-Parameter models 
         # K1 = cusotom_isotherm_params[0]
@@ -139,7 +139,7 @@ def column_func(column_func_inputs):
         # q_star_3 = H*c + Q_max*b*c/(1 + b*c)
         #-------------------------------
 
-        return q_star_2_2 # [qA, ...]
+        return q_star_2_1 # [qA, ...]
     # 1.2. Defining the Isotherm Given that it is COUPLED (CUP)
     # CUP
     # NOTE: You need to manually set the equation you want 

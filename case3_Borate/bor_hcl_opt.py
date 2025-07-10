@@ -25,7 +25,7 @@ import warnings
 import time
 
 # Import the custom SMB model
-from SMB_func import SMB
+from SMB_func_bh import SMB
 
 #%%
 #--------------------------------------------------- Functions
@@ -859,7 +859,7 @@ nx_per_col = 15
 
 
 ################ Time Specs #################################################################################
-t_index_min = 6 # min # Index time # How long the pulse holds before swtiching
+t_index_min = 3 # min # Index time # How long the pulse holds before swtiching
 n_num_cycles = 12    # Number of Cycles you want the SMB to run for
 ###############  FLOWRATES   #################################################################################
 
@@ -999,7 +999,7 @@ if __name__ == "__main__":
     m_min = 0.27
     # - - - - -
     sampling_budget = 1 #
-    optimization_budget = 30
+    optimization_budget = 5
     constraint_threshold = [0.995, 0.995] # [Glu, Fru]
     # - - - - -
 
