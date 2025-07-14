@@ -859,7 +859,7 @@ nx_per_col = 15
 
 
 ################ Time Specs #################################################################################
-t_index_min = 3 # min # Index time # How long the pulse holds before swtiching
+t_index_min = 6 # min # Index time # How long the pulse holds before swtiching
 n_num_cycles = 12    # Number of Cycles you want the SMB to run for
 ###############  FLOWRATES   #################################################################################
 
@@ -891,7 +891,7 @@ Q_internal = np.array([Q_I, Q_II, Q_III, Q_IV]) # L/h => cm^3/s
 # - Concentrations: g/cm^3
 # - kfp: 1/s
 parameter_sets = [
-    {"kh": 0.467, "C_feed": 0.1},    # Borate g/cm^3
+    {"kh": 0.467, "C_feed": 0.4},    # Borate g/cm^3
     {"kh": 0.462, "C_feed": 0.4}] #, # HCl g/cm^3
 
 Da_all = np.array([3.218e-5, 8.38e-6]) 
@@ -905,6 +905,7 @@ iso_type = "CUP"
 
 # Uncomment as necessary:
 # Linear, H
+kav_params_all = np.array([[0.027], [0.053]]) 
 cusotom_isotherm_params_all = np.array([[1.2069715], [3.54]]) # [ [H_borate], [H_hcl] ]
 # Sub et al = np.array([[0.27], [0.53]])
 
@@ -916,7 +917,7 @@ cusotom_isotherm_params_all = np.array([[1.2069715], [3.54]]) # [ [H_borate], [H
 
 #%%
 # STORE/INITALIZE SMB VAIRABLES
-SMB_inputs = [iso_type, Names, color, num_comp, nx_per_col, e, Da_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_params_all]
+SMB_inputs = [iso_type, Names, color, num_comp, nx_per_col, e, Da_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_params_all, kav_params_all]
 
 # ---------- SAMPLE RUN IF NECESSARY
 start_test = time.time()
@@ -937,14 +938,14 @@ ext_cprofile= results[9]
 import matplotlib.pyplot as plt
 
 # Plotting the data
-plt.plot(results[2], raff_cprofile[0], label='Raff CProfile 0')
-plt.plot(results[2], raff_cprofile[1], label='Raff CProfile 1')
-plt.plot(results[2], ext_cprofile[0], label='Ext CProfile 0')
-plt.plot(results[2], ext_cprofile[1], label='Ext CProfile 1')
+plt.plot(results[2]/60/60, raff_cprofile[0], label='Raff CProfile 0')
+plt.plot(results[2]/60/60, raff_cprofile[1], label='Raff CProfile 1')
+plt.plot(results[2]/60/60, ext_cprofile[0], label='Ext CProfile 0')
+plt.plot(results[2]/60/60, ext_cprofile[1], label='Ext CProfile 1')
 
 # Adding labels and title
-plt.xlabel('X-axis')
-plt.ylabel('Profile Values')
+plt.xlabel('Time, hrs')
+plt.ylabel('g/mL')
 plt.title('Comparison of Raff and Ext CProfiles')
 
 # Adding legend
@@ -988,7 +989,7 @@ if __name__ == "__main__":
     # - - - - -
     t_reff = 10 # min
     # - - - - -
-    Q_max = 40 # L/h
+    Q_max = 20 # L/h
     Q_min = 1 # L/h
 
 
@@ -1012,10 +1013,10 @@ if __name__ == "__main__":
     # - - - - -
     
     bounds = [  
-    (3.1, m_max), # m1
-    (3, m_max), # m2
-    (3.1, m_max), # m3
-    (3, 3.5), # m4
+    (1.1, m_max), # m1
+    (1, m_max), # m2
+    (1.1, m_max), # m3
+    (1, 1.5), # m4
     (0.2, 1) # t_index/t_reff (normalized)
     ]
 
@@ -1065,315 +1066,317 @@ if __name__ == "__main__":
 
 
 
-#     # -------- VISULAIZATIONS
-# def load_inputs_outputs(inputs_path, outputs_path):
-#     """
-#     Loads all_inputs and output values (f1, f2, c1, c2) from saved JSON files and reconstructs them as numpy arrays.
-    
-#     Args:
-#         inputs_path (str): Path to 'all_inputs.json'.
-#         outputs_path (str): Path to 'all_outputs.json'.
-
-#     Returns:
-#         all_inputs (np.ndarray): Loaded inputs array.
-#         f1_vals (np.ndarray): Glucose recovery values.
-#         f2_vals (np.ndarray): Fructose recovery values.
-#         c1_vals (np.ndarray): Glucose purity values.
-#         c2_vals (np.ndarray): Fructose purity values.
-#     """
-#     # Load inputs
-#     with open(inputs_path, "r") as f:
-#         all_inputs_list = json.load(f)
-#     all_inputs = np.array(all_inputs_list)
-
-#     # Load outputs
-#     with open(outputs_path, "r") as f:
-#         data_dict = json.load(f)
-#     f1_vals = np.array(data_dict["f1_vals"])
-#     f2_vals = np.array(data_dict["f2_vals"])
-#     c1_vals = np.array(data_dict["c1_vals"])
-#     c2_vals = np.array(data_dict["c2_vals"])
-
-#     return all_inputs, f1_vals, f2_vals, c1_vals, c2_vals
-
-
-# #%%
-
-# #------------------------------------------------------- 1. Table
-
-# def create_output_optimization_table(f1_vals, f2_vals, c1_vals, c2_vals, sampling_budget):
-#     # Create a data table with recoveries first
-#     data = np.column_stack((f1_vals*100, f2_vals*100, c1_vals*100, c2_vals*100))
-#     columns = ['Recovery F1 (%)', 'Recovery F2 (%)', 'Purity C1 (%)', 'Purity C2 (%)']
-#     rows = [f'Iter {i+1}' for i in range(len(c1_vals))]
-
-#     # Identify "star" entries (where f1_vals, f2_vals > 70 and c1_vals, c2_vals > 90)
-#     star_indices = np.where((f1_vals*100 > 50) & (f2_vals*100 > 50) & (c1_vals*100 > 80) & (c2_vals*100 > 80))[0]
-
-#     # Create figure
-#     fig, ax = plt.subplots(figsize=(8, len(c1_vals) * 0.4))
-#     ax.set_title("Optimization Iterations: Recovery & Purity Table", fontsize=12, fontweight='bold', pad=5)  # Reduced padding
-#     ax.axis('tight')
-#     ax.axis('off')
-
-#     # Create the table
-#     table = ax.table(cellText=data.round(2),
-#                      colLabels=columns,
-#                      rowLabels=rows,
-#                      cellLoc='center',
-#                      loc='center')
-
-#     # Adjust font size
-#     table.auto_set_font_size(False)
-#     table.set_fontsize(10)
-#     table.auto_set_column_width(col=list(range(len(columns))))
-
-#     # Apply colors
-#     for i in range(len(c1_vals)):
-#         for j in range(len(columns)):
-#             cell = table[(i+1, j)]  # (row, column) -> +1 because row labels shift index
-#             if i < sampling_budget:
-#                 cell.set_facecolor('lightgray')  # Grey out first 20 rows
-#             if i in star_indices:
-#                 cell.set_facecolor('yellow')  # Highlight star entries in yellow
-
-#     # Save the figure as an image
-#     image_filename = "output_optimization_table.png"
-#     fig.savefig(image_filename, dpi=300, bbox_inches='tight')
-#     plt.show()
-
-#     return image_filename
-
-
-
-# def calculate_flowrates(input_array, V_col, e):
-#     # Initialize the external flowrate array with the same shape as input_array
-#     internal_flowrate = np.zeros_like(input_array[:,:-1])
-#     external_flowrate = np.zeros_like(input_array)
-    
-#     # Reshape the last column to be a 2D array for broadcasting
-#     input_last_col = input_array[:, -1]
-    
-#     for i, t_index in enumerate(input_last_col):
-#         # Calculate the flow rates using the provided formula
-#         # Fill each row in external_flowrate:
-#         print(f't_index: {t_index}')
-#         internal_flowrate[i, :] = (input_array[i, :-1] * V_col * (1 - e) + V_col * e) / (t_index * 60)  # cm^3/s
-    
-
-#     internal_flowrate = internal_flowrate*3.6 # cm^3/s => L/h
-#     print(f'internal_flowrate: {internal_flowrate}')
-#     # Calculate Internal FLowtates:
-#     Qfeed = internal_flowrate[:,2] - internal_flowrate[:,1] # Q_III - Q_II 
-#     Qraffinate = internal_flowrate[:,2] - internal_flowrate[:,3] # Q_III - Q_IV 
-#     Qdesorbent = internal_flowrate[:,0] - internal_flowrate[:,3] # Q_I - Q_IV 
-#     Qextract = internal_flowrate[:,0] - internal_flowrate[:,1] # Q_I - Q_II
-
-#     external_flowrate[:,0] = Qfeed
-#     external_flowrate[:,1] = Qraffinate
-#     external_flowrate[:,2] = Qdesorbent
-#     external_flowrate[:,3] = Qextract
-#     external_flowrate[:,4] = input_last_col
-
-#     return internal_flowrate, external_flowrate
+        # -------- VISULAIZATIONS
+    def load_inputs_outputs(inputs_path, outputs_path):
+        """
+        Loads all_inputs and output values (f1, f2, c1, c2) from saved JSON files and reconstructs them as numpy arrays.
+        
+        Args:
+            inputs_path (str): Path to 'all_inputs.json'.
+            outputs_path (str): Path to 'all_outputs.json'.
+
+        Returns:
+            all_inputs (np.ndarray): Loaded inputs array.
+            f1_vals (np.ndarray): Glucose recovery values.
+            f2_vals (np.ndarray): Fructose recovery values.
+            c1_vals (np.ndarray): Glucose purity values.
+            c2_vals (np.ndarray): Fructose purity values.
+        """
+        # Load inputs
+        with open(inputs_path, "r") as f:
+            all_inputs_list = json.load(f)
+        all_inputs = np.array(all_inputs_list)
+
+        # Load outputs
+        with open(outputs_path, "r") as f:
+            data_dict = json.load(f)
+        f1_vals = np.array(data_dict["f1_vals"])
+        f2_vals = np.array(data_dict["f2_vals"])
+        c1_vals = np.array(data_dict["c1_vals"])
+        c2_vals = np.array(data_dict["c2_vals"])
+
+        return all_inputs, f1_vals, f2_vals, c1_vals, c2_vals
+
+
+    #%%
+
+    #------------------------------------------------------- 1. Table
+
+    def create_output_optimization_table(f1_vals, f2_vals, c1_vals, c2_vals, sampling_budget):
+        # Create a data table with recoveries first
+        data = np.column_stack((f1_vals*100, f2_vals*100, c1_vals*100, c2_vals*100))
+        columns = ['Recovery F1 (%)', 'Recovery F2 (%)', 'Purity C1 (%)', 'Purity C2 (%)']
+        rows = [f'Iter {i+1}' for i in range(len(c1_vals))]
+
+        # Identify "star" entries (where f1_vals, f2_vals > 70 and c1_vals, c2_vals > 90)
+        star_indices = np.where((f1_vals*100 > 50) & (f2_vals*100 > 50) & (c1_vals*100 > 80) & (c2_vals*100 > 80))[0]
+
+        # Create figure
+        fig, ax = plt.subplots(figsize=(8, len(c1_vals) * 0.4))
+        ax.set_title("Optimization Iterations: Recovery & Purity Table", fontsize=12, fontweight='bold', pad=5)  # Reduced padding
+        ax.axis('tight')
+        ax.axis('off')
+
+        # Create the table
+        table = ax.table(cellText=data.round(2),
+                        colLabels=columns,
+                        rowLabels=rows,
+                        cellLoc='center',
+                        loc='center')
+
+        # Adjust font size
+        table.auto_set_font_size(False)
+        table.set_fontsize(10)
+        table.auto_set_column_width(col=list(range(len(columns))))
+
+        # Apply colors
+        for i in range(len(c1_vals)):
+            for j in range(len(columns)):
+                cell = table[(i+1, j)]  # (row, column) -> +1 because row labels shift index
+                if i < sampling_budget:
+                    cell.set_facecolor('lightgray')  # Grey out first 20 rows
+                if i in star_indices:
+                    cell.set_facecolor('yellow')  # Highlight star entries in yellow
+
+        # Save the figure as an image
+        image_filename = "output_optimization_table.png"
+        fig.savefig(image_filename, dpi=300, bbox_inches='tight')
+        plt.show()
+
+        return image_filename
+
+
+
+    def calculate_flowrates(input_array, V_col, e):
+        # Initialize the external flowrate array with the same shape as input_array
+        internal_flowrate = np.zeros_like(input_array[:,:-1])
+        external_flowrate = np.zeros_like(input_array)
+        
+        # Reshape the last column to be a 2D array for broadcasting
+        input_last_col = input_array[:, -1]
+        
+        for i, t_index in enumerate(input_last_col):
+            # Calculate the flow rates using the provided formula
+            # Fill each row in external_flowrate:
+            print(f't_index: {t_index}')
+            internal_flowrate[i, :] = (input_array[i, :-1] * V_col * (1 - e) + V_col * e) / (t_index * 60)  # cm^3/s
+        
+
+        internal_flowrate = internal_flowrate*3.6 # cm^3/s => L/h
+        print(f'internal_flowrate: {internal_flowrate}')
+        # Calculate Internal FLowtates:
+        Qfeed = internal_flowrate[:,2] - internal_flowrate[:,1] # Q_III - Q_II 
+        Qraffinate = internal_flowrate[:,2] - internal_flowrate[:,3] # Q_III - Q_IV 
+        Qdesorbent = internal_flowrate[:,0] - internal_flowrate[:,3] # Q_I - Q_IV 
+        Qextract = internal_flowrate[:,0] - internal_flowrate[:,1] # Q_I - Q_II
+
+        external_flowrate[:,0] = Qfeed
+        external_flowrate[:,1] = Qraffinate
+        external_flowrate[:,2] = Qdesorbent
+        external_flowrate[:,3] = Qextract
+        external_flowrate[:,4] = input_last_col
+
+        return internal_flowrate, external_flowrate
 
-# def create_input_optimization_table(input_array, V_col, e, sampling_budget, f1_vals, f2_vals, c1_vals, c2_vals):
-#     # Calculate flow rates
-#     internal_flowrate, external_flowrate = calculate_flowrates(input_array, V_col, e)
-#     flowrates = external_flowrate
-#     # Create a data table with flow rates
-#     data = external_flowrate
-#     columns = ['Feed (L/h)', 'Raffinate (L/h)', 'Desorbent (L/h)', 'Extract(L/h)', 'Index Time (min)']
-#     rows = [f'Iter {i+1}' for i in range(len(input_array))]
+    def create_input_optimization_table(input_array, V_col, e, sampling_budget, f1_vals, f2_vals, c1_vals, c2_vals):
+        # Calculate flow rates
+        internal_flowrate, external_flowrate = calculate_flowrates(input_array, V_col, e)
+        flowrates = external_flowrate
+        # Create a data table with flow rates
+        data = external_flowrate
+        columns = ['Feed (L/h)', 'Raffinate (L/h)', 'Desorbent (L/h)', 'Extract(L/h)', 'Index Time (min)']
+        rows = [f'Iter {i+1}' for i in range(len(input_array))]
 
-#     # Identify "star" entries (example condition: flowrate > threshold)
-#     star_indices = np.where((f1_vals*100 > 50) & (f2_vals*100 > 50) & (c1_vals*100 > 80) & (c2_vals*100 > 80))[0]
-#     # Create figure
-#     fig, ax = plt.subplots(figsize=(8, len(input_array) * 0.4))
-#     ax.set_title("Optimization Iterations: Flowrate Table", fontsize=12, fontweight='bold', pad=5)  # Reduced padding
-#     ax.axis('tight')
-#     ax.axis('off')
+        # Identify "star" entries (example condition: flowrate > threshold)
+        star_indices = np.where((f1_vals*100 > 50) & (f2_vals*100 > 50) & (c1_vals*100 > 80) & (c2_vals*100 > 80))[0]
+        # Create figure
+        fig, ax = plt.subplots(figsize=(8, len(input_array) * 0.4))
+        ax.set_title("Optimization Iterations: Flowrate Table", fontsize=12, fontweight='bold', pad=5)  # Reduced padding
+        ax.axis('tight')
+        ax.axis('off')
 
-#     # Create the table
-#     table = ax.table(cellText=data.round(3),
-#                      colLabels=columns,
-#                      rowLabels=rows,
-#                      cellLoc='center',
-#                      loc='center')
+        # Create the table
+        table = ax.table(cellText=data.round(3),
+                        colLabels=columns,
+                        rowLabels=rows,
+                        cellLoc='center',
+                        loc='center')
 
-#     # Adjust font size
-#     table.auto_set_font_size(False)
-#     table.set_fontsize(5)
-#     table.auto_set_column_width(col=list(range(len(columns))))
+        # Adjust font size
+        table.auto_set_font_size(False)
+        table.set_fontsize(5)
+        table.auto_set_column_width(col=list(range(len(columns))))
 
-#     # Apply colors
-#     for i in range(len(input_array)):
-#         for j in range(len(columns)):
-#             cell = table[(i+1, j)]  # (row, column) -> +1 because row labels shift index
-#             if i < sampling_budget:
-#                 cell.set_facecolor('lightgray')  # Grey out first sampling_budget rows
-#             if i in star_indices:
-#                 cell.set_facecolor('yellow')  # Highlight star entries in yellow
-
-#     # Save the figure as an image
-#     image_filename = "input_optimization_table.png"
-#     fig.savefig(image_filename, dpi=300, bbox_inches='tight')
-#     plt.show()
+        # Apply colors
+        for i in range(len(input_array)):
+            for j in range(len(columns)):
+                cell = table[(i+1, j)]  # (row, column) -> +1 because row labels shift index
+                if i < sampling_budget:
+                    cell.set_facecolor('lightgray')  # Grey out first sampling_budget rows
+                if i in star_indices:
+                    cell.set_facecolor('yellow')  # Highlight star entries in yellow
+
+        # Save the figure as an image
+        image_filename = "input_optimization_table.png"
+        fig.savefig(image_filename, dpi=300, bbox_inches='tight')
+        plt.show()
 
-#     return image_filename
+        return image_filename
 
 
 
 
 
-# #------------------------------------------------------- 2. Recovery Pareto
+    #------------------------------------------------------- 2. Recovery Pareto
 
-# def create_recovery_pareto_plot(f1_vals, f2_vals, zone_config, sampling_budget, optimization_budget):
-#     # Convert to percentages
-#     f1_vals_plot = f1_vals * 100
-#     f2_vals_plot = f2_vals * 100
+    def create_recovery_pareto_plot(f1_vals, f2_vals, zone_config, sampling_budget, optimization_budget):
+        # Convert to percentages
+        f1_vals_plot = f1_vals * 100
+        f2_vals_plot = f2_vals * 100
 
-#     # Function to find Pareto front
-#     def find_pareto_front(f1, f2):
-#         pareto_mask = np.ones(len(f1), dtype=bool)  # Start with all points assumed Pareto-optimal
+        # Function to find Pareto front
+        def find_pareto_front(f1, f2):
+            pareto_mask = np.ones(len(f1), dtype=bool)  # Start with all points assumed Pareto-optimal
 
-#         for i in range(len(f1)):
-#             if pareto_mask[i]:  # Check only if not already removed
-#                 pareto_mask[i] = not np.any((f1 >= f1[i]) & (f2 >= f2[i]) & ((f1 > f1[i]) | (f2 > f2[i])))
+            for i in range(len(f1)):
+                if pareto_mask[i]:  # Check only if not already removed
+                    pareto_mask[i] = not np.any((f1 >= f1[i]) & (f2 >= f2[i]) & ((f1 > f1[i]) | (f2 > f2[i])))
 
-#         return pareto_mask
+            return pareto_mask
 
-#     # Identify Pareto-optimal points
-#     pareto_mask = find_pareto_front(f1_vals_plot, f2_vals_plot)
+        # Identify Pareto-optimal points
+        pareto_mask = find_pareto_front(f1_vals_plot, f2_vals_plot)
 
-#     plt.figure(figsize=(10, 6))
+        plt.figure(figsize=(10, 6))
 
-#     # Plot non-Pareto points in blue
-#     plt.scatter(f1_vals_plot[~pareto_mask], f2_vals_plot[~pareto_mask], c='blue', marker='o', label='Optimization Iterations')
-#     # Plot Pareto-optimal points in red
-#     plt.scatter(f1_vals_plot[pareto_mask], f2_vals_plot[pareto_mask], c='red', marker='o', label='Pareto Frontier')
+        # Plot non-Pareto points in blue
+        plt.scatter(f1_vals_plot[~pareto_mask], f2_vals_plot[~pareto_mask], c='blue', marker='o', label='Optimization Iterations')
+        # Plot Pareto-optimal points in red
+        plt.scatter(f1_vals_plot[pareto_mask], f2_vals_plot[pareto_mask], c='red', marker='o', label='Pareto Frontier')
 
-#     # Plot initial samples in grey
-#     # plt.scatter(f1_initial, f2_initial, c='grey', marker='o', label='Initial Samples')
+        # Plot initial samples in grey
+        # plt.scatter(f1_initial, f2_initial, c='grey', marker='o', label='Initial Samples')
 
-#     # Labels and formatting
-#     plt.title(f'Pareto Curve of Recoveries of Glu in Raff vs Fru in Ext\n Config: {zone_config} \nInitial Samples: {sampling_budget}, Opt Iterations: {optimization_budget}')
-#     plt.xlabel('Glucose Recovery in Raffinate (%)')
-#     plt.ylabel('Fructose Recovery in Extract (%)')
-#     plt.xlim(0, 100)
-#     plt.ylim(0, 100)
-#     plt.grid(True)
-#     plt.legend()
+        # Labels and formatting
+        plt.title(f'Pareto Curve of Recoveries of Glu in Raff vs Fru in Ext\n Config: {zone_config} \nInitial Samples: {sampling_budget}, Opt Iterations: {optimization_budget}')
+        plt.xlabel('Glucose Recovery in Raffinate (%)')
+        plt.ylabel('Fructose Recovery in Extract (%)')
+        plt.xlim(0, 100)
+        plt.ylim(0, 100)
+        plt.grid(True)
+        plt.legend()
 
-#     # Save the figure as an image
-#     image_filename = "recovery_pareto.png"
-#     plt.savefig(image_filename, dpi=300, bbox_inches='tight')
-#     plt.show()
+        # Save the figure as an image
+        image_filename = "recovery_pareto.png"
+        plt.savefig(image_filename, dpi=300, bbox_inches='tight')
+        plt.show()
 
-#     return image_filename
+        return image_filename
 
 
-# #------------------------------------------------------- 2. Purity Pareto
+    #------------------------------------------------------- 2. Purity Pareto
 
-# def create_purity_pareto_plot(c1_vals, c2_vals, zone_config, sampling_budget, optimization_budget):
-#     # Convert to percentages
-#     c1_vals_plot = c1_vals * 100
-#     c2_vals_plot = c2_vals * 100
+    def create_purity_pareto_plot(c1_vals, c2_vals, zone_config, sampling_budget, optimization_budget):
+        # Convert to percentages
+        c1_vals_plot = c1_vals * 100
+        c2_vals_plot = c2_vals * 100
 
-#     # Function to find Pareto front
-#     def find_pareto_front(c1, c2):
-#         pareto_mask = np.ones(len(c1), dtype=bool)  # Start with all points assumed Pareto-optimal
+        # Function to find Pareto front
+        def find_pareto_front(c1, c2):
+            pareto_mask = np.ones(len(c1), dtype=bool)  # Start with all points assumed Pareto-optimal
 
-#         for i in range(len(c1)):
-#             if pareto_mask[i]:  # Check only if not already removed
-#                 pareto_mask[i] = not np.any((c1 >= c1[i]) & (c2 >= c2[i]) & ((c1 > c1[i]) | (c2 > c2[i])))
+            for i in range(len(c1)):
+                if pareto_mask[i]:  # Check only if not already removed
+                    pareto_mask[i] = not np.any((c1 >= c1[i]) & (c2 >= c2[i]) & ((c1 > c1[i]) | (c2 > c2[i])))
 
-#         return pareto_mask
+            return pareto_mask
 
-#     # Identify Pareto-optimal points
-#     pareto_mask = find_pareto_front(c1_vals_plot, c2_vals_plot)
+        # Identify Pareto-optimal points
+        pareto_mask = find_pareto_front(c1_vals_plot, c2_vals_plot)
 
-#     plt.figure(figsize=(10, 6))
+        plt.figure(figsize=(10, 6))
 
-#     # Plot non-Pareto points in blue
-#     plt.scatter(c1_vals_plot[~pareto_mask], c2_vals_plot[~pareto_mask], c='blue', marker='o', label='Optimization Iterations')
-#     # Plot Pareto-optimal points in red
-#     plt.scatter(c1_vals_plot[pareto_mask], c2_vals_plot[pareto_mask], c='red', marker='o', label='Pareto Frontier')
+        # Plot non-Pareto points in blue
+        plt.scatter(c1_vals_plot[~pareto_mask], c2_vals_plot[~pareto_mask], c='blue', marker='o', label='Optimization Iterations')
+        # Plot Pareto-optimal points in red
+        plt.scatter(c1_vals_plot[pareto_mask], c2_vals_plot[pareto_mask], c='red', marker='o', label='Pareto Frontier')
 
-#     # Plot initial samples in grey
-#     # plt.scatter(c1_initial, c2_initial, c='grey', marker='o', label='Initial Samples')
+        # Plot initial samples in grey
+        # plt.scatter(c1_initial, c2_initial, c='grey', marker='o', label='Initial Samples')
 
-#     # Labels and formatting
-#     plt.title(f'Pareto Curve of Purities of Glu in Raff vs Fru in Ext\n Config: {zone_config} \nInitial Samples: {sampling_budget}, Opt Iterations: {optimization_budget}')
-#     plt.xlabel('Glucose Purity in Raffinate (%)')
-#     plt.ylabel('Fructose Purity in Extract (%)')
-#     plt.xlim(0, 100)
-#     plt.ylim(0, 100)
-#     plt.grid(True)
-#     plt.legend()
+        # Labels and formatting
+        plt.title(f'Pareto Curve of Purities of Glu in Raff vs Fru in Ext\n Config: {zone_config} \nInitial Samples: {sampling_budget}, Opt Iterations: {optimization_budget}')
+        plt.xlabel('Glucose Purity in Raffinate (%)')
+        plt.ylabel('Fructose Purity in Extract (%)')
+        plt.xlim(0, 100)
+        plt.ylim(0, 100)
+        plt.grid(True)
+        plt.legend()
 
-#     # Save the figure as an image
-#     image_filename = "purity_pareto.png"
-#     plt.savefig(image_filename, dpi=300, bbox_inches='tight')
-#     plt.show()
+        # Save the figure as an image
+        image_filename = "purity_pareto.png"
+        plt.savefig(image_filename, dpi=300, bbox_inches='tight')
+        plt.show()
 
-#     return image_filename
+        return image_filename
 
 
 
-# #------------------------------------------------------- 4. Pareto Outputs Trace
-# def find_pareto_front(f1, f2):
-#     pareto_mask = np.ones(len(f1), dtype=bool)  # Start with all points assumed Pareto-optimal
+    #------------------------------------------------------- 4. Pareto Outputs Trace
+    def find_pareto_front(f1, f2):
+        pareto_mask = np.ones(len(f1), dtype=bool)  # Start with all points assumed Pareto-optimal
 
-#     for i in range(len(f1)):
-#         if pareto_mask[i]:  # Check only if not already removed
-#             pareto_mask[i] = not np.any((f1 >= f1[i]) & (f2 >= f2[i]) & ((f1 > f1[i]) | (f2 > f2[i])))
+        for i in range(len(f1)):
+            if pareto_mask[i]:  # Check only if not already removed
+                pareto_mask[i] = not np.any((f1 >= f1[i]) & (f2 >= f2[i]) & ((f1 > f1[i]) | (f2 > f2[i])))
 
-#     return pareto_mask
+        return pareto_mask
 
-# def plot_inputs_vs_iterations(input_array, f1_vals, f2_vals):
-#     input_names = ['Feed (L/h)', 'Raffinate (L/h)', 'Desorbent (L/h)', 'Extract (L/h)', 'Index Time (min)']
-#     # Convert to percentages
-#     f1_vals_plot = f1_vals * 100
-#     f2_vals_plot = f2_vals * 100
+    def plot_inputs_vs_iterations(input_array, f1_vals, f2_vals):
+            input_names = ['Feed (L/h)', 'Raffinate (L/h)', 'Desorbent (L/h)', 'Extract (L/h)', 'Index Time (min)']
+            # Convert to percentages
+            f1_vals_plot = f1_vals * 100
+            f2_vals_plot = f2_vals * 100
 
-#     # Identify Pareto-optimal points
-#     pareto_mask = find_pareto_front(f1_vals_plot, f2_vals_plot)
+            # Identify Pareto-optimal points
+            pareto_mask = find_pareto_front(f1_vals_plot, f2_vals_plot)
 
-#     # Filter input_array for Pareto-optimal points
-#     pareto_inputs = input_array[pareto_mask]
+            # Filter input_array for Pareto-optimal points
+            pareto_inputs = input_array[pareto_mask]
 
-#     # Plot inputs vs iterations for Pareto-optimal points
-#     iterations = np.arange(1, len(pareto_inputs) + 1)
+            # Plot inputs vs iterations for Pareto-optimal points
+            iterations = np.arange(1, len(pareto_inputs) + 1)
 
-#     fig, ax1 = plt.subplots(figsize=(12, 8))
+            fig, ax1 = plt.subplots(figsize=(12, 8))
 
-#     # Plot all inputs except the last one
-#     for i in range(pareto_inputs.shape[1] - 1):
-#         ax1.plot(iterations, pareto_inputs[:, i], marker='o', label=f'{input_names[i]}')
+            # Plot all inputs except the last one
+            for i in range(pareto_inputs.shape[1] - 1):
+                ax1.plot(iterations, pareto_inputs[:, i], marker='o', label=f'{input_names[i]}')
 
-#     ax1.set_xlabel('Iteration')
-#     ax1.set_ylabel('Flowrates (L/h)')
-#     ax1.grid(True)
-#     ax1.legend(loc='upper left')
+            ax1.set_xlabel('Iteration')
+            ax1.set_ylabel('Flowrates (L/h)')
+            ax1.grid(True)
+            ax1.legend(loc='upper left')
 
-#     # Create a second y-axis for the indexing time
-#     ax2 = ax1.twinx()
-#     ax2.plot(iterations, pareto_inputs[:, -1], marker='o', color='grey', linestyle = "--", label=f'Input {input_names[-1]}')
-#     ax2.set_ylabel('Index Time (min)')
-#     ax2.legend(loc='upper right')
+            # Create a second y-axis for the indexing time
+            ax2 = ax1.twinx()
+            ax2.plot(iterations, pareto_inputs[:, -1], marker='o', color='grey', linestyle = "--", label=f'Input {input_names[-1]}')
+            ax2.set_ylabel('Index Time (min)')
+            ax2.legend(loc='upper right')
 
-#     plt.title('Operating Conditions at Pareto-Optimal Operating Points\nInputs=[Flowrates, Indexing Time]')
-#     plt.show()
+            plt.title('Operating Conditions at Pareto-Optimal Operating Points\nInputs=[Flowrates, Indexing Time]')
+            plt.show()
+
+    #%%
+    # Run the Functions and Visualise
+    # --- Paretos
+    rec_pareto_image_filename = create_recovery_pareto_plot(f1_vals, f2_vals, zone_config, sampling_budget, optimization_budget)
+    pur_pareto_image_filename = create_purity_pareto_plot(c1_vals, c2_vals, zone_config, sampling_budget, optimization_budget)
+    plot_inputs_vs_iterations(all_inputs, f1_vals, f2_vals)
+
+    # ---- Tables
+    opt_table_for_outputs_image_filename = create_output_optimization_table(f1_vals, f2_vals, c1_vals, c2_vals, sampling_budget)
+    opt_table_for_inputs_image_filename = create_input_optimization_table(all_inputs, V_col, e, sampling_budget, f1_vals, f2_vals, c1_vals, c2_vals)
+
 
 # %%
-# Run the Functions and Visualise
-# --- Paretos
-# rec_pareto_image_filename = create_recovery_pareto_plot(f1_vals, f2_vals, zone_config, sampling_budget, optimization_budget)
-# pur_pareto_image_filename = create_purity_pareto_plot(c1_vals, c2_vals, zone_config, sampling_budget, optimization_budget)
-# plot_inputs_vs_iterations(all_inputs, f1_vals, f2_vals)
-
-# # ---- Tables
-# opt_table_for_outputs_image_filename = create_output_optimization_table(f1_vals, f2_vals, c1_vals, c2_vals, sampling_budget)
-# opt_table_for_inputs_image_filename = create_input_optimization_table(all_inputs, V_col, e, sampling_budget, f1_vals, f2_vals, c1_vals, c2_vals)
-

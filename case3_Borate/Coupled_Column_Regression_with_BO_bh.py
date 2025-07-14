@@ -34,9 +34,8 @@ def solve_concentration(Da_all, kfp_all, cusotom_isotherm_params_all, column_fun
     kfp =>  len(.) = 1
     """
     column_func_inputs[4] =  np.array(Da_all) # Insert the Dispersion in the correct position
-    column_func_inputs[3][0]["kfp"] = kfp_all[0] # Update kfp in the parameter set
-    column_func_inputs[3][1]["kfp"] = kfp_all[1]  # Update kfp in the parameter set
-    column_func_inputs[-1] = cusotom_isotherm_params_all  # Update H in the parameter set
+    column_func_inputs[-1] = kfp_all # Update kfp in the parameter set
+    column_func_inputs[-2] = cusotom_isotherm_params_all  # Update H in the parameter set
 
     solution = column_func(column_func_inputs)
 
@@ -66,8 +65,9 @@ def generate_synthetic_data(Da, kfp, cusotom_isotherm_params_all, resolution):
     L = 40 # cm
     d_col = 2 # cm
     Bm = 500
+    kav_params_all = [[0.4, 0.4], [0.2, 0.5]]
 
-    column_func_inputs = [iso_type,  Names, color, parameter_sets, Da, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all]
+    column_func_inputs = [iso_type,  Names, color, parameter_sets, Da, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all, kav_params_all]
 
     t_values, col_elution_borate, col_elution_hcl = solve_concentration(Da, kfp, cusotom_isotherm_params_all, column_func_inputs)
     # noise = 0.1 * np.random.normal(size=len(t_values))
@@ -120,25 +120,40 @@ def objective_function(params, t_data, conc_data, column_func_inputs, max_of_eac
     Da_max = max_of_each_input[0]
     kfp_max = max_of_each_input[2]
     K1_max = max_of_each_input[4]
-    K2_max = max_of_each_input[6]
+    # K2_max = max_of_each_input[6]
 
     # Apply:
+    # Dispersion Coefficeint
     Da_bor = params[0]*Da_max
     Da_hcl = params[1]*Da_max
 
-    kfp_bor = params[2]*kfp_max
-    kfp_hcl = params[3]*kfp_max
+    # Mass Transfer Coefficeint
+    kfp1_bor = params[2]*kfp_max
+    kfp1_hcl = params[3]*kfp_max
 
-    K1_bor = params[4]*K1_max
-    K1_hcl = params[5]*K1_max
+    # kfp2_bor = params[4]*kfp_max
+    # kfp2_hcl = params[5]*kfp_max
 
-    K2_bor = params[5]*K2_max
-    K2_hcl = params[6]*K2_max
+
+    # Isotherm Parameters
+    # K1_bor = params[4]*K1_max
+    # K1_hcl = params[5]*K1_max
+    # ------------------------
+    K1_hcl = params[4]*K1_max
+
+    # K2_bor = params[6]*K2_max
+    # K2_hcl = params[7]*K2_max
 
     # PACK:
-    kfp_all = [kfp_bor, kfp_hcl]
+    # Fix a parameter, if necessary:
+    K1_bor = 0.031
+
+    # Pack the rest:
+    kfp_all = [[kfp1_bor], [kfp1_hcl]]
+
     Da_all = [Da_bor, Da_hcl]
-    cusotom_isotherm_params_all = np.array([[K1_bor, K2_bor], [K1_hcl, K2_hcl]]) #, [params[3]*K2_max]]) # params[4]*K3_max]
+
+    cusotom_isotherm_params_all = np.array([[K1_bor], [K1_hcl]]) #, [params[3]*K2_max]]) # params[4]*K3_max]
     
 
     t_predicted, predicted_conc_borate,  predicted_conc_hcl = solve_concentration(Da_all, kfp_all, cusotom_isotherm_params_all, column_func_inputs)
@@ -218,6 +233,8 @@ def get_data_from_excel(file_path, resolution):
     
     parameter_sets = [{"kfp": df.iloc[0]['kfp'], "C_feed": feed_conc_borate}, {"kfp": df.iloc[0]['kfp'], "C_feed": feed_conc_hcl}] # [1/s, __ , g/cm^3]
     
+    kav_params_all = ["N/A"]
+
     e = df.iloc[0]['voidage']
 
     Q_S = df.iloc[0]['Flowrate (cm^3/s)'] # cm^3/s
@@ -251,7 +268,7 @@ def get_data_from_excel(file_path, resolution):
     Da = 0 
     Bm = 0 
 
-    column_func_inputs = [iso_type,  Names, color, parameter_sets, Da, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all]
+    column_func_inputs = [iso_type,  Names, color, parameter_sets, Da, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all, kav_params_all]
     
 
     if resolution != None:
@@ -452,39 +469,57 @@ if __name__ == "__main__":
     # PLease note that most inputs are obtained from the Excel Sheets and in the 'GENERATE SYNTHETIC DATA' func
     # Because the system is coupled, is solves for all parameters at the same time
     ##
-    max_of_each_input = np.array([1e-5, 1e-5, # Da_max,
-                                  1.7, 1.7,   # kfp_max
+    #                               Borate    HCl
+    max_of_each_input = np.array([  1e-5,     1e-5,    # Da_max,
+                                    3,        3,       # kfp1_max
+                                #   5,        5,       # kfp2_max
+
                                   # Isotherm:
-                                  10, 10,
-                                  10, 10])      # K_max]
+                                    # 5,        5,
+                                            5])      # K_max]
     ##
 
     # Da guesses:
     Da_bor_guess = 9.8e-5 # cm^2/s
     Da_hcl_guess = 6.8e-5 # cm^2/s
     # kfp guesses:
-    kfp_bor_guess = 0.5387
-    kfp_hcl_guess = 0.5062
-    # Isotherm Guesses
-    K1_bor_guess = 3.239
-    K1_hcl_guess = 2.234
+    kfp1_bor_guess = 0.05387
+    kfp1_hcl_guess = 0.05062
 
-    K2_bor_guess = 3.239
-    K2_hcl_guess = 2.234
+    # kfp2_bor_guess = 0.5387
+    # kfp2_hcl_guess = 0.5062
+
+    # Isotherm Guesses
+    # K1_bor_guess = 3.239
+    K1_hcl_guess = 3.234
+
+    # K2_bor_guess = 3.239
+    # K2_hcl_guess = 2.234
     
     # Load Initial Guesses in vector:
     # When doing Fru:
-    x_initial_guess = np.array([Da_bor_guess,
+
+    # FOR LATER PLOTTING 
+    param_names = ["D_bor", "D_hcl", "kfp_bor", "kfp_hcl", "K1_bor", "K2_bor", "K1_hcl", "K2_hcl"]
+
+    x_initial_guess = np.array([
+                                # 1. Dispersion Coefficeint
+                                Da_bor_guess,
                                 Da_hcl_guess,
 
-                                kfp_bor_guess,
-                                kfp_hcl_guess,
+                                # 2. Mass Transfer Parameters:
+                                kfp1_bor_guess,
+                                kfp1_hcl_guess,
 
-                                K1_bor_guess,
+                                # kfp2_bor_guess,
+                                # kfp2_hcl_guess,
+
+                                # 3. Isotherm Parameters:
+                                # K1_bor_guess,
                                 K1_hcl_guess,
 
-                                K2_bor_guess,
-                                K2_hcl_guess,
+                                # K2_bor_guess,
+                                # K2_hcl_guess,
                                 
                                 ])
         
@@ -493,18 +528,26 @@ if __name__ == "__main__":
     x_initial_guess = x_initial_guess/max_of_each_input
     
 
-    optimization_budget = 10
-    bounds = [  (0.01, 1), # Da_bor
-                (0.01, 1), # Da_hcl
+    optimization_budget = 50
+    bounds = [  
+                # Dispersion
+                (0.00001, 1), # Da_bor
+                (0.00001, 1), # Da_hcl
 
-                (0.0001, 1), # kfp_bor
-                (0.0001, 1), # kfp_hcl
+                # Mass Transfer 
+                (0.0001, 1), # kfp1_bor
+                (0.0001, 1), # kfp1_hcl
+            
+                # (0.0001, 1), # kfp2_bor
+                # (0.0001, 1), # kfp2_hcl
 
-                (0.0001, 1), # K1_bor
+
+                # Isotherms
+                # (0.0001, 1), # K1_bor
                 (0.0001, 1), # K1_hcl
 
-                (0.0001, 1), # K2_bor
-                (0.0001, 1), # K2_hcl
+                # (0.0001, 1), # K2_bor
+                # (0.0001, 1), # K2_hcl
             ]
 
     # ---- PART 1: GET DATA  -------#
@@ -567,16 +610,78 @@ if __name__ == "__main__":
     
 
 
+#%% - Output Storage
 
-    # ---------------- SAVE THE OUTPUTS TO JSONS
-    data_dict = {
-    "f_vals": f_vals.tolist(),
-    "all_inputs": all_inputs.tolist(),
-    }
 
-    # SAVE to JSON:
-    with open("BO_COL_REG.json", "w") as f:
-        json.dump(data_dict, f, indent=4)
+    import numpy as np
+    import os
+    from datetime import datetime
+    import json
+    import os
+    from datetime import datetime
+
+    def save_optimization_results_json(project_name, project_description,
+                                    SSE, all_kinetic_inputs, all_operating_inputs,
+                                    save_dir=r"C:\Users\nawau\OneDrive\Desktop\MEng\MEng_Code\case3_Borate"):
+        """
+        Save optimization results in a structured JSON file with timestamp.
+
+        Parameters:
+            - project_name: str
+            - project_description: str
+            - SSE: list or 1D array of objective values
+            - all_kinetic_inputs: 2D list or array (n_iterations x n_params)
+            - all_operating_inputs: [t_data, col_elution_data, column_func_inputs]
+            - save_dir: target folder
+        """
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{project_name.replace(' ', '_')}_{timestamp}.json"
+        filepath = os.path.join(save_dir, filename)
+
+        # Convert all to JSON-serializable types
+        data = {
+            "project_name": project_name,
+            "project_description": project_description,
+            "SSE": list(map(float, SSE)),
+            "all_kinetic_inputs": [list(map(float, row)) for row in all_kinetic_inputs],
+            "all_operating_inputs": {
+                "t_data": list(map(float, all_operating_inputs[0])),
+                "col_elution_data": [list(map(float, comp)) for comp in all_operating_inputs[1]],
+                # "column_func_inputs": list(map(float, all_operating_inputs[2]))
+            }
+        }
+
+        with open(filepath, "w") as f:
+            json.dump(data, f, indent=4)
+
+        print(f"✅ Optimization results saved to: {filepath}")
+        return filepath
+
+
+
+
+        # Example data setup
+    project_name = "PCR-Borate-HCl_Lin_Type_2_Column_Regression."
+    project_description = "Resin: PCR-642.Ca, Isotherm Model: Coupled-Langmuir for both components\nMT Model: Linear" \
+    "\nType 1: No isotherm data for both comp" \
+    "\nType 2: Isotherm data for 1 comp" \
+    "\nType 3: Isotherm data FOR BOTH"
+
+    # Your existing variables
+    SSE = f_vals
+    all_kinetic_inputs = all_inputs
+    all_operating_inputs = [t_data, col_elution_data, column_func_inputs]
+
+    # Save it
+    save_optimization_results_json(project_name, project_description,
+                                SSE, all_kinetic_inputs, all_operating_inputs)
+
+    # # SAVE to JSON:
+    # with open("BO_COL_REG.json", "w") as f:
+    #     json.dump(data_dict, f, indent=4)
 
 
     # ---------------- Visualise THE OUTPUTS
@@ -655,7 +760,7 @@ if __name__ == "__main__":
     # plt.tight_layout()
     # plt.show()
 
-#%%
+    #%%
     # 2. Elution Curves
     fig, bx = plt.subplots(1, 1, figsize=(15, 5))
     # Experimental Data:
@@ -663,8 +768,8 @@ if __name__ == "__main__":
     bx.scatter(t_data/60, col_elution_data[1], label='HCl Experimental Data', color='green', alpha=0.6)
     # Model:
     # Initial Guess bor_elution_curve_initial_guess, hcl_elution_curve_initial_guess
-    bx.plot(t_data/60, bor_elution_curve_initial_guess, linestyle='--', label='Initial Guess', color='grey', alpha=0.6)
-    bx.plot(t_data/60, hcl_elution_curve_initial_guess, linestyle='--', color='grey', alpha=0.6)
+    # bx.plot(t_data/60, bor_elution_curve_initial_guess, linestyle='--', label='Initial Guess', color='grey', alpha=0.6)
+    # bx.plot(t_data/60, hcl_elution_curve_initial_guess, linestyle='--', color='grey', alpha=0.6)
     # Fitted Model , 
     bx.plot(t_data/60, bor_elution_curve_best, label='Borate Model', color='red', alpha=0.6)
     bx.scatter(t_data/60, bor_elution_curve_best, marker='s', color='red', alpha=0.6)
@@ -680,5 +785,101 @@ if __name__ == "__main__":
     plt.show()
 
 
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    def plot_kinetic_table(all_kinetic_inputs, SSE, param_names=None):
+        """
+        Plot a table with kinetic parameters and SSE values.
+
+        Parameters:
+            - all_kinetic_inputs: 2D list or array (n_iter x n_params)
+            - SSE: 1D list or array (n_iter,)
+            - param_names: list of parameter names (optional)
+        """
+        all_kinetic_inputs = np.array(all_kinetic_inputs)
+        SSE = np.array(SSE).reshape(-1, 1)
+
+        # Combine all data into one array
+        data = np.hstack([all_kinetic_inputs, SSE])
+
+        # Format entries to 3 significant figures
+        formatted_data = np.vectorize(lambda x: f"{x:.3g}")(data)
+
+        # Set column names
+        n_params = all_kinetic_inputs.shape[1]
+        if param_names is None:
+            param_names = [f"k{i+1}" for i in range(n_params)]
+        col_labels = param_names + ["SSE"]
+
+        fig, ax = plt.subplots(figsize=(1.2 * len(col_labels), 0.4 * len(data) + 1))
+        ax.axis('off')
+
+        table = ax.table(cellText=formatted_data,
+                        colLabels=col_labels,
+                        loc='center',
+                        cellLoc='center')
+
+        table.auto_set_font_size(False)
+        table.set_fontsize(10)
+        table.scale(1.2, 1.2)
+
+        plt.title("Kinetic Parameters per Iteration", fontsize=14)
+        plt.tight_layout()
+        plt.show()
+
+    # Example parameter names (optional)
+
+    # Use your data
+    # all_kinetic_inputs = all_inputs
+    # SSE = f_vals
+
+    plot_kinetic_table(all_kinetic_inputs, SSE, param_names)
+
+    # %%
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    def plot_kinetic_table(all_kinetic_inputs, SSE, param_names=None):
+        """
+        Plot a table with kinetic parameters and SSE values.
+
+        Parameters:
+            - all_kinetic_inputs: 2D list or array (n_iter x n_params)
+            - SSE: 1D list or array (n_iter,)
+            - param_names: list of parameter names (optional)
+        """
+        all_kinetic_inputs = np.array(all_kinetic_inputs)
+        SSE = np.array(SSE).reshape(-1, 1)
+
+        # Combine all data into one array
+        data = np.hstack([all_kinetic_inputs, SSE])
+
+        # Format entries to 3 significant figures
+        formatted_data = np.vectorize(lambda x: f"{x:.3g}")(data)
+
+        # Set column names
+        n_params = all_kinetic_inputs.shape[1]
+        if param_names is None:
+            param_names = [f"k{i+1}" for i in range(n_params)]
+        col_labels = param_names + ["SSE"]
+
+        fig, ax = plt.subplots(figsize=(1.2 * len(col_labels), 0.4 * len(data) + 1))
+        ax.axis('off')
+
+        table = ax.table(cellText=formatted_data,
+                        colLabels=col_labels,
+                        loc='center',
+                        cellLoc='center')
+
+        table.auto_set_font_size(False)
+        table.set_fontsize(10)
+        table.scale(1.2, 1.2)
+
+        plt.title("Kinetic Parameters per Iteration", fontsize=14)
+        plt.tight_layout()
+        plt.show()
+
+    plot_kinetic_table(all_kinetic_inputs, SSE, param_names)
 
 # %%

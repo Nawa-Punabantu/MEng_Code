@@ -36,7 +36,7 @@ import time
 
 
 def SMB(SMB_inputs):
-    iso_type, Names, color, num_comp, nx_per_col, e, D_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_params_all = SMB_inputs[0:]
+    iso_type, Names, color, num_comp, nx_per_col, e, D_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_params_all, kav_params_all = SMB_inputs[0:]
 
     ###################### (CALCUALTED) SECONDARY INPUTS #########################
 
@@ -152,6 +152,26 @@ def SMB(SMB_inputs):
 
         return q_star_1 # [qA, ...]
 
+    # Mass Transfer (MT) Models:
+
+    def mass_transfer(kav_params, q_star, q ): # already for specific comp
+        # kav_params: [kA, kB]
+
+        # 1. Single Parameter Model
+        # Unpack Parameters
+        kav =  kav_params
+        # MT = kav * Bm/(5 + Bm) * (q_star - q)
+        MT = kav * (q_star - q)
+
+        # 2. Two Parameter Model
+        # Unpack Parameters
+        # kav1 =  kav_params[0]
+        # kav2 =  kav_params[1]
+    
+        # MT = kav1* (q_star - q) + kav2* (q_star - q)**2
+
+        return MT
+
     def cusotom_CUP_isotherm_func(cusotom_isotherm_params_all, c, IDX, comp_idx):
         """
         Returns  solid concentration, q_star vector for given comp_idx
@@ -179,35 +199,59 @@ def SMB(SMB_inputs):
         # # Unpack respective parameters
         K1 = cusotom_isotherm_params_all[comp_idx][0] # 1st (and only) parameter of HA or HB
         # print(f'H = {K1}')
-        q_star_1 = K1*c_i[comp_idx]
+        q_star_lin = K1*c_i[comp_idx]
 
 
-        #------------------- 2. Coupled Langmuir Models
-        # The parameter in the numerator is dynamic, depends on comp_idx:
-        # K =  cusotom_isotherm_params_all[comp_idx][0]
+        #------------------- Two Parameter Models
+        # K1 = cusotom_isotherm_params[comp_idx][0] 
+        # K2 = cusotom_isotherm_params[comp_idx][1] 
+
+        # 1. Freundlich
+        # a = K1
+        # b = K2
+        # #-------------------------------
+        # q_star_fred = b*c_i[comp_idx]**(1/a)
+        # #-------------------------------
+
+        # 2. Langmuir
+        # Qmax = K1
+        # b = K2
+        # # #-------------------------------
+        # q_star_lang1 = Qmax*b*c_i[comp_idx]/(1 + b*c_i[comp_idx])
+        # # #-------------------------------
+
+        # 3. Coupled Langmuir Model
+        # cusotom_isotherm_params = [[QmaxA, bA], [QmaxB, bB]]
+
+        # The parameter in the numerator is dynamic, depends on comp_idx i.e. which component we are looking at:
+        # Qmax_i =  cusotom_isotherm_params[comp_idx][0]
+        # b_i =  cusotom_isotherm_params[comp_idx][1]
         
         # # Fix the sum of parameters in the demoninator:
-        # K1 = cusotom_isotherm_params_all[0][0] # 1st (and only) parameter of HA 
-        # K2 = cusotom_isotherm_params_all[1][0] # 1st (and only) parameter of HB
+        # b1 = cusotom_isotherm_params[0][1] # 1st (and only) parameter of HA 
+        # b2 = cusotom_isotherm_params[1][1] # 1st (and only) parameter of HB
         
-        # q_star_2 = K*c_i[comp_idx]/(1+ K1*c_i[0] + K2*c_i[1])
+        # q_star_lang2 = Qmax_i*b_i*c_i[comp_idx]/(1+ b1*c_i[0] + b2*c_i[1])
 
-        #------------------- 3. Combined Coupled Models
+
+
+        #------------------- 3. Combined Models
         # The parameter in the numerator is dynamic, depends on comp_idx:
-        # K_lin =  cusotom_isotherm_params_all[comp_idx][0]
+        # K_lin =  cusotom_isotherm_params[comp_idx][0]
+        # K_Q = cusotom_isotherm_params[comp_idx][1]
         
         # # Fix the sum of parameters in the demoninator:
-        # K1 = cusotom_isotherm_params_all[0][0] # 1st (and only) parameter of HA 
-        # K2 = cusotom_isotherm_params_all[1][0] # 1st (and only) parameter of HB
+        # K1 = cusotom_isotherm_params[0][0] # 1st (and only) parameter of HA 
+        # K2 = cusotom_isotherm_params[1][0] # 1st (and only) parameter of HB
         
         # c_sum = K1 + K2
         # linear_part = K_lin*c_i[comp_idx]
-        # langmuir_part = K*c_i[comp_idx]/(1+ K1*c_i[0] + K2*c_i[1])
+        # langmuir_part = K_Q*c_i[comp_idx]/(1+ K1*c_i[0] + K2*c_i[1])
 
-        # q_star_3 =  linear_part + langmuir_part
+        # q_star_combined =  linear_part + langmuir_part
 
 
-        return q_star_1 # [qA, ...]
+        return q_star_lin # [qA, ...]
 
     # DOES NOT INCLUDE THE C0 NODE (BY DEFAULT)
     def set_x(L, Ncol_num,nx_col,dx):
@@ -436,18 +480,6 @@ def SMB(SMB_inputs):
 
     ###########################################################################################
 
-    # Mass Transfer (MT) Models:
-
-    def mass_transfer(kav, q_star, q): # already for specific comp
-
-        MT = kav * Bm/(5 + Bm) * (q_star - q)
-        # MT = kav * (q_star - q)
-        return MT
-
-    # MT PARAMETERS
-    ###########################################################################################
-    # print('np.shape(parameter_sets[:]["kh"]):', np.shape(parameter_sets[3]))
-    kav_params = [parameter_sets[i]["kh"] for i in range(num_comp)]  # [kA, kB, kC, kD, kE, kF]
     
     # print('kav_params:', kav_params)
     # print('----------------------------------------------------------------')
@@ -459,7 +491,8 @@ def SMB(SMB_inputs):
     # Form the remaining schedule matrices that are to be searched by the funcs
 
     # Column velocity schedule:
-    u_col_all = -Q_col_all/A_col/e
+    u_superficial = -Q_col_all/A_col
+    u_col_all = u_superficial/e # interstitial
 
     # Column Dispersion schedule:
     # Different matrices for each comp, because diff Pe's for each comp
@@ -848,7 +881,7 @@ def SMB(SMB_inputs):
         # Mass Transfer:
         #########################################################################
         # print('isotherm size\n',np.shape(isotherm))
-        MT = mass_transfer(kav_params[comp_idx], isotherm, q)
+        MT = mass_transfer(kav_params_all[comp_idx], isotherm, q)
         #print('MT:\n', MT)
 
         coeff_matrix, vec_add = coeff_matrix_builder_UNC(t, Q_col_all, Q_pulse_all, dx, start, alpha, c, nx_col, comp_idx)
@@ -908,7 +941,7 @@ def SMB(SMB_inputs):
             isotherm = cusotom_CUP_isotherm_func(cusotom_isotherm_params_all, c, IDX, comp_idx)
             # print('qstar:\n', isotherm.shape)
             ################### (ii) MT ##########################################################
-            MT_comp = mass_transfer(kav_params[comp_idx], isotherm, q[IDX[comp_idx]: IDX[comp_idx] + nx ])
+            MT_comp = mass_transfer(kav_params_all[comp_idx], isotherm, q[IDX[comp_idx]: IDX[comp_idx] + nx ])
             MT[IDX[comp_idx]: IDX[comp_idx] + nx ] = MT_comp
 
             # [MT_A, MT_B, . . . ] KINETICS FOR EACH COMP
@@ -1516,429 +1549,430 @@ def SMB(SMB_inputs):
 
 
 
-# # Plotting Fucntions - if need be
-# ###########################################################################################
-# # Loading the Plotting Libraries
-# from matplotlib.pyplot import subplots
-# import matplotlib.pyplot as plt
-# import matplotlib.animation as animation
-# # from PIL import Image
-# from scipy import integrate
-# import plotly.graph_objects as go
-# ###########################################
-# # IMPORTING MY OWN FUNCTIONS
-# ###########################################
-# # Loading the Plotting Libraries
-# from matplotlib.pyplot import subplots
-# import matplotlib.pyplot as plt
-# import matplotlib.animation as animation
-# # from PIL import Image
-# from scipy import integrate
-# import plotly.graph_objects as go
-# ###########################################
-# # IMPORTING MY OWN FUNCTIONS
-# ###########################################
-# def see_prod_curves(t_odes, Y, t_index) :
-#     # Y = C_feed, C_raff, C_ext
-#     # X = t_sets
-#     fig, ax = plt.subplots(1, 3, figsize=(25, 5))
+# Plotting Fucntions - if need be
+###########################################################################################
+# Loading the Plotting Libraries
+from matplotlib.pyplot import subplots
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+# from PIL import Image
+from scipy import integrate
+import plotly.graph_objects as go
+###########################################
+# IMPORTING MY OWN FUNCTIONS
+###########################################
+# Loading the Plotting Libraries
+from matplotlib.pyplot import subplots
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+# from PIL import Image
+from scipy import integrate
+import plotly.graph_objects as go
+###########################################
+# IMPORTING MY OWN FUNCTIONS
+###########################################
+def see_prod_curves(t_odes, Y, t_index) :
+    # Y = C_feed, C_raff, C_ext
+    # X = t_sets
+    fig, ax = plt.subplots(1, 3, figsize=(25, 5))
     
 
-#     # 0 - Feed Profile
-#     # 1 - Raffinate Profile
-#     # 2 - Extract Profile
-#     t_odes  = t_odes/60/60
-#     # Concentration Plots
-#     for i in range(num_comp): # for each component
-#         if iso_type == "UNC":
-#             ax[0].plot(t_odes[i], Y[0][i], color = color[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
-#             ax[1].plot(t_odes[i], Y[1][i], color = color[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
-#             ax[2].plot(t_odes[i], Y[2][i], color = color[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
+    # 0 - Feed Profile
+    # 1 - Raffinate Profile
+    # 2 - Extract Profile
+    t_odes  = t_odes/60/60
+    # Concentration Plots
+    for i in range(num_comp): # for each component
+        if iso_type == "UNC":
+            ax[0].plot(t_odes[i], Y[0][i], color = color[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
+            ax[1].plot(t_odes[i], Y[1][i], color = color[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
+            ax[2].plot(t_odes[i], Y[2][i], color = color[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
         
-#         elif iso_type == "CUP":    
-#             ax[0].plot(t_odes, Y[0][i], color = color[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
-#             ax[1].plot(t_odes, Y[1][i], color = color[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
-#             ax[2].plot(t_odes, Y[2][i], color = color[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
+        elif iso_type == "CUP":    
+            ax[0].plot(t_odes, Y[0][i], color = color[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
+            ax[1].plot(t_odes, Y[1][i], color = color[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
+            ax[2].plot(t_odes, Y[2][i], color = color[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
         
-#     # Add Accessories
-#     ax[0].set_xlabel('Time, hrs')
-#     ax[0].set_ylabel('($\mathregular{g/cm^3}$)')
-#     ax[0].set_title(f'Feed Concentration Curves\nConfig: {Z1}:{Z2}:{Z3}:{Z4},\nNumber of Cycles:{n_num_cycles}\nIndex Time: {t_index}s')
-#     # ax[0].legend()
+    # Add Accessories
+    ax[0].set_xlabel('Time, hrs')
+    ax[0].set_ylabel('($\mathregular{g/cm^3}$)')
+    ax[0].set_title(f'Feed Concentration Curves\nConfig: {Z1}:{Z2}:{Z3}:{Z4},\nNumber of Cycles:{n_num_cycles}\nIndex Time: {t_index}s')
+    # ax[0].legend()
 
-#     ax[1].set_xlabel('Time, hrs')
-#     ax[1].set_ylabel('($\mathregular{g/cm^3}$)')
-#     ax[1].set_title(f'Raffinate Elution Curves\nConfig: {Z1}:{Z2}:{Z3}:{Z4},\nNumber of Cycles:{n_num_cycles}\nIndex Time: {t_index}s')
-#     # ax[1].legend()
+    ax[1].set_xlabel('Time, hrs')
+    ax[1].set_ylabel('($\mathregular{g/cm^3}$)')
+    ax[1].set_title(f'Raffinate Elution Curves\nConfig: {Z1}:{Z2}:{Z3}:{Z4},\nNumber of Cycles:{n_num_cycles}\nIndex Time: {t_index}s')
+    # ax[1].legend()
 
-#     ax[2].set_xlabel('Time, hrs')
-#     ax[2].set_ylabel('($\mathregular{g/cm^3}$)')
-#     ax[2].set_title(f'Extract Elution Curves\nConfig: {Z1}:{Z2}:{Z3}:{Z4},\nNumber of Cycles:{n_num_cycles}\nIndex Time: {t_index}s')
-#     # ax[2].legend()
+    ax[2].set_xlabel('Time, hrs')
+    ax[2].set_ylabel('($\mathregular{g/cm^3}$)')
+    ax[2].set_title(f'Extract Elution Curves\nConfig: {Z1}:{Z2}:{Z3}:{Z4},\nNumber of Cycles:{n_num_cycles}\nIndex Time: {t_index}s')
+    # ax[2].legend()
 
 
-#     plt.show()
+    plt.show()
 
-#     # Volumetric Flowrate Plots
-#     fig, vx = plt.subplots(1, 2, figsize=(25, 5))
-#     for i in range(num_comp): # for each component
-#         if iso_type == "UNC":
+    # Volumetric Flowrate Plots
+    fig, vx = plt.subplots(1, 2, figsize=(25, 5))
+    for i in range(num_comp): # for each component
+        if iso_type == "UNC":
             
-#             vx[0].plot(t_odes[i], Y[3][i], color = color[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
-#             vx[1].plot(t_odes[i], Y[4][i], color = color[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
+            vx[0].plot(t_odes[i], Y[3][i], color = color[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
+            vx[1].plot(t_odes[i], Y[4][i], color = color[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
         
-#         elif iso_type == "CUP":    
+        elif iso_type == "CUP":    
             
-#             vx[0].plot(t_odes, Y[3][i], color = color[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
-#             vx[1].plot(t_odes, Y[4][i], color = color[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
+            vx[0].plot(t_odes, Y[3][i], color = color[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
+            vx[1].plot(t_odes, Y[4][i], color = color[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{parameter_sets[i]['kh']}")
         
-#     # Add Accessories
-#     vx[0].set_xlabel('Time, hrs')
-#     vx[0].set_ylabel('($\mathregular{cm^3/s}$)')
-#     vx[0].set_title(f'Raffinate Volumetric Flowrates')
-#     vx[0].legend()
+    # Add Accessories
+    vx[0].set_xlabel('Time, hrs')
+    vx[0].set_ylabel('($\mathregular{cm^3/s}$)')
+    vx[0].set_title(f'Raffinate Volumetric Flowrates')
+    vx[0].legend()
 
-#     vx[1].set_xlabel('Time, hrs')
-#     vx[1].set_ylabel('($\mathregular{cm^3/s}$)')
-#     vx[1].set_title(f'Extract Volumetric Flowrates')
-#     # vx[1].legend()
+    vx[1].set_xlabel('Time, hrs')
+    vx[1].set_ylabel('($\mathregular{cm^3/s}$)')
+    vx[1].set_title(f'Extract Volumetric Flowrates')
+    # vx[1].legend()
 
-#     plt.show()
+    plt.show()
 
-# def col_liquid_profile(t, y, Axis_title, c_in, Ncol_num, L_total):
-#     y_plot = np.copy(y)
-#     # # Removeing the BC nodes
-#     # for del_row in start:
-#     #     y_plot = np.delete(y_plot, del_row, axis=0)
+def col_liquid_profile(t, y, Axis_title, c_in, Ncol_num, L_total):
+    y_plot = np.copy(y)
+    # # Removeing the BC nodes
+    # for del_row in start:
+    #     y_plot = np.delete(y_plot, del_row, axis=0)
         
-#     # print('y_plot:', y_plot.shape)
+    # print('y_plot:', y_plot.shape)
     
-#     x = np.linspace(0, L_total, np.shape(y_plot[0:nx, :])[0])
-#     dt = t[1] - t[0]
+    x = np.linspace(0, L_total, np.shape(y_plot[0:nx, :])[0])
+    dt = t[1] - t[0]
     
 
     
-#     # Start vs End Snapshot
-#     fig, ax = plt.subplots(1, 2, figsize=(25, 5))
+    # Start vs End Snapshot
+    fig, ax = plt.subplots(1, 2, figsize=(25, 5))
 
-#     ax[0].plot(x, y_plot[:, 0], label="t_start")
-#     ax[0].plot(x, y_plot[:, -1], label="t_end")
+    ax[0].plot(x, y_plot[:, 0], label="t_start")
+    ax[0].plot(x, y_plot[:, -1], label="t_end")
 
-#     # Add vertical black lines at positions where i % nx_col == 0
-#     for col_idx in range(Ncol_num + 1):  # +1 to include the last column boundary
-#         x_pos = col_idx #nx_col + col_idx*nx_col + col_idx #col_idx * ((nx_col) * dx)
-#         #x_pos = dx * x_pos
-#         ax[0].axvline(x=x_pos, color='k', linestyle='-')
-#         ax[1].axvline(x=x_pos, color='k', linestyle='-')
+    # Add vertical black lines at positions where i % nx_col == 0
+    for col_idx in range(Ncol_num + 1):  # +1 to include the last column boundary
+        x_pos = col_idx #nx_col + col_idx*nx_col + col_idx #col_idx * ((nx_col) * dx)
+        #x_pos = dx * x_pos
+        ax[0].axvline(x=x_pos, color='k', linestyle='-')
+        ax[1].axvline(x=x_pos, color='k', linestyle='-')
 
-#     ax[0].set_xlabel('Column Length, m')
-#     ax[0].set_ylabel('($\mathregular{g/l}$)')
-#     ax[0].axhline(y=c_in, color='g', linestyle= '--', linewidth=1, label="Inlet concentration")  # Inlet concentration
-#     # ax[0].legend()
+    ax[0].set_xlabel('Column Length, m')
+    ax[0].set_ylabel('($\mathregular{g/l}$)')
+    ax[0].axhline(y=c_in, color='g', linestyle= '--', linewidth=1, label="Inlet concentration")  # Inlet concentration
+    # ax[0].legend()
 
-#     # Progressive Change at all ts:
-#     for j in range(np.shape(y_plot)[1]):
-#         ax[1].plot(x, y_plot[:, j])
-#         ax[1].set_xlabel('Column Length, m')
-#         ax[1].set_ylabel('($\mathregular{g/l}$)')
-#     plt.show()
+    # Progressive Change at all ts:
+    for j in range(np.shape(y_plot)[1]):
+        ax[1].plot(x, y_plot[:, j])
+        ax[1].set_xlabel('Column Length, m')
+        ax[1].set_ylabel('($\mathregular{g/l}$)')
+    plt.show()
 
 
-# def col_solid_profile(t, y, Axis_title, Ncol_num, start, L_total):
+def col_solid_profile(t, y, Axis_title, Ncol_num, start, L_total):
     
-#     # Removeing the BC nodes
-#     y_plot = np.copy(y)
-#     # Removeing the BC nodes
-#     for del_row in start:
-#         y_plot = np.delete(y_plot, del_row, axis=0)
+    # Removeing the BC nodes
+    y_plot = np.copy(y)
+    # Removeing the BC nodes
+    for del_row in start:
+        y_plot = np.delete(y_plot, del_row, axis=0)
         
-#     # print('y_plot:', y_plot.shape)
+    # print('y_plot:', y_plot.shape)
     
-#     x = np.linspace(0, L_total, np.shape(y_plot[0:nx, :])[0])
-#     dt = t[1] - t[0]
+    x = np.linspace(0, L_total, np.shape(y_plot[0:nx, :])[0])
+    dt = t[1] - t[0]
     
-#     # Start vs End Snapshot
-#     fig, ax = plt.subplots(1, 2, figsize=(25, 5))
+    # Start vs End Snapshot
+    fig, ax = plt.subplots(1, 2, figsize=(25, 5))
 
-#     ax[0].plot(x, y_plot[:, 0], label="t_start")
-#     ax[0].plot(x, y_plot[:, -1], label="t_end")
-#     # ax[0].plot(x, y_plot[:, len(t) // 2], label="t_middle")
+    ax[0].plot(x, y_plot[:, 0], label="t_start")
+    ax[0].plot(x, y_plot[:, -1], label="t_end")
+    # ax[0].plot(x, y_plot[:, len(t) // 2], label="t_middle")
 
-#     # Add vertical black lines at positions where i % nx_col == 0
-#     for col_idx in range(Ncol_num + 1):  # +1 to include the last column boundary
-#         x_pos = col_idx*L #nx_col + col_idx*nx_col + col_idx #col_idx * ((nx_col) * dx)
-#         #x_pos = dx * x_pos
-#         ax[0].axvline(x=x_pos, color='k', linestyle='-')
-#         ax[1].axvline(x=x_pos, color='k', linestyle='-')
+    # Add vertical black lines at positions where i % nx_col == 0
+    for col_idx in range(Ncol_num + 1):  # +1 to include the last column boundary
+        x_pos = col_idx*L #nx_col + col_idx*nx_col + col_idx #col_idx * ((nx_col) * dx)
+        #x_pos = dx * x_pos
+        ax[0].axvline(x=x_pos, color='k', linestyle='-')
+        ax[1].axvline(x=x_pos, color='k', linestyle='-')
 
-#     ax[0].set_xlabel('Column Length, m')
-#     ax[0].set_ylabel('($\mathregular{g/l}$)')
-#     ax[0].set_title(f'{Axis_title}')
-#     ax[0].legend()
+    ax[0].set_xlabel('Column Length, m')
+    ax[0].set_ylabel('($\mathregular{g/l}$)')
+    ax[0].set_title(f'{Axis_title}')
+    ax[0].legend()
 
-#     # Progressive Change at all ts:
-#     for j in range(np.shape(y_plot)[1]):
-#         ax[1].plot(x, y_plot[:, j])
-#         ax[1].set_xlabel('Column Length, m')
-#         ax[1].set_ylabel('($\mathregular{g/l}$)')
-#         ax[1].set_title(f'{Axis_title}')
-#     plt.show()  # Display all the figures 
+    # Progressive Change at all ts:
+    for j in range(np.shape(y_plot)[1]):
+        ax[1].plot(x, y_plot[:, j])
+        ax[1].set_xlabel('Column Length, m')
+        ax[1].set_ylabel('($\mathregular{g/l}$)')
+        ax[1].set_title(f'{Axis_title}')
+    plt.show()  # Display all the figures 
 
 
 
-# # ANIMATION
-# ###########################################################################################
+# ANIMATION
+###########################################################################################
 
-# def coupled_animate_profiles(t, title, y, nx, labels, colors, t_start_inject_all, t_index, L_total, parameter_sets, Ncol_num):
-#     def create_animation(y_profiles, t, concentration_type, filename, labels, colors,L_total,  parameter_sets, Ncol_num):
-#         fig, ax = plt.subplots(1, 1, figsize=(15, 5))
+def coupled_animate_profiles(t, title, y, nx, labels, colors, t_start_inject_all, t_index, L_total, parameter_sets, Ncol_num):
+    def create_animation(y_profiles, t, concentration_type, filename, labels, colors,L_total,  parameter_sets, Ncol_num):
+        fig, ax = plt.subplots(1, 1, figsize=(15, 5))
 
-#         # Initialize lines for each profile
-#         lines = []
-#         x = np.linspace(0, L_total, np.shape(y_profiles[0])[0])
-#         for i, y_profile in enumerate(y_profiles):
-#             line, = ax.plot(x, y_profile[:, 0], label=f"{labels[i]}: H{labels[i]} = {cusotom_isotherm_params_all[i]}, kh{labels[i]} = {parameter_sets[i]['kh']}", color=colors[i])
-#             lines.append(line)
+        # Initialize lines for each profile
+        lines = []
+        x = np.linspace(0, L_total, np.shape(y_profiles[0])[0])
+        for i, y_profile in enumerate(y_profiles):
+            line, = ax.plot(x, y_profile[:, 0], label=f"{labels[i]}: H{labels[i]} = {cusotom_isotherm_params_all[i]}, kh{labels[i]} = {parameter_sets[i]['kh']}", color=colors[i])
+            lines.append(line)
 
-#         # Add a text box in the top right corner to display the time
-#         time_text = ax.text(0.02, 0.95, '', transform=ax.transAxes, fontsize=12, verticalalignment='top')
+        # Add a text box in the top right corner to display the time
+        time_text = ax.text(0.02, 0.95, '', transform=ax.transAxes, fontsize=12, verticalalignment='top')
 
-#         # Add black vertical lines at the left edge at all times
-#         for col_idx in range(Ncol_num + 1):  # +1 to include the last column boundary
-#             x_pos = col_idx * L
-#             ax.axvline(x=x_pos, color='k', linestyle='-')
+        # Add black vertical lines at the left edge at all times
+        for col_idx in range(Ncol_num + 1):  # +1 to include the last column boundary
+            x_pos = col_idx * L
+            ax.axvline(x=x_pos, color='k', linestyle='-')
 
-#         # Function to add red vertical lines at the injection times
-#         def add_pulse_lines(t):
-#             for col in range(len(t_start_inject_all)):
-#                 for start in t_start_inject_all[col]:
-#                     if start <= t < start + t_index:
-#                         x_pos = col * L
-#                         ax.axvline(x=x_pos, color='r', linestyle='-', linewidth=1)
+        # Function to add red vertical lines at the injection times
+        def add_pulse_lines(t):
+            for col in range(len(t_start_inject_all)):
+                for start in t_start_inject_all[col]:
+                    if start <= t < start + t_index:
+                        x_pos = col * L
+                        ax.axvline(x=x_pos, color='r', linestyle='-', linewidth=1)
 
-#         # Function to update the y data of the lines
-#         def update(frame):
-#             for i, y_profile in enumerate(y_profiles):
-#                 lines[i].set_ydata(y_profile[:, frame])
-#             time_text.set_text(f'Time: {t[frame]:.2f} s')
+        # Function to update the y data of the lines
+        def update(frame):
+            for i, y_profile in enumerate(y_profiles):
+                lines[i].set_ydata(y_profile[:, frame])
+            time_text.set_text(f'Time: {t[frame]:.2f} s')
             
-#             # Clear existing red lines
-#             [line.remove() for line in ax.lines if line.get_color() == 'r']
-#             # Add new red lines
-#             add_pulse_lines(t[frame])
+            # Clear existing red lines
+            [line.remove() for line in ax.lines if line.get_color() == 'r']
+            # Add new red lines
+            add_pulse_lines(t[frame])
 
-#             return lines + [time_text]
+            return lines + [time_text]
 
-#         # Set the limits for the x and y axis
-#         y_min = np.min([np.min(y_profile) for y_profile in y_profiles])
-#         y_max = np.max([np.max(y_profile) for y_profile in y_profiles]) + (5 / 10000000)  # c_IN
-#         ax.set_ylim([y_min, y_max])
-#         ax.set_xlabel("Column Length, m")
-#         ax.set_ylabel(f"{title} {concentration_type} ($\mathregular{{g/l}}$)")
-#         ax.legend()
+        # Set the limits for the x and y axis
+        y_min = np.min([np.min(y_profile) for y_profile in y_profiles])
+        y_max = np.max([np.max(y_profile) for y_profile in y_profiles]) + (5 / 10000000)  # c_IN
+        ax.set_ylim([y_min, y_max])
+        ax.set_xlabel("Column Length, m")
+        ax.set_ylabel(f"{title} {concentration_type} ($\mathregular{{g/l}}$)")
+        ax.legend()
 
-#         # Determine the number of frames based on the length of the time vector
-#         n_frame = len(t)
+        # Determine the number of frames based on the length of the time vector
+        n_frame = len(t)
         
-#         # Create the animation
-#         ani = animation.FuncAnimation(fig, update, frames=range(n_frame), interval=100, blit=True)
+        # Create the animation
+        ani = animation.FuncAnimation(fig, update, frames=range(n_frame), interval=100, blit=True)
 
-#         # Set up the writer
-#         ffmpegWriter = animation.writers['ffmpeg']
-#         writer = ffmpegWriter(fps=15, metadata=dict(artist='Me'), bitrate=1800)
+        # Set up the writer
+        ffmpegWriter = animation.writers['ffmpeg']
+        writer = ffmpegWriter(fps=15, metadata=dict(artist='Me'), bitrate=1800)
 
-#         print(f"Saving animation to {filename}...")
-#         ani.save(filename, writer=writer)
-#         print(f"Animation saved to {filename}.")
+        print(f"Saving animation to {filename}...")
+        ani.save(filename, writer=writer)
+        print(f"Animation saved to {filename}.")
 
-#         # Display the animation
-#         plt.show()
+        # Display the animation
+        plt.show()
 
-#     # Separate the y data into liquid and solid concentrations
-#     liquid_profiles = [y_profile[:nx, :] for y_profile in y]
-#     solid_profiles = [y_profile[nx:, :] for y_profile in y]
+    # Separate the y data into liquid and solid concentrations
+    liquid_profiles = [y_profile[:nx, :] for y_profile in y]
+    solid_profiles = [y_profile[nx:, :] for y_profile in y]
 
-#     # Create animations for liquid and solid concentrations
-#     create_animation(liquid_profiles, t, "Liquid Concentration", f"{title}_liquid.mp4", labels, colors)
-#     create_animation(solid_profiles, t, "Solid Concentration", f"{title}_solid.mp4", labels, colors)
+    # Create animations for liquid and solid concentrations
+    create_animation(liquid_profiles, t, "Liquid Concentration", f"{title}_liquid.mp4", labels, colors)
+    create_animation(solid_profiles, t, "Solid Concentration", f"{title}_solid.mp4", labels, colors)
 
 
-# def animate_profiles(t_sets, title, y, nx, labels, colors, t_start_inject_all, t_index,L_total,parameter_sets,  Ncol_num, L):
-#     def create_animation(y_profiles, t_profiles, concentration_type, filename, labels, colors):
-#         fig, ax = plt.subplots(1, 1, figsize=(15, 5))
+def animate_profiles(t_sets, title, y, nx, labels, colors, t_start_inject_all, t_index,L_total,parameter_sets,  Ncol_num, L):
+    def create_animation(y_profiles, t_profiles, concentration_type, filename, labels, colors):
+        fig, ax = plt.subplots(1, 1, figsize=(15, 5))
 
-#         # Initialize lines for each profile
-#         lines = []
-#         x = np.linspace(0, L_total, np.shape(y_profiles[0])[0])
-#         for i, y_profile in enumerate(y_profiles):
-#             line, = ax.plot(x, y_profile[:, 0], label=f"{labels[i]}: H{labels[i]} = {cusotom_isotherm_params_all[i]}, kh{labels[i]} = {parameter_sets[i]['kh']}", color=colors[i])
-#             lines.append(line)
+        # Initialize lines for each profile
+        lines = []
+        x = np.linspace(0, L_total, np.shape(y_profiles[0])[0])
+        for i, y_profile in enumerate(y_profiles):
+            line, = ax.plot(x, y_profile[:, 0], label=f"{labels[i]}: H{labels[i]} = {cusotom_isotherm_params_all[i]}, kh{labels[i]} = {parameter_sets[i]['kh']}", color=colors[i])
+            lines.append(line)
 
-#         # Add a text box in the top right corner to display the time
-#         time_text = ax.text(0.02, 0.95, '', transform=ax.transAxes, fontsize=12, verticalalignment='top')
+        # Add a text box in the top right corner to display the time
+        time_text = ax.text(0.02, 0.95, '', transform=ax.transAxes, fontsize=12, verticalalignment='top')
 
-#         # Add black vertical lines at the left edge at all times
-#         for col_idx in range(Ncol_num + 1):  # +1 to include the last column boundary
-#             x_pos = col_idx * L
-#             ax.axvline(x=x_pos, color='k', linestyle='-')
+        # Add black vertical lines at the left edge at all times
+        for col_idx in range(Ncol_num + 1):  # +1 to include the last column boundary
+            x_pos = col_idx * L
+            ax.axvline(x=x_pos, color='k', linestyle='-')
 
-#         # Function to add red vertical lines at the injection times
-#         def add_pulse_lines(t):
-#             for col in range(len(t_start_inject_all)):
-#                 for start in t_start_inject_all[col]:
-#                     if start <= t < start + t_index:
-#                         x_pos = col * L
-#                         ax.axvline(x=x_pos, color='r', linestyle='-', linewidth=1)
+        # Function to add red vertical lines at the injection times
+        def add_pulse_lines(t):
+            for col in range(len(t_start_inject_all)):
+                for start in t_start_inject_all[col]:
+                    if start <= t < start + t_index:
+                        x_pos = col * L
+                        ax.axvline(x=x_pos, color='r', linestyle='-', linewidth=1)
 
-#         # Function to update the y data of the lines
-#         def update(frame):
-#             for i, (y_profile, t_profile) in enumerate(zip(y_profiles, t_profiles)):
-#                 if frame < len(t_profile):
-#                     lines[i].set_ydata(y_profile[:, frame])
-#                     # time_text.set_text(f'Time:{t_profile[frame]:.2f}s\nCycles:{np.round(t_profile[frame]:.2f)}\n {n_1_cycle}s/cycle: ')
-#                     time_text.set_text(f'Time: {t_profile[frame]:.2f}s\nCycles: {np.round(t_profile[frame]/n_1_cycle, 1)}\nIndex Time:{t_index}s\n{n_1_cycle/60} min/cycle')
+        # Function to update the y data of the lines
+        def update(frame):
+            for i, (y_profile, t_profile) in enumerate(zip(y_profiles, t_profiles)):
+                if frame < len(t_profile):
+                    lines[i].set_ydata(y_profile[:, frame])
+                    # time_text.set_text(f'Time:{t_profile[frame]:.2f}s\nCycles:{np.round(t_profile[frame]:.2f)}\n {n_1_cycle}s/cycle: ')
+                    time_text.set_text(f'Time: {t_profile[frame]:.2f}s\nCycles: {np.round(t_profile[frame]/n_1_cycle, 1)}\nIndex Time:{t_index}s\n{n_1_cycle/60} min/cycle')
 
                                     
-#                     # Clear existing red lines
-#                     [line.remove() for line in ax.lines if line.get_color() == 'r']
-#                     # Add new red lines
-#                     add_pulse_lines(t_profile[frame])
-#             return lines + [time_text]
+                    # Clear existing red lines
+                    [line.remove() for line in ax.lines if line.get_color() == 'r']
+                    # Add new red lines
+                    add_pulse_lines(t_profile[frame])
+            return lines + [time_text]
 
-#         # Set the limits for the x and y axis
-#         y_min = np.min([np.min(y_profile) for y_profile in y_profiles])
-#         y_max = np.max([np.max(y_profile) for y_profile in y_profiles]) + (5 / 10000000)  # c_IN
-#         ax.set_ylim([y_min, y_max])
-#         ax.set_xlabel("Column Length, m")
-#         ax.set_ylabel(f"{title} {concentration_type} ($\mathregular{{g/l}}$)")
-#         ax.legend()
+        # Set the limits for the x and y axis
+        y_min = np.min([np.min(y_profile) for y_profile in y_profiles])
+        y_max = np.max([np.max(y_profile) for y_profile in y_profiles]) + (5 / 10000000)  # c_IN
+        ax.set_ylim([y_min, y_max])
+        ax.set_xlabel("Column Length, m")
+        ax.set_ylabel(f"{title} {concentration_type} ($\mathregular{{g/l}}$)")
+        ax.legend()
 
-#         # Determine the maximum number of frames
-#         n_frame = max(len(t_profile) for t_profile in t_profiles)
+        # Determine the maximum number of frames
+        n_frame = max(len(t_profile) for t_profile in t_profiles)
         
-#         # Create the animation
-#         ani = animation.FuncAnimation(fig, update, frames=range(n_frame), interval=100, blit=True)
+        # Create the animation
+        ani = animation.FuncAnimation(fig, update, frames=range(n_frame), interval=100, blit=True)
 
-#         # Set up the writer
-#         ffmpegWriter = animation.writers['ffmpeg']
-#         writer = ffmpegWriter(fps=15, metadata=dict(artist='Me'), bitrate=1800)
+        # Set up the writer
+        ffmpegWriter = animation.writers['ffmpeg']
+        writer = ffmpegWriter(fps=15, metadata=dict(artist='Me'), bitrate=1800)
 
-#         print(f"Saving animation to {filename}...")
-#         ani.save(filename, writer=writer)
-#         print(f"Animation saved to {filename}.")
+        print(f"Saving animation to {filename}...")
+        ani.save(filename, writer=writer)
+        print(f"Animation saved to {filename}.")
 
-#         # Display the animation
-#         plt.show()
+        # Display the animation
+        plt.show()
 
-#     # Separate the y data into liquid and solid concentrations
-#     liquid_profiles = [y_profile[:nx, :] for y_profile in y]
-#     solid_profiles = [y_profile[nx:, :] for y_profile in y]
+    # Separate the y data into liquid and solid concentrations
+    liquid_profiles = [y_profile[:nx, :] for y_profile in y]
+    solid_profiles = [y_profile[nx:, :] for y_profile in y]
 
-#     # Create animations for liquid and solid concentrations
-#     create_animation(liquid_profiles, t_sets, "Liquid Concentration", f"{title}_liquid.mp4", labels, colors)
-#     create_animation(solid_profiles, t_sets, "Solid Concentration", f"{title}_solid.mp4", labels, colors)
+    # Create animations for liquid and solid concentrations
+    create_animation(liquid_profiles, t_sets, "Liquid Concentration", f"{title}_liquid.mp4", labels, colors)
+    create_animation(solid_profiles, t_sets, "Solid Concentration", f"{title}_solid.mp4", labels, colors)
 
-# #%%
-# # --------------- FUNCTION EVALUATION SECTION
+#%%
+# --------------- FUNCTION EVALUATION SECTION
 
-# # SMB VARIABLES
-# #######################################################
-# # What tpye of isoherm is required?
-# # Coupled: "CUP"
-# # Uncoupled: "UNC"
-# iso_type = "CUP"
+# SMB VARIABLES
+#######################################################
+# What tpye of isoherm is required?
+# Coupled: "CUP"
+# Uncoupled: "UNC"
+iso_type = "CUP"
 
-# ###################### PRIMARY INPUTS #########################
-# # Define the names, colors, and parameter sets for 6 components
-# Names = ["Glucose", "Fructose"]#, 'C', 'D']#, "C"]#, "D", "E", "F"]
-# color = ["g", "orange"]#, "purple", "brown"]#, "b"]#, "r", "purple", "brown"]
-# num_comp = len(Names) # Number of components
-# e = 0.40         # bed voidage
-# Bm = 300
+###################### PRIMARY INPUTS #########################
+# Define the names, colors, and parameter sets for 6 components
+Names = ["Glucose", "Fructose"]#, 'C', 'D']#, "C"]#, "D", "E", "F"]
+color = ["g", "orange"]#, "purple", "brown"]#, "b"]#, "r", "purple", "brown"]
+num_comp = len(Names) # Number of components
+e = 0.40         # bed voidage
+Bm = 300
 
-# # Column Dimensions
+# Column Dimensions
 
-# # How many columns in each Zone?
+# How many columns in each Zone?
 
-# Z1, Z2, Z3, Z4 = 1,1,1,1 # *3 for smb config
-# zone_config = np.array([Z1, Z2, Z3, Z4])
-# nnn = Z1 + Z2 + Z3 + Z4
+Z1, Z2, Z3, Z4 = 1,1,1,1 # *3 for smb config
+zone_config = np.array([Z1, Z2, Z3, Z4])
+nnn = Z1 + Z2 + Z3 + Z4
 
-# L = 30 # cm # Length of one column
-# d_col = 2.6 # cm # column internal diameter
+L = 30 # cm # Length of one column
+d_col = 2.6 # cm # column internal diameter
 
-# # Calculate the radius
-# r_col = d_col / 2
-# # Calculate the area of the base
-# A_col = np.pi * (r_col ** 2) # cm^2
-# V_col = A_col*L # cm^3
-# # Dimensions of the tubing and from each column:
-# # Assuming the pipe diameter is 20% of the column diameter:
-# d_in = 0.2 * d_col # cm
-# nx_per_col = 15
-
-
-# ################ Time Specs #################################################################################
-# t_index_min = 3.3 # min # Index time # How long the pulse holds before swtiching
-# n_num_cycles = 12    # Number of Cycles you want the SMB to run for
-# ###############  FLOWRATES   #################################################################################
-
-# # Jochen et al:
-# Q_P, Q_Q, Q_R, Q_S = 5.21, 4, 5.67, 4.65 # x10-7 m^3/s
-# conv_fac = 0.1 # x10-7 m^3/s => cm^3/s
-# Q_P, Q_Q, Q_R, Q_S  = Q_P*conv_fac, Q_Q*conv_fac, Q_R*conv_fac, Q_S*conv_fac
-
-# Q_I, Q_II, Q_III, Q_IV = Q_R,  Q_S, Q_P, Q_Q
+# Calculate the radius
+r_col = d_col / 2
+# Calculate the area of the base
+A_col = np.pi * (r_col ** 2) # cm^2
+V_col = A_col*L # cm^3
+# Dimensions of the tubing and from each column:
+# Assuming the pipe diameter is 20% of the column diameter:
+d_in = 0.2 * d_col # cm
+nx_per_col = 15
 
 
-# Q_internal = np.array([Q_I, Q_II, Q_III, Q_IV])
+################ Time Specs #################################################################################
+t_index_min = 3.3 # min # Index time # How long the pulse holds before swtiching
+n_num_cycles = 12    # Number of Cycles you want the SMB to run for
+###############  FLOWRATES   #################################################################################
+
+# Jochen et al:
+Q_P, Q_Q, Q_R, Q_S = 5.21, 4, 5.67, 4.65 # x10-7 m^3/s
+conv_fac = 0.1 # x10-7 m^3/s => cm^3/s
+Q_P, Q_Q, Q_R, Q_S  = Q_P*conv_fac, Q_Q*conv_fac, Q_R*conv_fac, Q_S*conv_fac
+
+Q_I, Q_II, Q_III, Q_IV = Q_R,  Q_S, Q_P, Q_Q
+
+
+Q_internal = np.array([Q_I, Q_II, Q_III, Q_IV])
 
 
 
-# # # Parameter Sets for different components
-# ################################################################
+# # Parameter Sets for different components
+################################################################
 
-# # Units:
-# # - Concentrations: g/cm^3
-# # - kh: 1/s
-# # - Da: cm^2/s
+# Units:
+# - Concentrations: g/cm^3
+# - kh: 1/s
+# - Da: cm^2/s
 
-# # A must have a less affinity to resin that B - FOUND IN EXtract purity
-# # Parameter sets for different components
-# # Units:
-# # - Concentrations: g/cm^3
-# # - kfp: 1/s
-# parameter_sets = [
-#     {"kh": 0.0315, "C_feed": 0.222},    # Glucose SMB Launch
-#     {"kh": 0.0217, "C_feed": 0.222}] #, # Fructose
+# A must have a less affinity to resin that B - FOUND IN EXtract purity
+# Parameter sets for different components
+# Units:
+# - Concentrations: g/cm^3
+# - kfp: 1/s
+parameter_sets = [
+    {"kh": 0.0315, "C_feed": 0.222},    # Glucose SMB Launch
+    {"kh": 0.0217, "C_feed": 0.222}] #, # Fructose
 
-# Da_all = np.array([6.218e-6, 6.38e-6 ]) 
+Da_all = np.array([6.218e-6, 6.38e-6 ]) 
 
-# # ISOTHERM PARAMETERS
-# ###########################################################################################
-# # Uncomment as necessary:
+# ISOTHERM PARAMETERS
+###########################################################################################
+# Uncomment as necessary:
 
-# # Linear, H
-# cusotom_isotherm_params_all = np.array([[0.27], [0.53]]) # H_glu, H_fru 
-# # Sub et al = np.array([[0.27], [0.53]])
+# Linear, H
+kav_params_all = np.array([[0.027], [0.053]]) 
+cusotom_isotherm_params_all = np.array([[0.27], [0.53]]) # H_glu, H_fru 
+# Sub et al = np.array([[0.27], [0.53]])
 
-# # # Langmuir, [Q_max, b]
-# # cusotom_isotherm_params_all = np.array([[2.51181596, 1.95381598], [3.55314612, 1.65186647]])
+# # Langmuir, [Q_max, b]
+# cusotom_isotherm_params_all = np.array([[2.51181596, 1.95381598], [3.55314612, 1.65186647]])
 
-# # Linear + Langmuir, [H, Q_max, b]
-# # cusotom_isotherm_params_all = np.array([[1, 2.70420148, 1.82568197], [1, 3.4635919, 1.13858329]])
+# Linear + Langmuir, [H, Q_max, b]
+# cusotom_isotherm_params_all = np.array([[1, 2.70420148, 1.82568197], [1, 3.4635919, 1.13858329]])
 
 
-# # STORE/INITALIZE SMB VAIRABLES
-# SMB_inputs = [iso_type, Names, color, num_comp, nx_per_col, e, Da_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_params_all]
+# STORE/INITALIZE SMB VAIRABLES
+SMB_inputs = [iso_type, Names, color, num_comp, nx_per_col, e, Da_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_params_all, kav_params_all]
 
-# #%% ---------- SAMPLE RUN IF NECESSARY
-# start_test = time.time()
-# y_matrices, nx, t, t_sets, t_schedule, C_feed, m_in, m_out, raff_cprofile, ext_cprofile, raff_intgral_purity, raff_recov, ext_intgral_purity, ext_recov, raff_vflow, ext_vflow, Model_Acc, Expected_Acc, Error_percent = SMB(SMB_inputs)
-# end_test = time.time()
+#%% ---------- SAMPLE RUN IF NECESSARY
+start_test = time.time()
+y_matrices, nx, t, t_sets, t_schedule, C_feed, m_in, m_out, raff_cprofile, ext_cprofile, raff_intgral_purity, raff_recov, ext_intgral_purity, ext_recov, raff_vflow, ext_vflow, Model_Acc, Expected_Acc, Error_percent = SMB(SMB_inputs)
+end_test = time.time()
 
-# duration = end_test - start_test
-# print(f'Simulation Took: {duration/60} min')
+duration = end_test - start_test
+print(f'Simulation Took: {duration/60} min')
 
 
 
@@ -1978,10 +2012,10 @@ def SMB(SMB_inputs):
 # }
 
 # # Create a DataFrame
-# df = pd.DataFrame(data)
+# # df = pd.DataFrame(data)
 
-# # Display the DataFrame
-# print(df)
+# # # Display the DataFrame
+# # print(df)
 
 
 # # Plot the table as a figure

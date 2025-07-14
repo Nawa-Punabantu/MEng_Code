@@ -20,7 +20,7 @@ import time
 # import numba
 
 # Import the column model
-from Col_test_model_func import column_func
+from Col_test_model_func_bh import column_func
 
 
 
