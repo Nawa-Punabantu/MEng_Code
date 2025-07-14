@@ -840,7 +840,7 @@ Bm = 300
 
 # How many columns in each Zone?
 
-Z1, Z2, Z3, Z4 = 1,1,1,1 # *3 for smb config
+Z1, Z2, Z3, Z4 = 1,3,3,1 # *3 for smb config
 zone_config = np.array([Z1, Z2, Z3, Z4])
 nnn = Z1 + Z2 + Z3 + Z4
 
@@ -890,11 +890,8 @@ Q_internal = np.array([Q_I, Q_II, Q_III, Q_IV]) # L/h => cm^3/s
 # Units:
 # - Concentrations: g/cm^3
 # - kfp: 1/s
-parameter_sets = [
-    {"kh": 0.467, "C_feed": 0.4},    # Borate g/cm^3
-    {"kh": 0.462, "C_feed": 0.4}] #, # HCl g/cm^3
 
-Da_all = np.array([3.218e-5, 8.38e-6]) 
+
 
 # ISOTHERM PARAMETERS
 ###########################################################################################
@@ -904,9 +901,34 @@ Da_all = np.array([3.218e-5, 8.38e-6])
 iso_type = "CUP"
 
 # Uncomment as necessary:
-# Linear, H
-kav_params_all = np.array([[0.027], [0.053]]) 
-cusotom_isotherm_params_all = np.array([[1.2069715], [3.54]]) # [ [H_borate], [H_hcl] ]
+
+
+parameter_sets = [
+                    {"C_feed": 0.001752},    # Borate g/cm^3
+                    {"C_feed": 0.009726}] #, # HCl g/cm^3
+
+# UBK Linear Isotherm
+Da_all = np.array([3.892e-6, 2.99187705e-6]) 
+kav_params_all = np.array([[1.07122526], [1.98350338]])
+cusotom_isotherm_params_all = np.array([[2.40846686], [1.55994115]]) # [ [H_borate], [H_hcl] ]
+
+
+# PCR Linear Isotherm
+Da_all = np.array([5.77e-7, 2.3812e-6]) 
+kav_params_all = np.array([[0.54026], [2.171826]])
+cusotom_isotherm_params_all = np.array([[3.6124333], [2.4640415]]) # [ [H_borate], [H_hcl] ]
+
+# UBK Coupled Langmuir Isotherm
+Da_all = np.array([8.4800855e-6, 2.65331183e-6]) 
+kav_params_all = np.array([[1.8647], [1.683276]])
+cusotom_isotherm_params_all = np.array([[2.489017, 1.7129145], [1.51775429, 1.3031422]]) # [ [H_borate], [H_hcl] ]
+
+# PCR Coupled Langmuir Isotherm
+Da_all = np.array([5.5746e-6, 9.9e-6]) 
+kav_params_all = np.array([[0.59849], [2.291]])
+cusotom_isotherm_params_all = np.array([[2.768037, 2.61624570], [2.42315394, 1.88643671]]) # [ [H_borate], [H_hcl] ]
+
+
 # Sub et al = np.array([[0.27], [0.53]])
 
 # # Langmuir, [Q_max, b]
@@ -989,7 +1011,7 @@ if __name__ == "__main__":
     # - - - - -
     t_reff = 10 # min
     # - - - - -
-    Q_max = 20 # L/h
+    Q_max = 40 # L/h
     Q_min = 1 # L/h
 
 
@@ -1057,11 +1079,11 @@ if __name__ == "__main__":
 
 
     # SAVE all_inputs to JSON:
-    with open("SMBL_30iter_40LH_all_inputs.json", "w") as f:
+    with open("UBK-borhcl-type1_60iter_all_inputs.json", "w") as f:
         json.dump(all_inputs_list, f, indent=4)
 
     # SAVE recoveries_and_purities to JSON:
-    with open("SMBL_30iter_40LH_all_outputs.json", "w") as f:
+    with open("UBK-borhcl-type1_60iter_all_outputs.json", "w") as f:
         json.dump(data_dict, f, indent=4)
 
 

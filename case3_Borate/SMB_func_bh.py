@@ -250,7 +250,6 @@ def SMB(SMB_inputs):
 
         # q_star_combined =  linear_part + langmuir_part
 
-
         return q_star_lin # [qA, ...]
 
     # DOES NOT INCLUDE THE C0 NODE (BY DEFAULT)
@@ -1266,9 +1265,9 @@ def SMB(SMB_inputs):
 
         elif iso_type == 'CUP':
             Q_all_flows, t_idx_all_Q = get_all_values(Q_col_all, t_odes, t_schedule, 'Column Flowrates')
-            print('Q_all_flows:\n', Q_all_flows)
-            print('Q_all_flows:\n', np.shape(Q_all_flows))
-            print(f't_idx_all_Q: {np.shape(t_idx_all_Q)}')
+            # print('Q_all_flows:\n', Q_all_flows)
+            # print('Q_all_flows:\n', np.shape(Q_all_flows))
+            # print(f't_idx_all_Q: {np.shape(t_idx_all_Q)}')
 
 
         for i in range(num_comp):# for each component
@@ -1963,16 +1962,16 @@ cusotom_isotherm_params_all = np.array([[0.27], [0.53]]) # H_glu, H_fru
 # cusotom_isotherm_params_all = np.array([[1, 2.70420148, 1.82568197], [1, 3.4635919, 1.13858329]])
 
 
-# STORE/INITALIZE SMB VAIRABLES
-SMB_inputs = [iso_type, Names, color, num_comp, nx_per_col, e, Da_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_params_all, kav_params_all]
+# # STORE/INITALIZE SMB VAIRABLES
+# SMB_inputs = [iso_type, Names, color, num_comp, nx_per_col, e, Da_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_params_all, kav_params_all]
 
-#%% ---------- SAMPLE RUN IF NECESSARY
-start_test = time.time()
-y_matrices, nx, t, t_sets, t_schedule, C_feed, m_in, m_out, raff_cprofile, ext_cprofile, raff_intgral_purity, raff_recov, ext_intgral_purity, ext_recov, raff_vflow, ext_vflow, Model_Acc, Expected_Acc, Error_percent = SMB(SMB_inputs)
-end_test = time.time()
+# #%% ---------- SAMPLE RUN IF NECESSARY
+# start_test = time.time()
+# y_matrices, nx, t, t_sets, t_schedule, C_feed, m_in, m_out, raff_cprofile, ext_cprofile, raff_intgral_purity, raff_recov, ext_intgral_purity, ext_recov, raff_vflow, ext_vflow, Model_Acc, Expected_Acc, Error_percent = SMB(SMB_inputs)
+# end_test = time.time()
 
-duration = end_test - start_test
-print(f'Simulation Took: {duration/60} min')
+# duration = end_test - start_test
+# print(f'Simulation Took: {duration/60} min')
 
 
 
