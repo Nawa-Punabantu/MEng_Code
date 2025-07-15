@@ -518,13 +518,14 @@ if __name__ == "__main__":
 
 
     # ---------- ILLovo Waste Water
+    folder = r"C:\Users\28820169\Downloads\BO_Papers\MEng_Code\case3_Borate\Excel_Files\Illovo_waste_water"
     # UBK:
-    file_path_borate_ubk_illovo = r"C:\Users\28820169\Downloads\BO_Papers\MEng_Code\case3_Borate\Excel_Files\_borate_UBK 530_Illovo.xlsx"
-    file_path_hcl_ubk_illovo = r"C:\Users\28820169\Downloads\BO_Papers\MEng_Code\case3_Borate\Excel_Files\_HCL_Ubk_530_illovo.xlsx"
+    file_path_borate_ubk_illovo = folder + r"\_borate_UBK_530_Illovo.xlsx"
+    file_path_hcl_ubk_illovo = folder + r"\_HCL_Ubk_530_Illovo.xlsx"
 
     # PCR
-    file_path_bor_pcr_illovo = r"C:\Users\28820169\Downloads\BO_Papers\MEng_Code\case3_Borate\Excel_Files\_borate_PCR642Ca_Illovo.xlsx"
-    file_path_hcl_pcr_illovo = r"C:\Users\28820169\Downloads\BO_Papers\MEng_Code\case3_Borate\Excel_Files\_HCL_PCR642Ca_illovo.xlsx"
+    file_path_bor_pcr_illovo = folder + r"\_borate_PCR642Ca_Illovo.xlsx"
+    file_path_hcl_pcr_illovo = folder + r"\_HCL_PCR642Ca_illovo.xlsx"
 
     
     # Solve one resin at a time:
@@ -556,6 +557,7 @@ if __name__ == "__main__":
             
             print(f'counter!!!!!!!!!!!!: {counter}')
             # --------------------------------
+            print(f'comp: {comp}')
             t_data, col_elution_data, column_func_inputs = get_data_from_excel(file_path= comp, t_start=0,t_end=25, resolution=None)
             num_points = len(t_data)
 
