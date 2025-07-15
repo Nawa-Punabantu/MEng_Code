@@ -40,7 +40,7 @@ import time
 def column_func(column_func_inputs):
     
     #### UNPACK INPUT PARAMETERS ########
-    iso_type, Names, color, parameter_sets, Da_all, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all, kav_params =  column_func_inputs[0:]
+    iso_type, Names, color, parameter_sets, Da_all, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all, kav_params_all =  column_func_inputs[0:]
     
     ############## Calculated (Secondary) Input Parameters:
     Ncol_num = 1
@@ -563,7 +563,7 @@ def column_func(column_func_inputs):
 
         # Mass Transfer:
         #########################################################################
-        MT = mass_transfer(kav_params[comp_idx], isotherm, q)
+        MT = mass_transfer(kav_params_all[comp_idx], isotherm, q)
         #print('MT:\n', MT)
         
         vec_add = np.zeros(len(c))
@@ -692,7 +692,7 @@ def column_func(column_func_inputs):
     print('----------------------------------------------------------------')
     print('Thermos:')
     print('Isotherm: theta_lin:', cusotom_isotherm_params_all)
-    print('kav_params:', kav_params)
+    print('kav_params_all:', kav_params_all)
     print('Da:', Da_all)
     print('Bm:', Bm)
     print('----------------------------------------------------------------')
@@ -1113,7 +1113,7 @@ def animate_profiles(t_sets, title, y, nx, labels, colors, t_start_inject_all, t
 
 
 
-######################################### FUNCTION EXECUTIONS ########################
+######################################## FUNCTION EXECUTIONS ########################
 
 ###################### PRIMARY INPUTS #########################
 # What tpye of isoherm is required?
@@ -1127,7 +1127,7 @@ num_comp = len(Names)
 
 
 
-e = 0.4      # assuming shperical packing, voidage (0,1]
+e = 0.5     # assuming shperical packing, voidage (0,1]
 Q_S = 8.4*0.0166666667 # cm^3/s | The volumetric flowrate of the feed to the left of the feed port (pure solvent)
 t_index = 70 # s # Index time # How long the SINGLE pulse holds for
 slug_vol = 15 #cm^3
@@ -1135,7 +1135,7 @@ Q_inj = slug_vol/t_index # cm^3/s | The volumetric flowrate of the injected conc
 
 Ncol_num = 1
 tend_min = 20 # min # How long the simulation is for
-nx = 5
+nx = 50
 Bm = 300
 ###################### COLUMN DIMENTIONS ########################
 L = 17.5 # cm
@@ -1146,11 +1146,11 @@ d_col = 2 # cm
 
 # # Uncomment as necessary:
 # # Linear 
-# cusotom_isotherm_params_all = np.array([[0.27],[0.53]])
+cusotom_isotherm_params_all = np.array([[1],[1]])
 # cusotom_isotherm_params_all = np.array([[3.2069715], [3.54]]) # H_glu, H_fru 
 # # # Langmuir
 # # cusotom_isotherm_params_all = [[3,3]]
-cusotom_isotherm_params_all = np.array([[2.51181596, 1.95381598], [2.55314612, 1.65186647]])
+# cusotom_isotherm_params_all = np.array([[2.51181596, 1.95381598], [2.55314612, 1.65186647]])
 
 # # Linear + Langmuir
 # # cusotom_isotherm_params_all = [[0.3, 1, 2]]
@@ -1161,7 +1161,7 @@ cusotom_isotherm_params_all = np.array([[2.51181596, 1.95381598], [2.55314612, 1
 # - kfp: 1/s
 
 # kav_params_all = [[0.4, 0.4], [0.2, 0.5]] # [[A], [B]]
-kav_params_all = [[0.4], [0.2]] # [[A], [B]]
+kav_params_all = [[0.1], [5]] # [[A], [B]]
 parameter_sets = [
     {"C_feed": 0.42},    # Glucose SMB Launch
     {"C_feed": 0.42}] #, # Fructose
@@ -1192,6 +1192,10 @@ def col_elution_profile(t_vals, col_elution, num_comp):
 
 
         elif iso_type == 'CUP':
+            # t_data = []
+            # bor_curves = []
+            # hcl_curves = []
+            # ax.plot(t_data, bor_curves, color = color[i], label = f"{Names[i]} Experimental Data")
             ax.plot(t_vals/60, col_elution[i], color = color[i], label = f"Model: {Names[i]}")
             ax.plot(t_vals/60, col_elution[i+1], color = color[i+1], label = f"Model: {Names[i+1]}")
            

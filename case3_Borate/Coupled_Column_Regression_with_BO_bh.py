@@ -131,25 +131,26 @@ def objective_function(params, t_data, conc_data, column_func_inputs, max_of_eac
     kfp1_bor = params[2]*kfp_max
     kfp1_hcl = params[3]*kfp_max
 
-    # kfp2_bor = params[4]*kfp_max
-    # kfp2_hcl = params[5]*kfp_max
+    kfp2_bor = params[4]*kfp_max
+    kfp2_hcl = params[5]*kfp_max
 
 
     # Isotherm Parameters
-    # K1_bor = params[4]*K1_max
-    # K1_hcl = params[5]*K1_max
+    K1_bor = params[6]*K1_max
+    K1_hcl = params[7]*K1_max
     # ------------------------
-    K1_hcl = params[4]*K1_max
+    # K1_hcl = params[4]*K1_max
+    # ------------------------
 
     # K2_bor = params[6]*K2_max
     # K2_hcl = params[7]*K2_max
 
     # PACK:
     # Fix a parameter, if necessary:
-    K1_bor = 0.031
+    # K1_bor = 0.031
 
     # Pack the rest:
-    kfp_all = [[kfp1_bor], [kfp1_hcl]]
+    kfp_all = [[kfp1_bor, kfp2_bor], [kfp1_hcl, kfp2_hcl]]
 
     Da_all = [Da_bor, Da_hcl]
 
@@ -471,26 +472,26 @@ if __name__ == "__main__":
     ##
     #                               Borate    HCl
     max_of_each_input = np.array([  1e-5,     1e-5,    # Da_max,
-                                    3,        3,       # kfp1_max
-                                #   5,        5,       # kfp2_max
+                                    4,        4,       # kfp1_max
+                                    4,        4,       # kfp2_max
 
                                   # Isotherm:
                                     # 5,        5,
-                                            5])      # K_max]
+                                    10,       10])      # K_max]
     ##
 
     # Da guesses:
-    Da_bor_guess = 9.8e-5 # cm^2/s
-    Da_hcl_guess = 6.8e-5 # cm^2/s
+    Da_bor_guess = 9.8e-15 # cm^2/s
+    Da_hcl_guess = 6.8e-15 # cm^2/s
     # kfp guesses:
     kfp1_bor_guess = 0.05387
     kfp1_hcl_guess = 0.05062
 
-    # kfp2_bor_guess = 0.5387
-    # kfp2_hcl_guess = 0.5062
+    kfp2_bor_guess = 0.5387
+    kfp2_hcl_guess = 0.5062
 
     # Isotherm Guesses
-    # K1_bor_guess = 3.239
+    K1_bor_guess = 3.239
     K1_hcl_guess = 3.234
 
     # K2_bor_guess = 3.239
@@ -511,11 +512,11 @@ if __name__ == "__main__":
                                 kfp1_bor_guess,
                                 kfp1_hcl_guess,
 
-                                # kfp2_bor_guess,
-                                # kfp2_hcl_guess,
+                                kfp2_bor_guess,
+                                kfp2_hcl_guess,
 
                                 # 3. Isotherm Parameters:
-                                # K1_bor_guess,
+                                K1_bor_guess,
                                 K1_hcl_guess,
 
                                 # K2_bor_guess,
@@ -528,22 +529,22 @@ if __name__ == "__main__":
     x_initial_guess = x_initial_guess/max_of_each_input
     
 
-    optimization_budget = 50
+    optimization_budget = 20
     bounds = [  
                 # Dispersion
-                (0.00001, 1), # Da_bor
-                (0.00001, 1), # Da_hcl
+                (1e-10, 1), # Da_bor
+                (1e-10, 1), # Da_hcl
 
                 # Mass Transfer 
                 (0.0001, 1), # kfp1_bor
                 (0.0001, 1), # kfp1_hcl
             
-                # (0.0001, 1), # kfp2_bor
-                # (0.0001, 1), # kfp2_hcl
+                (0.0001, 1), # kfp2_bor
+                (0.0001, 1), # kfp2_hcl
 
 
                 # Isotherms
-                # (0.0001, 1), # K1_bor
+                (0.0001, 1), # K1_bor
                 (0.0001, 1), # K1_hcl
 
                 # (0.0001, 1), # K2_bor
@@ -577,11 +578,15 @@ if __name__ == "__main__":
     # PCR
     file_path_bor_hcl_PCR = r"C:\Users\nawau\OneDrive\Desktop\MEng\MEng_Code\case3_Borate\Excel_Files\_bor_hcl_PCR642Ca.xlsx"
 
+    # ILLOVO
+    file_path_bor_hcl_UBK_illovo = r"C:\Users\nawau\OneDrive\Desktop\MEng\MEng_Code\case3_Borate\Excel_Files\illovo_bor_hcl_UBK_530.xlsx"
+    file_path_bor_hcl_PCR_illovo = r"C:\Users\nawau\OneDrive\Desktop\MEng\MEng_Code\case3_Borate\Excel_Files\illovo_bor_hcl_PCR642Ca.xlsx"
+
 
 
 
     # --------------------------------
-    t_data, col_elution_data, column_func_inputs = get_data_from_excel(file_path_bor_hcl_PCR, resolution=None)
+    t_data, col_elution_data, column_func_inputs = get_data_from_excel(file_path_bor_hcl_UBK_illovo, resolution=None)
     num_points = len(t_data)
 
     print(f't_data: {t_data}')
@@ -676,8 +681,8 @@ if __name__ == "__main__":
     all_operating_inputs = [t_data, col_elution_data, column_func_inputs]
 
     # Save it
-    save_optimization_results_json(project_name, project_description,
-                                SSE, all_kinetic_inputs, all_operating_inputs)
+    # save_optimization_results_json(project_name, project_description,
+    #                             SSE, all_kinetic_inputs, all_operating_inputs)
 
     # # SAVE to JSON:
     # with open("BO_COL_REG.json", "w") as f:
@@ -772,10 +777,10 @@ if __name__ == "__main__":
     # bx.plot(t_data/60, hcl_elution_curve_initial_guess, linestyle='--', color='grey', alpha=0.6)
     # Fitted Model , 
     bx.plot(t_data/60, bor_elution_curve_best, label='Borate Model', color='red', alpha=0.6)
-    bx.scatter(t_data/60, bor_elution_curve_best, marker='s', color='red', alpha=0.6)
+    # bx.scatter(t_data/60, bor_elution_curve_best, marker='s', color='red', alpha=0.6)
 
     bx.plot(t_data/60, hcl_elution_curve_best, label='HCl Model', color='green', alpha=0.6)
-    bx.scatter(t_data/60, hcl_elution_curve_best, marker='s', color='green', alpha=0.6)
+    # bx.scatter(t_data/60, hcl_elution_curve_best, marker='s', color='green', alpha=0.6)
 
     # Lables
     bx.set_xlabel('time, min')
