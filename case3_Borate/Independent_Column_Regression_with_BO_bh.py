@@ -46,16 +46,16 @@ see the steps below to serve as reminders of places to check when making the nec
 
 
 # Function to solve the concentration using the column model given a Pe, and tend
-def solve_concentration(Da, kfp, cusotom_isotherm_params_all, column_func_inputs):
+def solve_concentration(Da, kfp_params, cusotom_isotherm_params_all, column_func_inputs):
     """
     cusotom_isotherm_params_all = 1 < len(.) < number of paramters in isotherm
     Da =>  len(.) = 1
     kfp =>  len(.) = 1
     """
     column_func_inputs[4] =  np.array([Da]) # Insert the Dispersion in the correct position
-    column_func_inputs[3][0]["kfp"] = kfp  # Update kfp in the parameter set
+    column_func_inputs[-1] = kfp_params  # Update kfp in the parameter set
     # print(f'cusotom_isotherm_params_all: {cusotom_isotherm_params_all}')
-    column_func_inputs[-1] = cusotom_isotherm_params_all  # Update H in the parameter set
+    column_func_inputs[-2] = cusotom_isotherm_params_all  # Update H in the parameter set
     # print(f'len(column_func_inputs): {len(column_func_inputs)}')
     solution = column_func(column_func_inputs)
 
@@ -108,7 +108,7 @@ def generate_synthetic_data(Da, kfp, cusotom_isotherm_params_all, resolution):
     return t_values, col_elution_noisy, column_func_inputs
 
 # Objective function for the regression routine
-def objective_function(params, t_data, conc_data, column_func_inputs, max_of_each_input):
+def objective_function(params, t_data, conc_data, column_func_inputs, max_of_each_input, counter, state):
     """
     Func that: 
     (1) Interpolates to find the models conc values at the time points that correspond to the experimental data
@@ -118,31 +118,54 @@ def objective_function(params, t_data, conc_data, column_func_inputs, max_of_eac
     conc_data = > experimental data concentrations
     params  = [Da, kfp, K1, K2, ..., Kn] Ki=isotherm parameters -> normalized according to max and minimum values
     max_of_each_input = [Da_max, kfp_max, e, K1_max, K2_max, ... Kn_max]
-    
+    counter => 0 if solving for 1st comp (glucose) and 1 if solving for 2nd component (fructose)
     """
     params = np.array(params)
     Da_max = max_of_each_input[0]
     kfp_max = max_of_each_input[1]
     K1_max = max_of_each_input[2]
-    K2_max = max_of_each_input[3]
+    # K2_max = max_of_each_input[3]
     # K3_max = max_of_each_input[4]
 
     Da = params[0]*Da_max
-    kfp = params[1]*kfp_max
-    cusotom_isotherm_params_all = np.array([[params[2]*K1_max], [params[3]*K2_max]]) #, [params[3]*K2_max]]) # params[4]*K3_max]
-    
+    kfp1 = params[1]*kfp_max
+    K1 = params[2]*K1_max
+    # If lookig for isotherm parameters:
+    cusotom_isotherm_params = np.array([[K1]])
+    # kfp2 = params[3]*kfp_max
+    # Pack
+    kfp_params = [kfp1]
+    # CHANGE-ISO
+    # If fixing the isotherm parameters:
+    # Linear:
+    # cusotom_isotherm_params_all = np.array([[4.494],[4.925]])
+    # Fred:
+    # cusotom_isotherm_params_all = np.array([[2.1788, 1.1352],[0.0235, 2.4334]])
+    # Langmuir:
+    # cusotom_isotherm_params_all = np.array([[0.500, 9.14],[0.091, 9.26]]) 
+    # ----------------------------------------------------------------------    
+    # cusotom_isotherm_params = cusotom_isotherm_params_all[counter]
+    # ----------------------------------------------------------------------    
 
-    t_predicted, predicted_conc = solve_concentration(Da, kfp, cusotom_isotherm_params_all, column_func_inputs)
+    # If not fixing the isotherm parameters:
+    # cusotom_isotherm_params_all = np.array([[params[2]*K1_max], [params[3]*K2_max]]) #, [params[3]*K2_max]]) # params[4]*K3_max]
+
+
+    t_predicted, predicted_conc = solve_concentration(Da, kfp_params, cusotom_isotherm_params, column_func_inputs)
     # Interpolate the predicted concentrations to match the time points in t_data
     # predicted_conc_interpolated = np.interp(t_data, np.linspace(0, tend_min, len(predicted_conc)), predicted_conc)
-    predicted_conc_interpolated = np.interp(t_data, t_predicted, predicted_conc) # concentratio values that match the experimental data
-    
-    # Calculate the sum of squared errors between the actual data and the predicted concentrations
-    # Change objective function as necessary:
-    # SSE:
-    error = np.sum((conc_data - predicted_conc_interpolated) ** 2)
 
-    return error, predicted_conc_interpolated
+    if state == 0:
+        predicted_conc_interpolated = np.interp(t_data, t_predicted, predicted_conc) # concentratio values that match the experimental data
+        # Calculate the sum of squared errors between the actual data and the predicted concentrations
+        # Change objective function as necessary:
+        # SSE:
+        error = np.sum((conc_data - predicted_conc_interpolated) ** 2)
+
+        return error, predicted_conc_interpolated
+
+    
+    return predicted_conc
 
 def get_feed_concs(slug_vol):
     # Specify the path to your CSV file
@@ -218,17 +241,23 @@ def get_data_from_excel(file_path, t_start, t_end, resolution) :
 
     t_index = df.iloc[0]['time of slug pulse (s)'] # s
 
-
-
     tend_min = df.iloc[t_end]['Time, min'] # min
 
-    cusotom_isotherm_params_all = [1, 1, 1]
+    # Mass Transfer Paraneters
+    kav_params = np.array([[1.70],[0.056]])
+
+    # Linear:
+    # cusotom_isotherm_params_all = np.array([[4.94],[0.821]])
+    # Fred:
+    cusotom_isotherm_params_all = np.array([[1.70, 1.19],[0.056, 1.81]])
+    # Langmuir:
+    # cusotom_isotherm_params_all = np.array([[0.500, 9.14],[0.091, 9.26]])    
     
     # Place Olders:
     Da = 0 
     Bm = 0 
 
-    column_func_inputs = [iso_type,  Names, color, parameter_sets, Da, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all]
+    column_func_inputs = [iso_type,  Names, color, parameter_sets, Da, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all, kav_params]
     
     t_data, col_elution_data = df.iloc[t_start:t_end]['Time, s'], df.iloc[t_start:t_end]['g/cm^3']
 
@@ -326,7 +355,7 @@ def probability_of_improvement(x, surrogate_gp, y_best, xi=0.005):
     return -pi
 
 
-def constrained_BO(optimization_budget, bounds, all_initial_inputs, all_initial_ouputs, t_data, conc_data, column_func_inputs, max_of_each_input, xi, sampling_budget=1):
+def constrained_BO(optimization_budget, bounds, all_initial_inputs, all_initial_ouputs, t_data, conc_data, column_func_inputs, max_of_each_input, counter ,xi, sampling_budget=1):
     """
     max_of_each_input = [Da_max, kfp_max, K1_max, K2_max, ... Kn_max]
 
@@ -405,7 +434,8 @@ def constrained_BO(optimization_budget, bounds, all_initial_inputs, all_initial_
         x_new = result.x # [Da, kfp, e, K1, K2, ..., Kn] Ki=isotherm parameters
         # print(f"x_new: { x_new}") 
 
-        f_new, __ = objective_function(x_new, t_data, conc_data, column_func_inputs,max_of_each_input)
+        state = 0
+        f_new, __ = objective_function(x_new, t_data, conc_data, column_func_inputs, max_of_each_input, counter, state)
 
         # Add the new row to all_inputs
         all_inputs = np.vstack((all_inputs, x_new))
@@ -428,24 +458,24 @@ if __name__ == "__main__":
     # PLease note that most inputs are obtained from the Excel Sheets and in the 'GENERATE SYNTHETIC DATA' func
      
     ##
-    max_of_each_input = np.array([1e-4,  # Da_max
-                                  0.8,   # kfp_max
-                                  5.0, #  # K1_max  (Q_max)
-                                  5.0 ]) # K2_max   (b)
+    max_of_each_input = np.array([1e-2,  # Da_max
+                                  0.2 ,   # kfp_max
+                                   1])#  # K1_max  (Q_max)
+                                #   5.0 ]) # K2_max   (b)
     
 
     # Da guesses:
-    Da_bor_guess = 4.72e-5 # cm^2/s
-    Da_hcl_guess = 7.45e-5 # cm^2/s
+    Da_bor_guess = 3e-6 # cm^2/s
+    Da_hcl_guess = 4e-6 # cm^2/s
     # kfp guesses:
-    kfp_bor_guess = 0.684
-    kfp_hcl_guess = 0.632
+    kfp_bor_guess = 0.056
+    kfp_hcl_guess = 0.01
     # Isotherm Guesses
-    K1_bor_guess = 4.60
-    K1_hcl_guess = 0.742 
-    #//
-    K2_bor_guess = 5.76
-    K2_hcl_guess = 2.89
+    K1_bor_guess = 1
+    K1_hcl_guess = 1 
+    # #//
+    # K2_bor_guess = 5.76
+    # K2_hcl_guess = 2.89
 
     # Load Initial Guesses in vector:
     # Note that regression is performed on 1 component at a time, so load for Glu or Fru:
@@ -453,11 +483,12 @@ if __name__ == "__main__":
 
     
 
-    optimization_budget = 1
-    bounds = [  (0.01, 1), # Da
+    optimization_budget = 2
+
+    bounds = [  (0.000001, 1), # Da
                 (0.0001, 1), # kfp
                 (0.0001, 1), # K1 - Q_max OR H
-                (0.0001, 1), # K2 - b
+                # (0.0001, 1), # K2 - b
                 # (0.0001, 1), # K3
             ]
 
@@ -476,29 +507,28 @@ if __name__ == "__main__":
 
     # ---- OPTION 2: GET DATA FROM EXCEL  -------#
 
+    # --------- BORATE & HCL DATA
+    # --------  General
+    file_path_borate_ubk = r"C:\Users\28820169\Downloads\BO_Papers\MEng_Code\case3_Borate\Excel_Files\_borate_UBK_530.xlsx"
+    file_path_hcl_ubk= r"C:\Users\28820169\Downloads\BO_Papers\MEng_Code\case3_Borate\Excel_Files\_HCL_UBK_530.xlsx"
 
-    # ------ Where in your PC is the Excel File?:
-    # Get data from Excel file
-
-    # Folder names:
-    folder_name_1 = r"C:\Users\28820169\Downloads\BO Papers\Regression_Analysis"
-    
-
-
-    # Get files in folders for respective Porjects:
-    
-    # --------- 3. BORATE & HCL DATA
-    # UBK:
-    file_path_BORATE_UBK = r"C:\Users\28820169\Downloads\BO_Papers\MEng_Code\case3_Borate\_borate_UBK_530.xlsx"
-    file_path_HCL_UBK = r"C:\Users\28820169\Downloads\BO_Papers\MEng_Code\case3_Borate\_HCL_UBK_530.xlsx"
-
-    UBK_comps = [file_path_BORATE_UBK, file_path_HCL_UBK, 'UBK-530']
     # PCR
-    file_path_BORATE_PCR = r"C:\Users\28820169\Downloads\BO_Papers\MEng_Code\case3_Borate\_borate_PCR642Ca.xlsx"
-    file_path_HCL_PCR = r"C:\Users\28820169\Downloads\BO_Papers\MEng_Code\case3_Borate\_hcl_PCR642Ca.xlsx"
-    
-    PCR_comps = [file_path_BORATE_PCR, file_path_HCL_PCR, 'PCR-642-Ca']
+    file_path_bor_pcr = r"C:\Users\28820169\Downloads\BO_Papers\MEng_Code\case3_Borate\Excel_Files\_borate_PCR642Ca.xlsx"
+    file_path_hcl_pcr = r"C:\Users\28820169\Downloads\BO_Papers\MEng_Code\case3_Borate\Excel_Files\_HCL_PCR642Ca.xlsx"
 
+
+    # ---------- ILLovo Waste Water
+    # UBK:
+    file_path_borate_ubk_illovo = r"C:\Users\28820169\Downloads\BO_Papers\MEng_Code\case3_Borate\Excel_Files\_borate_UBK 530_Illovo.xlsx"
+    file_path_hcl_ubk_illovo = r"C:\Users\28820169\Downloads\BO_Papers\MEng_Code\case3_Borate\Excel_Files\_HCL_Ubk_530_illovo.xlsx"
+
+    # PCR
+    file_path_bor_pcr_illovo = r"C:\Users\28820169\Downloads\BO_Papers\MEng_Code\case3_Borate\Excel_Files\_borate_PCR642Ca_Illovo.xlsx"
+    file_path_hcl_pcr_illovo = r"C:\Users\28820169\Downloads\BO_Papers\MEng_Code\case3_Borate\Excel_Files\_HCL_PCR642Ca_illovo.xlsx"
+
+    
+    # Solve one resin at a time:
+    SMB_resin_comps = [file_path_borate_ubk_illovo, file_path_hcl_ubk_illovo, 'UBK-Resin']
 
     comp_data = []
     comp_best_profiles = []
@@ -506,27 +536,27 @@ if __name__ == "__main__":
     # To got from Resin to Resin; comment as necessary:
 
     # Step 1:
-    resin_select = PCR_comps[-1] # PCR_comps OR UBK_comps
+    resin_select = SMB_resin_comps[-1] 
 
-    # Step 2: Use # UBK_comps[:-1] OR PCR_comps[:-1]:
+    # Step 2: Use # SMB_resin_comps[:-1]
     counter = 0
-    for comp in PCR_comps[:-1]: # UBK_comps[:-1] OR PCR_comps[:-1]
+    for comp in SMB_resin_comps[:-1]: 
             
             if  counter == 0:
-                    x_initial_guess = np.array([Da_bor_guess, kfp_bor_guess, K1_bor_guess, K2_bor_guess])  # [Da, kfp, K1, K2, ... Kn]
+                    x_initial_guess = np.array([Da_bor_guess, kfp_bor_guess, K1_bor_guess ]) #, K2_bor_guess])  # [Da, kfp, K1, K2, ... Kn]
                     print(f'x_initial_guess: {x_initial_guess}')
                     # Normalize Initial Guess
                     x_initial_guess = x_initial_guess/max_of_each_input
             else:
-                    x_initial_guess = np.array([Da_hcl_guess, kfp_hcl_guess, K1_hcl_guess, K2_hcl_guess]) #, K2_hcl_guess])  # [Da, kfp, K1, K2, ... Kn] ])
+                    x_initial_guess = np.array([Da_hcl_guess, kfp_hcl_guess, K1_hcl_guess ])#, K2_hcl_guess]) #, K2_hcl_guess])  # [Da, kfp, K1, K2, ... Kn] ])
                     print(f'x_initial_guess: {x_initial_guess}')
                     # Normalize Initial Guess
                     x_initial_guess = x_initial_guess/max_of_each_input
             
-            counter = counter + 1
+            
             print(f'counter!!!!!!!!!!!!: {counter}')
             # --------------------------------
-            t_data, col_elution_data, column_func_inputs = get_data_from_excel(file_path= comp, t_start=2,t_end=23, resolution=None)
+            t_data, col_elution_data, column_func_inputs = get_data_from_excel(file_path= comp, t_start=0,t_end=25, resolution=None)
             num_points = len(t_data)
 
             print(f't_data: {t_data}')
@@ -540,14 +570,15 @@ if __name__ == "__main__":
             # Adjust INITIAL GUESS Based On Isotherm Choice:
 
             # Evaluate Initial guess:
-            f_initial, elution_curve_initial_guess = objective_function(x_initial_guess, t_data, col_elution_data, column_func_inputs,max_of_each_input)
+            state = 0
+            f_initial, elution_curve_initial_guess = objective_function(x_initial_guess, t_data, col_elution_data, column_func_inputs,max_of_each_input, counter, state)
             print(f'Initial Guess:')
             print(f'{f_initial} for {x_initial_guess}')
 
             # Perform the Bayesian Optimization
             start = time.time()
 
-            f_vals, norm_all_inputs = constrained_BO(optimization_budget, bounds, x_initial_guess, f_initial, t_data, col_elution_data, column_func_inputs, max_of_each_input, xi=0.005, sampling_budget=1)
+            f_vals, norm_all_inputs = constrained_BO(optimization_budget, bounds, x_initial_guess, f_initial, t_data, col_elution_data, column_func_inputs, max_of_each_input,counter, xi=0.005, sampling_budget=1)
             # print(f'all_inputs !!!!!!!!: \n{ all_inputs}')
             all_inputs  = norm_all_inputs*max_of_each_input
             end = time.time()
@@ -574,7 +605,9 @@ if __name__ == "__main__":
             best_inputs = all_inputs[idx_min,:]
 
             print(f'Best Fitted Points: {best_inputs}')
-            __, elution_curve_best = objective_function(norm_best_inputs, t_data, col_elution_data, column_func_inputs,max_of_each_input)
+            state = 1
+            elution_curve_best = objective_function(norm_best_inputs, t_data, col_elution_data, column_func_inputs,max_of_each_input, counter, state)
+            state = 0
             
 
             # fig, ax = plt.subplots(1, 1, figsize=(15, 5))
@@ -644,6 +677,10 @@ if __name__ == "__main__":
 
 
             # 2. Elution Curves
+            # print(f't_data: {np.shape(t_data)}')
+            # print(f't_data: {t_data.iloc[-1]}')
+            tt_end = t_data.iloc[-1]/60 # min
+            t_best_plot = np.linspace(0, tt_end, len(elution_curve_best))
             fig, bx = plt.subplots(1, 1, figsize=(15, 5))
             # Experimental Data:
             bx.scatter(t_data/60, col_elution_data, label='Experimental Data', color='red', alpha=0.6)
@@ -651,8 +688,8 @@ if __name__ == "__main__":
             # Initial Guess
             bx.plot(t_data/60, elution_curve_initial_guess, linestyle='--', label='Initial Guess', color='grey', alpha=0.6)
             # Fitted Model
-            bx.plot(t_data/60, elution_curve_best, label='Model', color='blue', alpha=0.6)
-            bx.scatter(t_data/60, elution_curve_best, marker='s', color='blue', alpha=0.6)
+            bx.plot(t_best_plot, elution_curve_best, label='Model', color='blue', alpha=0.6)
+            # bx.scatter(t_best_plot, elution_curve_best, marker='s', color='blue', alpha=0.6)
 
             # Lables
             bx.set_xlabel('time, min')
@@ -664,26 +701,29 @@ if __name__ == "__main__":
             # Store the Profile data for each component
             comp_data.append([t_data/60,col_elution_data])
             comp_best_profiles.append([t_data/60,elution_curve_best])
+
+            counter = counter + 1
             
 
 #%%
 # 2. Elution Curves
 fig, cx = plt.subplots(1, 1, figsize=(15, 5))
 # Experimental Data:
-cx.scatter(comp_data[0][0],comp_data[0][1], label='Borate Experimental Data', color='red', alpha=0.6)
-cx.scatter(comp_data[1][0], comp_data[1][1], label='HCl Experimental Data', color='green', alpha=0.6)
+
+cx.scatter(comp_data[0][0],comp_data[0][1], label='Glucose Experimental Data', color='red', alpha=0.6)
+cx.scatter(comp_data[1][0], comp_data[1][1], label='Fructose Experimental Data', color='green', alpha=0.6)
 # Model:
 # Fitted Model
-cx.plot(comp_best_profiles[0][0], comp_best_profiles[0][1], label='Borate Model', color='red', alpha=0.6)
+cx.plot(comp_best_profiles[0][0], comp_best_profiles[0][1], label='Glucose Model', color='red', alpha=0.6)
 # cx.scatter(comp_best_profiles[0][0], comp_best_profiles[0][1], marker='s', color='red', alpha=0.6)
 
-cx.plot(comp_best_profiles[1][0],comp_best_profiles[1][1], label='HCl Model', color='green', alpha=0.6)
+cx.plot(comp_best_profiles[1][0],comp_best_profiles[1][1], label='Fructose Model', color='green', alpha=0.6)
 # cx.scatter(comp_best_profiles[1][0],comp_best_profiles[1][1], marker='s', color='green', alpha=0.6)
 
 # Lables
 cx.set_xlabel('time, min')
 cx.set_ylabel('g/mL')
-cx.set_title(f'Regression Profiles of Borate and HCl on {resin_select}')
+cx.set_title(f'Regression Profiles of Glucose and Fructose on {resin_select}')
 cx.legend()
 plt.show()
 

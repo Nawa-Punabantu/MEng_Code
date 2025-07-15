@@ -103,21 +103,21 @@ def column_func(column_func_inputs):
 
         #------------------- 1. Single Parameters Models
         # Linear
-        # K1 = cusotom_isotherm_params[0]
-        # H = K1 # Henry's Constant
-        # q_star_1 = H*c
+        K1 = cusotom_isotherm_params[0]
+        H = K1 # Henry's Constant
+        q_star_1 = H*c
 
         #------------------- 2. Two-Parameter Models
         # print(f'cusotom_isotherm_params:{cusotom_isotherm_params}')
-        K1 = cusotom_isotherm_params[0]
-        K2 = cusotom_isotherm_params[1]
+        # K1 = cusotom_isotherm_params[0]
+        # K2 = cusotom_isotherm_params[1]
 
-        # # # #  2.1 Langmuir  
-        Q_max = K1
-        b = K2
-        #-------------------------------
-        q_star_2_1 = Q_max*b*c/(1 + b*c)
-        #-------------------------------
+        # # # # #  2.1 Langmuir  
+        # Q_max = K1
+        # b = K2
+        # #-------------------------------
+        # q_star_2_1 = Q_max*b*c/(1 + b*c)
+        # #-------------------------------
 
         # 2.2 Freundlich
         # a = K1
