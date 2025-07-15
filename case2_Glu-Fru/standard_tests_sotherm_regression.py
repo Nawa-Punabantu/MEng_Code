@@ -1,3 +1,4 @@
+#%%
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize
@@ -8,7 +9,7 @@ import pandas as pd
 
 
 
-
+#%%
 # Data
 """
 UNITS, UNITS, UNITS !!!!!
@@ -17,37 +18,44 @@ IMPORTANT NOTE: Qe is in g/mL that is, grams_of_solute /(per) VOLUME of solid ph
 """
 Names = ['Glucose', 'Fructose']
 datasets = [
-            np.array([[0.00000, # Ce (glucose)
-                        0.00000,
+            np.array([[ # Ce (glucose)
                         0.00073,
                         0.00104,
                         0.00155,
                         0.00214,
                         0.00305
+
+
+
+
                         ],
-                    [0.00248067,  # Qe (glucose)
-                        0.00374133,
+
+                    [   # Qe (glucose)
                         0.00384978,
                         0.00595089,
                         0.00638467,
                         0.00969222,
                         0.01337933
+
+
                         ]]),
-            np.array([[0.00000, # Ce (fructose)
-                        0.00000,
+            np.array([[  # Ce (fructose)
                         0.00040,
                         0.00113,
                         0.00170,
                         0.00246,
                         0.00337
+
+
+
                         ], 
-                    [0.00048800,   # Qe (fructose)
-                        0.00084044,
-                        0.00084044,
-                        0.00134878,
-                        0.00159730,
-                        0.00180289,
-                        0.00262074
+                    [ # Qe (fructose)
+                        0.00504267,
+                        0.00809267,
+                        0.00958378,
+                        0.01081733,
+                        0.01572444
+
                         ]])
                         ]
 
@@ -84,7 +92,7 @@ def compute_r_squared(params, isotherm_func, c_data, q_data):
     return 1 - ss_res / ss_tot
 
 # Multi-start fitting function with data collection
-def fit_isotherm_multistart(isotherm_func, c_data, q_data, bounds, n_starts=20):
+def fit_isotherm_multistart(isotherm_func, c_data, q_data, bounds, n_starts=8000):
     best_result = None
     best_r2 = -np.inf
     for _ in range(n_starts):
@@ -96,6 +104,60 @@ def fit_isotherm_multistart(isotherm_func, c_data, q_data, bounds, n_starts=20):
                 best_r2 = r2
                 best_result = result
     return best_result, best_r2
+
+def plot_combined_isotherm_fit(model_name, glu_data, fru_data, fit_results):
+    """
+    Plot both glucose and fructose data + fits for a single isotherm model.
+
+    Parameters:
+    - model_name: str, one of ['Linear', 'Langmuir', 'Freundlich']
+    - glu_data, fru_data: np.array, shape (2, N)
+    - fit_results: dict, keys = (Model, Component), values = (params, R²)
+    """
+    fig, ax = plt.subplots(figsize=(7, 5))
+
+    # Unpack data
+    c_glu, q_glu = glu_data
+    c_fru, q_fru = fru_data
+
+    # Generate smooth c range
+    c_fit_glu = np.linspace(c_glu.min(), c_glu.max(), 500)
+    c_fit_fru = np.linspace(c_fru.min(), c_fru.max(), 500)
+
+    # Get fitted params and models
+    params_glu, r2_glu = fit_results[(model_name, 'Glucose')]
+    params_fru, r2_fru = fit_results[(model_name, 'Fructose')]
+
+    # Select model function
+    model_func = {
+        'Linear': linear,
+        'Langmuir': langmuir,
+        'Freundlich': freundlich
+    }[model_name]
+
+    # Generate model fits
+    q_fit_glu = model_func(params_glu, c_fit_glu)
+    q_fit_fru = model_func(params_fru, c_fit_fru)
+
+    # Plot glucose
+    ax.scatter(c_glu, q_glu, color='green', marker='x', label="Glucose Data")
+    ax.plot(c_fit_glu, q_fit_glu, color='green', linestyle='--',
+            label=f"Glucose Fit\nParams: {', '.join([f'{p:.3f}' for p in params_glu])}\nR² = {r2_glu:.4f}")
+
+    # Plot fructose
+    ax.scatter(c_fru, q_fru, color='orange', marker='o', facecolors='none', label="Fructose Data")
+    ax.plot(c_fit_fru, q_fit_fru, color='orange', linestyle='--',
+            label=f"Fructose Fit\nParams: {', '.join([f'{p:.3f}' for p in params_fru])}\nR² = {r2_fru:.4f}")
+
+    # Aesthetics
+    ax.set_title(f"{model_name} Isotherm: Glucose & Fructose")
+    ax.set_xlabel("Ce (g/mL)")
+    ax.set_ylabel("Qe (g/mL)")
+    ax.legend()
+    ax.grid(True)
+    plt.tight_layout()
+    plt.show()
+
 
 
 Names = ['Glucose', 'Fructose']
@@ -165,3 +227,10 @@ plt.title("Best-Fit Parameters and R² Values", fontsize=12)
 plt.tight_layout()
 plt.show()
 
+
+# Call the function for each isotherm type
+plot_combined_isotherm_fit("Linear", datasets[0], datasets[1], fit_results)
+plot_combined_isotherm_fit("Langmuir", datasets[0], datasets[1], fit_results)
+plot_combined_isotherm_fit("Freundlich", datasets[0], datasets[1], fit_results)
+
+# %%

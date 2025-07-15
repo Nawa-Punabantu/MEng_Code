@@ -1161,7 +1161,7 @@ cusotom_isotherm_params_all = np.array([[1],[1]])
 # - kfp: 1/s
 
 # kav_params_all = [[0.4, 0.4], [0.2, 0.5]] # [[A], [B]]
-kav_params_all = [[0.1], [5]] # [[A], [B]]
+kav_params_all = [[0.1], [0.5]] # [[A], [B]]
 parameter_sets = [
     {"C_feed": 0.42},    # Glucose SMB Launch
     {"C_feed": 0.42}] #, # Fructose
@@ -1179,39 +1179,58 @@ print('---------------------------')
 print(f'Computation Time: {end-start} s || {(end-start)/60} min')
 print('---------------------------\n\n')
 
-def col_elution_profile(t_vals, col_elution, num_comp):
-    # t_vals = np.array(t_vals)
+def col_elution_profile(t_vals, col_elution, num_comp, 
+                        bor_curves=None, hcl_curves=None, t_data=None):
+    """
+    Plot elution profiles for simulated and experimental data.
+
+    Parameters:
+    - t_vals: array-like or list of arrays. Time values for the model curves.
+    - col_elution: list of arrays. Modelled concentration profiles.
+    - num_comp: int. Number of components (e.g., 2 for binary).
+    - bor_curves, hcl_curves: optional, experimental concentration profiles.
+    - t_data: optional, time array for experimental curves (shared between bor/hcl).
+    """
+
     fig, ax = plt.subplots(1, 1, figsize=(15, 5))
-    for i in range(1):
 
-        if iso_type == 'UNC':
-            # print(f'size of t_vals: {len(t_vals)}')
-            ax.plot(t_vals[i]/60, col_elution[i], color = color[i], label = f"Model: {Names[i]}")
-            # print(f"done 1 doing 2..")
-            ax.plot(t_vals[i+1]/60, col_elution[i+1], color = color[i+1], label = f"Model: {Names[i+1]}")
+    # Plot based on isotherm type
+    if iso_type == 'UNC':
+        for i in range(num_comp):
+            ax.plot(t_vals[i]/60, col_elution[i], color=color[i], 
+                    label=f"Model: {Names[i]}")
 
+    elif iso_type == 'CUP':
+        for i in range(num_comp):
+            ax.plot(t_vals/60, col_elution[i], color=color[i], 
+                    label=f"Model: {Names[i]}")
+    
+    # === Plot experimental curves if provided ===
+    if bor_curves is not None and t_data is not None:
+        ax.plot(t_data/60, bor_curves, 'k--', linewidth=2, label="Boric Acid Exp. Data")
 
-        elif iso_type == 'CUP':
-            # t_data = []
-            # bor_curves = []
-            # hcl_curves = []
-            # ax.plot(t_data, bor_curves, color = color[i], label = f"{Names[i]} Experimental Data")
-            ax.plot(t_vals/60, col_elution[i], color = color[i], label = f"Model: {Names[i]}")
-            ax.plot(t_vals/60, col_elution[i+1], color = color[i+1], label = f"Model: {Names[i+1]}")
-           
-        ax.set_xlabel('Time (min)')
-        ax.set_ylabel('Concentration g/mL')
-        ax.legend()
-        ax.set_title(f"Single Column Elution Curves\n{Names}\nDa: {Da_all},kfp:[{kav_params_all[0]}, {kav_params_all[0]}],Isoth:{cusotom_isotherm_params_all}")
+    if hcl_curves is not None and t_data is not None:
+        ax.plot(t_data/60, hcl_curves, 'gray', linestyle='dotted', linewidth=2, 
+                label="HCl Exp. Data")
+
+    ax.set_xlabel('Time (min)')
+    ax.set_ylabel('Concentration (g/mL)')
+    ax.set_title(f"Single Column Elution Curves\n{Names}\n"
+                 f"Da: {Da_all}, kfp: [{kav_params_all[0]}, {kav_params_all[1]}], "
+                 f"Isotherm Params: {cusotom_isotherm_params_all}")
+    ax.legend()
+    ax.grid(True)
+    plt.tight_layout()
     plt.show()
 
-
-if iso_type == "UNC":
-    col_elution_profile(t_sets, col_elution, num_comp)
-elif iso_type == "CUP":
-    col_elution_profile(t, col_elution, num_comp)
-
-
+# Glucose and Fructose Curves:
+t_exp = np.array([0.00, 0.60, 1.20, 1.80, 2.40, 3.00, 3.60, 4.20, 4.80, 5.40, 6.00, 6.60, 7.20, 7.80, 8.40, 9.00, 9.60, 10.20, 10.80, 11.40, 12.00, 12.60, 13.20, 13.80, 14.40, 15.00, 15.60 ])*60
+glu_exp_data = np.array([0, 0,0, 0, 0, 0.0104382, 0.081351, 0.0963738, 0.1582416, 0.1539864, 0.1369116, 0.1092042, 0.0830898, 0.0517428, 0.0267354, 0.0107838, 0.004887, 0.0023166, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+fru_exp_data = np.array([0, 0, 0, 0, 0, 0, 0.004266, 0.03348, 0.141291, 0.1682154, 0.2087208, 0.1417824, 0.11043, 0.070011, 0.0423414, 0.0203148, 0.0065718, 0.0019008, 0.0006588, 0, 0, 0, 0, 0, 0, 0, 0])
+col_elution_profile(t, col_elution, num_comp, 
+                    bor_curves=glu_exp_data, 
+                    hcl_curves=fru_exp_data, 
+                    t_data=t_exp)
 
 # print("\n\n\nStarting Animation. . . ")
 # if iso_type == "UNC":

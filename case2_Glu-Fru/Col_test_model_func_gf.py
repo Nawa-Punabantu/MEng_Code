@@ -10,7 +10,7 @@
 # - $F$ is the phase ratio
 # - $e$ bed voidage
 # - $t$ is time.
-# - $D$ is the diffusion coefficient.
+# - $D$ is the diffusion coefficient. 
 # - $v$ is the velocity field (advection speed).
 # - $x$ is the spatial coordinate.
 
@@ -40,7 +40,7 @@ import time
 def column_func(column_func_inputs):
     
     #### UNPACK INPUT PARAMETERS ########
-    iso_type, Names, color, parameter_sets, Da_all, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all =  column_func_inputs[0:]
+    iso_type, Names, color, parameter_sets, Da_all, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all, kav_params_all =  column_func_inputs[0:]
     
     ############## Calculated (Secondary) Input Parameters:
     Ncol_num = 1
@@ -112,7 +112,7 @@ def column_func(column_func_inputs):
         K1 = cusotom_isotherm_params[0]
         K2 = cusotom_isotherm_params[1]
 
-        # # #  2.1 Langmuir  
+        # # # #  2.1 Langmuir  
         Q_max = K1
         b = K2
         #-------------------------------
@@ -124,8 +124,7 @@ def column_func(column_func_inputs):
         # b = K2
         # #-------------------------------
         # q_star_2_2 = b*c**(1/a)
-        # print(f'q_star_2_2:{q_star_2_2}')
-        #-------------------------------
+        # #-------------------------------
 
         #------------------- 3. Three-Parameter models 
         # K1 = cusotom_isotherm_params[0]
@@ -140,12 +139,33 @@ def column_func(column_func_inputs):
         # q_star_3 = H*c + Q_max*b*c/(1 + b*c)
         #-------------------------------
 
-        return q_star_2_1 # [qA, ...]
+        return q_star_1 # [qA, ...]
     # 1.2. Defining the Isotherm Given that it is COUPLED (CUP)
     # CUP
     # NOTE: You need to manually set the equation you want 
     #       - make sure this corresponds to the number of parameters in cusotom_isotherm_params_all
     #       - Default is Langmuir
+        # Mass Transfer (MT) Models:
+
+    def mass_transfer(kav_params, q_star, q ): # already for specific comp
+        # kav_params: [kA, kB]
+
+        # 1. Single Parameter Model
+        # Unpack Parameters
+        kav =  kav_params
+        # MT = kav * Bm/(5 + Bm) * (q_star - q)
+        MT = kav * (q_star - q)
+
+        # 2. Two Parameter Model
+        # Unpack Parameters
+        # kav1 =  kav_params[0]
+        # kav2 =  kav_params[1]
+    
+        # MT = kav1* (q_star - q) + kav2* (q_star - q)**2
+
+        return MT
+    
+
     def cusotom_CUP_isotherm_func(cusotom_isotherm_params, c, IDX, comp_idx):
         """
         Returns  solid concentration, q_star vector for given comp_idx
@@ -167,27 +187,51 @@ def column_func(column_func_inputs):
         
         # (Uncomment as necessary)
 
-        #------------------- 1. Coupled Linear Models
+        #------------------- 1. Single Parameter Models
 
         # cusotom_isotherm_params has linear constants for each comp
         # Unpack respective parameters
-        # K1 = cusotom_isotherm_params[comp_idx][0] # 1st (and only) parameter of HA or HB
-        # q_star_1 = K1*c_i[comp_idx]
+        K1 = cusotom_isotherm_params[comp_idx][0] # 1st (and only) parameter of HA or HB
+        q_star_lin = K1*c_i[comp_idx]
 
 
-        #------------------- 2. Coupled Langmuir Models
+        #------------------- Two Parameter Models
+        # K1 = cusotom_isotherm_params[comp_idx][0] 
+        # K2 = cusotom_isotherm_params[comp_idx][1] 
+
+        # 1. Freundlich
+        # a = K1
+        # b = K2
+        # #-------------------------------
+        # q_star_fred = b*c_i[comp_idx]**(1/a)
+        # #-------------------------------
+
+        # 2. Langmuir
+        # Qmax = K1
+        # b = K2
+        # # #-------------------------------
+        # q_star_lang1 = Qmax*b*c_i[comp_idx]/(1 + b*c_i[comp_idx])
+        # # #-------------------------------
+
+        # 3. Coupled Langmuir Model
+        # cusotom_isotherm_params = [[QmaxA, bA], [QmaxB, bB]]
+
         # The parameter in the numerator is dynamic, depends on comp_idx i.e. which component we are looking at:
-        K =  cusotom_isotherm_params[comp_idx][0]
+        # Qmax_i =  cusotom_isotherm_params[comp_idx][0]
+        # b_i =  cusotom_isotherm_params[comp_idx][1]
         
-        # Fix the sum of parameters in the demoninator:
-        K1 = cusotom_isotherm_params[0][0] # 1st (and only) parameter of HA 
-        K2 = cusotom_isotherm_params[1][0] # 1st (and only) parameter of HB
+        # # Fix the sum of parameters in the demoninator:
+        # b1 = cusotom_isotherm_params[0][1] # 1st (and only) parameter of HA 
+        # b2 = cusotom_isotherm_params[1][1] # 1st (and only) parameter of HB
         
-        q_star_2 = K*c_i[comp_idx]/(1+ K1*c_i[0] + K2*c_i[1])
+        # q_star_lang2 = Qmax_i*b_i*c_i[comp_idx]/(1+ b1*c_i[0] + b2*c_i[1])
 
-        #------------------- 3. Combined Coupled Models
+
+
+        #------------------- 3. Combined Models
         # The parameter in the numerator is dynamic, depends on comp_idx:
         # K_lin =  cusotom_isotherm_params[comp_idx][0]
+        # K_Q = cusotom_isotherm_params[comp_idx][1]
         
         # # Fix the sum of parameters in the demoninator:
         # K1 = cusotom_isotherm_params[0][0] # 1st (and only) parameter of HA 
@@ -195,12 +239,11 @@ def column_func(column_func_inputs):
         
         # c_sum = K1 + K2
         # linear_part = K_lin*c_i[comp_idx]
-        # langmuir_part = K*c_i[comp_idx]/(1+ K1*c_i[0] + K2*c_i[1])
+        # langmuir_part = K_Q*c_i[comp_idx]/(1+ K1*c_i[0] + K2*c_i[1])
 
-        # q_star_3 =  linear_part + langmuir_part
+        # q_star_combined =  linear_part + langmuir_part
 
-
-        return q_star_2 # [qA, ...]
+        return q_star_lin # [qA, ...]
 
     # 2.
     # Generate Indices for the columns
@@ -383,27 +426,27 @@ def column_func(column_func_inputs):
 
 
     # DISPLAYING INPUT INFORMATION:
-    print('---------------------------------------------------')
-    print('Number of Components:', num_comp, )
-    print('---------------------------------------------------')
-    print('\nColumn Specs:\n')
-    print('---------------------------------------------------')
-    print('Number of Nodes:', nx, )
-    print('Column Length:', L, 'cm')
-    print('Column Diameter:', d_col, 'cm')
-    print('Column Volume:', V_col, 'cm^3')
-    print('---------------------------------------------------')
-    print('\Time Specs:\n')
-    print('---------------------------------------------------')
-    print(f'Pulse Time: {t_index} s')
-    print('Simulation Time:', tend_min, 'min')
-    # print('Injections happen at t(s) = :', t_start_inject_all[0], 'seconds')
-    print("alpha:", alpha, '(alpha = A_in / A_col)')
-    print('\nPort Schedules:')
-    for i in range(num_comp):
-        print("Concentration Schedule:\nShape:",np.shape(C_pulse_all[i]),'\n', C_pulse_all[i], "\n")    
-    print("Injection Flowrate Schedule:\nShape:",np.shape(Q_pulse_all),'\n', Q_pulse_all, "\n") 
-    print('--------------------------------------------------------------------------\n\n\n\n')
+    # print('---------------------------------------------------')
+    # print('Number of Components:', num_comp, )
+    # print('---------------------------------------------------')
+    # print('\nColumn Specs:\n')
+    # print('---------------------------------------------------')
+    # print('Number of Nodes:', nx, )
+    # print('Column Length:', L, 'cm')
+    # print('Column Diameter:', d_col, 'cm')
+    # print('Column Volume:', V_col, 'cm^3')
+    # print('---------------------------------------------------')
+    # print('\Time Specs:\n')
+    # print('---------------------------------------------------')
+    # print(f'Pulse Time: {t_index} s')
+    # print('Simulation Time:', tend_min, 'min')
+    # # print('Injections happen at t(s) = :', t_start_inject_all[0], 'seconds')
+    # print("alpha:", alpha, '(alpha = A_in / A_col)')
+    # print('\nPort Schedules:')
+    # for i in range(num_comp):
+    #     print("Concentration Schedule:\nShape:",np.shape(C_pulse_all[i]),'\n', C_pulse_all[i], "\n")    
+    # print("Injection Flowrate Schedule:\nShape:",np.shape(Q_pulse_all),'\n', Q_pulse_all, "\n") 
+    # print('--------------------------------------------------------------------------\n\n\n\n')
 
 
 
@@ -437,9 +480,9 @@ def column_func(column_func_inputs):
         coeff_matrix[-1,0] = 0
         coeff_matrix[-1,-1] = coeff_matrix[-1,-1] + coef_2 # coef_1 + coef_2 account for rolling boundary 
 
-        if iso_type == "CUP": #(check phone for my video on this)
-            coeff_matrix[nx-1, nx-1] = coeff_matrix[nx-1, nx-1] + coeff_matrix[nx-1, nx]
-            coeff_matrix[nx-1, nx], coeff_matrix[nx, nx-1]= 0, 0
+        # if iso_type == "CUP": #(check phone for my video on this)
+        #     coeff_matrix[nx-1, nx-1] = coeff_matrix[nx-1, nx-1] + coeff_matrix[nx-1, nx]
+        #     coeff_matrix[nx-1, nx], coeff_matrix[nx, nx-1]= 0, 0
 
 
         #print(coeff_matrix)
@@ -451,20 +494,6 @@ def column_func(column_func_inputs):
 
     ###########################################################################################
 
-    # Mass Transfer (MT) Models:
-
-    def mass_transfer(kav_params, q_star, q ): # already for specific comp
-        # kav_params: [kA, kB]
-        kav =  kav_params
-        # MT = kav * Bm/(5 + Bm) * (q_star - q)
-        MT = kav * (q_star - q)
-        return MT
-
-    # MT PARAMETERS
-    ###########################################################################################
-    # print('np.shape(parameter_sets[:]["kfp"]):', np.shape(parameter_sets[3]))
-    kav_params = [parameter_sets[i]["kfp"] for i in range(num_comp)]  # [kA, kB, kC, kD, kE, kF]
-    ###########################################################################################
 
     # Soon to be changed to vector operations!
 
@@ -509,8 +538,9 @@ def column_func(column_func_inputs):
         C_IN = W1 * 0 + W2 * c_inj(t, C_pulse_all, comp_idx) # "0" because feed to the left of the feed port is pure solvent
 
         #  Velocity in the Column:
-        u = Q_out_port/A_col/e
-        u = -u
+        u_superficial = -Q_out_port/A_col
+        u = u_superficial/e # intersticial
+        
         # Dispersion in the column:
         # print(f'Da is here : {Da}')
         Da = -Da_all[comp_idx]
@@ -533,7 +563,7 @@ def column_func(column_func_inputs):
 
         # Mass Transfer:
         #########################################################################
-        MT = mass_transfer(kav_params[comp_idx], isotherm, q)
+        MT = mass_transfer(kav_params_all[comp_idx], isotherm, q)
         #print('MT:\n', MT)
         
         vec_add = np.zeros(len(c))
@@ -592,8 +622,9 @@ def column_func(column_func_inputs):
         # C_IN = W1 * 0 + W2 * c_inj(t, C_pulse_all, comp_idx) # "0" because feed to the left of the feed port is pure solvent
 
         #  Velocity in the Column:
-        u = Q_out_port/A_col/e
-        u = -u
+        u_superficial = -Q_out_port/A_col
+        u = u_superficial/e # intersticial
+
 
 
 
@@ -608,13 +639,18 @@ def column_func(column_func_inputs):
         # beta = 1 / alpha
         # gamma = 1 - 3 * Da / (2 * u * dx)
             
-        # Building MT
+        coeff_matrix = np.zeros((num_comp*nx, num_comp*nx))
+
         for comp_idx in range(num_comp): # for each component
             # Dispersion in the column:
             Da = -Da_all[comp_idx]
 
-            coeff_matrix, coef_0, coef_1, coef_2 = coeff_matrix_builder(Da, u, dx, len(c))
-
+            # Lquid Phase Dynamics of Each Component
+            comp_coeff_matrix, coef_0, coef_1, coef_2 = coeff_matrix_builder(Da, u, dx, len(c[IDX[comp_idx] : IDX[comp_idx] + nx]))
+            
+            # Add to coeff matrix:
+            coeff_matrix[IDX[comp_idx] : IDX[comp_idx] + nx, IDX[comp_idx] : IDX[comp_idx] + nx] = comp_coeff_matrix
+            
             beta = 1 / alpha
             gamma = 1 - 3 * Da / (2 * u * dx)
 
@@ -626,7 +662,7 @@ def column_func(column_func_inputs):
             # isotherm = iso_cup_langmuir(theta_cup_lang, c, IDX, comp_idx)
 
             ################### (ii) MT ##########################################################
-            MT_comp = mass_transfer(kav_params[comp_idx], isotherm, q[IDX[comp_idx] + 0: IDX[comp_idx] + nx ])
+            MT_comp = mass_transfer(kav_params_all[comp_idx], isotherm, q[IDX[comp_idx] + 0: IDX[comp_idx] + nx ])
             MT[IDX[comp_idx] + 0: IDX[comp_idx] + nx ] = MT_comp
             # [MT_A, MT_B, . . . ] KINETICS FOR EACH COMP
             # 
@@ -656,7 +692,7 @@ def column_func(column_func_inputs):
     print('----------------------------------------------------------------')
     print('Thermos:')
     print('Isotherm: theta_lin:', cusotom_isotherm_params_all)
-    print('kav_params:', kav_params)
+    print('kav_params_all:', kav_params_all)
     print('Da:', Da_all)
     print('Bm:', Bm)
     print('----------------------------------------------------------------')
@@ -911,7 +947,7 @@ def column_func(column_func_inputs):
     df = pd.DataFrame(data)
 
     # Display the DataFrame
-    print(df)
+    # print(df)
 
     # Get the elution curves:
     # Initialize:
@@ -919,7 +955,7 @@ def column_func(column_func_inputs):
     print('\n\n\n')
     for i in range(num_comp):
         col_elution.append(y_matrices[i][nx-1,:])
-        print(f'np.shape(col_elution[{i}]): {np.shape(col_elution[i])}')
+        # print(f'np.shape(col_elution[{i}]): {np.shape(col_elution[i])}')
 
     return col_elution, y_matrices, nx, t, t_sets, t_schedule, C_feed,  m_in, m_out, Model_Acc, Expected_Acc, Error_percent
 
@@ -945,7 +981,7 @@ def coupled_animate_profiles(t, title, y, nx, labels, colors, t_start_inject_all
         lines = []
         x = np.linspace(0, L, np.shape(y_profiles[0])[0])
         for i, y_profile in enumerate(y_profiles):
-            line, = ax.plot(x, y_profile[:, 0], label=f"{labels[i]}: H{labels[i]} = {parameter_sets[i]['H']}, kfp{labels[i]} = {parameter_sets[i]['kfp']}", color=colors[i])
+            line, = ax.plot(x, y_profile[:, 0], label=f"{labels[i]}: H{labels[i]} = {parameter_sets[i]['H']}, kfp{labels[i]} = {kav_params_all[i]}", color=colors[i])
             lines.append(line)
 
         # Add a text box in the top right corner to display the time
@@ -1019,7 +1055,7 @@ def animate_profiles(t_sets, title, y, nx, labels, colors, t_start_inject_all, t
         lines = []
         x = np.linspace(0, L, np.shape(y_profiles[0])[0])
         for i, y_profile in enumerate(y_profiles):
-            line, = ax.plot(x, y_profile[:, 0], label=f"{labels[i]}: H{labels[i]} = {parameter_sets[i]['H']}, kfp{labels[i]} = {parameter_sets[i]['kfp']}", color=colors[i])
+            line, = ax.plot(x, y_profile[:, 0], label=f"{labels[i]}: H{labels[i]} = {parameter_sets[i]['H']}, kfp{labels[i]} = {kav_params_all[i]}", color=colors[i])
             lines.append(line)
 
         # Add a text box in the top right corner to display the time
@@ -1077,107 +1113,121 @@ def animate_profiles(t_sets, title, y, nx, labels, colors, t_start_inject_all, t
 
 
 
-######################################### FUNCTION EXECUTIONS ########################
+######################################## FUNCTION EXECUTIONS ########################
 
-# ###################### PRIMARY INPUTS #########################
-# # What tpye of isoherm is required?
-# # Coupled: "CUP"
-# # Uncoupled: "UNC"
-# iso_type = "UNC" 
-# Names = ["Glucose", "Fructose"] #, "C"]#, "D", "E", "F"]
-# color = ["green", "orange"] #, "b"]#, "r", "purple", "brown"]
-# num_comp = len(Names)
-
-
-
-
-# e = 0.4      # assuming shperical packing, voidage (0,1]
-# Q_S = 8.4*0.0166666667 # cm^3/s | The volumetric flowrate of the feed to the left of the feed port (pure solvent)
-# t_index = 70 # s # Index time # How long the SINGLE pulse holds for
-# slug_vol = 15 #cm^3
-# Q_inj = slug_vol/t_index # cm^3/s | The volumetric flowrate of the injected concentration slug
-
-# Ncol_num = 1
-# tend_min = 20 # min # How long the simulation is for
-# nx = 50
-# Bm = 300
-# ###################### COLUMN DIMENTIONS ########################
-# L = 17.5 # cm
-# d_col = 2 # cm
+###################### PRIMARY INPUTS #########################
+# What tpye of isoherm is required?
+# Coupled: "CUP"
+# Uncoupled: "UNC"
+iso_type = "CUP" 
+Names = ["glucose", "fructose"] #, "C"]#, "D", "E", "F"]
+color = ["red", "green"] #, "b"]#, "r", "purple", "brown"]
+num_comp = len(Names)
 
 
 
 
-# # # Uncomment as necessary:
-# # # Linear 
-# # cusotom_isotherm_params_all = np.array([[0.27],[0.53]])
+e = 0.5     # assuming shperical packing, voidage (0,1]
+Q_S = 8.4*0.0166666667 # cm^3/s | The volumetric flowrate of the feed to the left of the feed port (pure solvent)
+t_index = 70 # s # Index time # How long the SINGLE pulse holds for
+slug_vol = 15 #cm^3
+Q_inj = slug_vol/t_index # cm^3/s | The volumetric flowrate of the injected concentration slug
+
+Ncol_num = 1
+tend_min = 20 # min # How long the simulation is for
+nx = 50
+Bm = 300
+###################### COLUMN DIMENTIONS ########################
+L = 17.5 # cm
+d_col = 2 # cm
+
+
+
+
+# # Uncomment as necessary:
+# # Linear 
+cusotom_isotherm_params_all = np.array([[1],[1]])
 # cusotom_isotherm_params_all = np.array([[3.2069715], [3.54]]) # H_glu, H_fru 
-# # # # Langmuir
-# # # cusotom_isotherm_params_all = [[3,3]]
-# # cusotom_isotherm_params_all = np.array([[2.51181596, 1.95381598], [2.55314612, 1.65186647]])
+# # # Langmuir
+# # cusotom_isotherm_params_all = [[3,3]]
+# cusotom_isotherm_params_all = np.array([[2.51181596, 1.95381598], [2.55314612, 1.65186647]])
 
-# # # Linear + Langmuir
-# # # cusotom_isotherm_params_all = [[0.3, 1, 2]]
+# # Linear + Langmuir
+# # cusotom_isotherm_params_all = [[0.3, 1, 2]]
 
-# # Parameter sets for different components
-# # Units:
-# # - Concentrations: g/cm^3
-# # - kfp: 1/s
-# parameter_sets = [
-#     {"kfp": 0.467, "C_feed": 0.42},    # Glucose SMB Launch
-#     {"kfp": 0.462, "C_feed": 0.42}] #, # Fructose
+# Parameter sets for different components
+# Units:
+# - Concentrations: g/cm^3
+# - kfp: 1/s
 
-
-# Da_all = np.array([3.218e-5, 8.38e-6 ]) 
-
-# column_func_inputs = [iso_type,  Names, color, parameter_sets, Da_all, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all]
-#                     #   iso_type,  Names, color, parameter_sets, Da_all, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all
-# start = time.time()
-# col_elution, y_matrices, nx, t, t_sets, t_schedule, C_feed, m_in, m_out, Model_Acc, Expected_Acc, Error_percent = column_func(column_func_inputs) 
-# end = time.time()
-# print('---------------------------')
-# print(f'Computation Time: {end-start} s || {(end-start)/60} min')
-# print('---------------------------\n\n')
-
-# def col_elution_profile(t_vals, col_elution, num_comp):
-#     # t_vals = np.array(t_vals)
-#     fig, ax = plt.subplots(1, 1, figsize=(15, 5))
-#     for i in range(1):
-
-#         if iso_type == 'UNC':
-#             # print(f'size of t_vals: {len(t_vals)}')
-#             ax.plot(t_vals[i]/60, col_elution[i], color = color[i], label = f"Model: {Names[i]}")
-#             # print(f"done 1 doing 2..")
-#             ax.plot(t_vals[i+1]/60, col_elution[i+1], color = color[i+1], label = f"Model: {Names[i+1]}")
+# kav_params_all = [[0.4, 0.4], [0.2, 0.5]] # [[A], [B]]
+kav_params_all = [[0.1], [0.5]] # [[A], [B]]
+parameter_sets = [
+    {"C_feed": 0.42},    # Glucose SMB Launch
+    {"C_feed": 0.42}] #, # Fructose
 
 
-#         elif iso_type == 'CUP':
-#             ax.plot(t_vals/60, col_elution[i], color = color[i], label = f"Model: {Names[i]}")
-#             ax.plot(t_vals/60, col_elution[i+1], color = color[i+1], label = f"Model: {Names[i+1]}")
-           
-#         ax.set_xlabel('Time (min)')
-#         ax.set_ylabel('Concentration g/mL')
-#         ax.legend()
-#         ax.set_title(f"Single Column Elution Curves\n{Names}\nDa: {Da_all},kfp:[{parameter_sets[0]['kfp']}, {parameter_sets[1]['kfp']}],Isoth:{cusotom_isotherm_params_all}")
-#     plt.show()
+Da_all = np.array([3.218e-5, 8.38e-6 ]) 
 
+column_func_inputs = [iso_type,  Names, color, parameter_sets, Da_all, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all, kav_params_all]
+                    #   iso_type,  Names, color, parameter_sets, Da_all, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all
 
-# if iso_type == "UNC":
-#     col_elution_profile(t_sets, col_elution, num_comp)
-# elif iso_type == "CUP":
-#     col_elution_profile(t, col_elution, num_comp)
+start = time.time()
+col_elution, y_matrices, nx, t, t_sets, t_schedule, C_feed, m_in, m_out, Model_Acc, Expected_Acc, Error_percent = column_func(column_func_inputs) 
+end = time.time()
+print('---------------------------')
+print(f'Computation Time: {end-start} s || {(end-start)/60} min')
+print('---------------------------\n\n')
 
+def col_elution_profile(t_vals, col_elution, num_comp, 
+                        bor_curves=None, hcl_curves=None, t_data=None):
+    """
+    Plot elution profiles for simulated and experimental data.
 
+    Parameters:
+    - t_vals: array-like or list of arrays. Time values for the model curves.
+    - col_elution: list of arrays. Modelled concentration profiles.
+    - num_comp: int. Number of components (e.g., 2 for binary).
+    - bor_curves, hcl_curves: optional, experimental concentration profiles.
+    - t_data: optional, time array for experimental curves (shared between bor/hcl).
+    """
 
-# # print("\n\n\nStarting Animation. . . ")
-# # if iso_type == "UNC":
-# #     animate_profiles(t_sets, "4_col", y_matrices, nx, Names, color, t_schedule, t_index)
-# # elif iso_type == "CUP":
-# #     animate_profiles([t, t], "4_col", y_matrices, nx, Names, color, t_schedule, t_index)
-# # print("End of Animation. . . . ")
+    fig, ax = plt.subplots(1, 1, figsize=(15, 5))
 
-# # start = time.time()
-# # end = time.time()
-# # print('---------------------------')
-# # print(f'Computation Time: {end-start} s')
-# # print('---------------------------\n\n')
+    # Plot based on isotherm type
+    if iso_type == 'UNC':
+        for i in range(num_comp):
+            ax.plot(t_vals[i]/60, col_elution[i], color=color[i], 
+                    label=f"Model: {Names[i]}")
+
+    elif iso_type == 'CUP':
+        for i in range(num_comp):
+            ax.plot(t_vals/60, col_elution[i], color=color[i], 
+                    label=f"Model: {Names[i]}")
+    
+    # === Plot experimental curves if provided ===
+    if bor_curves is not None and t_data is not None:
+        ax.plot(t_data/60, bor_curves, 'k--', linewidth=2, label="Boric Acid Exp. Data")
+
+    if hcl_curves is not None and t_data is not None:
+        ax.plot(t_data/60, hcl_curves, 'gray', linestyle='dotted', linewidth=2, 
+                label="HCl Exp. Data")
+
+    ax.set_xlabel('Time (min)')
+    ax.set_ylabel('Concentration (g/mL)')
+    ax.set_title(f"Single Column Elution Curves\n{Names}\n"
+                 f"Da: {Da_all}, kfp: [{kav_params_all[0]}, {kav_params_all[1]}], "
+                 f"Isotherm Params: {cusotom_isotherm_params_all}")
+    ax.legend()
+    ax.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+# Glucose and Fructose Curves:
+t_exp = np.array([0.00, 0.60, 1.20, 1.80, 2.40, 3.00, 3.60, 4.20, 4.80, 5.40, 6.00, 6.60, 7.20, 7.80, 8.40, 9.00, 9.60, 10.20, 10.80, 11.40, 12.00, 12.60, 13.20, 13.80, 14.40, 15.00, 15.60 ])*60
+glu_exp_data = np.array([0, 0,0, 0, 0, 0.0104382, 0.081351, 0.0963738, 0.1582416, 0.1539864, 0.1369116, 0.1092042, 0.0830898, 0.0517428, 0.0267354, 0.0107838, 0.004887, 0.0023166, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+fru_exp_data = np.array([0, 0, 0, 0, 0, 0, 0.004266, 0.03348, 0.141291, 0.1682154, 0.2087208, 0.1417824, 0.11043, 0.070011, 0.0423414, 0.0203148, 0.0065718, 0.0019008, 0.0006588, 0, 0, 0, 0, 0, 0, 0, 0])
+col_elution_profile(t, col_elution, num_comp, 
+                    bor_curves=glu_exp_data, 
+                    hcl_curves=fru_exp_data, 
+                    t_data=t_exp)
