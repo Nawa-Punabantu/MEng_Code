@@ -103,21 +103,21 @@ def column_func(column_func_inputs):
 
         #------------------- 1. Single Parameters Models
         # Linear
-        # K1 = cusotom_isotherm_params[0]
-        # H = K1 # Henry's Constant
-        # q_star_1 = H*c
+        K1 = cusotom_isotherm_params[0]
+        H = K1 # Henry's Constant
+        q_star_1 = H*c
 
         #------------------- 2. Two-Parameter Models
         # print(f'cusotom_isotherm_params:{cusotom_isotherm_params}')
-        K1 = cusotom_isotherm_params[0]
-        K2 = cusotom_isotherm_params[1]
+        # K1 = cusotom_isotherm_params[0]
+        # K2 = cusotom_isotherm_params[1]
 
-        # # # #  2.1 Langmuir  
-        Q_max = K1
-        b = K2
-        #-------------------------------
-        q_star_2_1 = Q_max*b*c/(1 + b*c)
-        #-------------------------------
+        # # # # #  2.1 Langmuir  
+        # Q_max = K1
+        # b = K2
+        # #-------------------------------
+        # q_star_2_1 = Q_max*b*c/(1 + b*c)
+        # #-------------------------------
 
         # 2.2 Freundlich
         # a = K1
@@ -1134,7 +1134,7 @@ slug_vol = 15 #cm^3
 Q_inj = slug_vol/t_index # cm^3/s | The volumetric flowrate of the injected concentration slug
 
 Ncol_num = 1
-tend_min = 20 # min # How long the simulation is for
+tend_min = 15.6 # min # How long the simulation is for
 nx = 50
 Bm = 300
 ###################### COLUMN DIMENTIONS ########################
@@ -1146,7 +1146,6 @@ d_col = 2 # cm
 
 # # Uncomment as necessary:
 # # Linear 
-cusotom_isotherm_params_all = np.array([[1],[1]])
 # cusotom_isotherm_params_all = np.array([[3.2069715], [3.54]]) # H_glu, H_fru 
 # # # Langmuir
 # # cusotom_isotherm_params_all = [[3,3]]
@@ -1161,13 +1160,14 @@ cusotom_isotherm_params_all = np.array([[1],[1]])
 # - kfp: 1/s
 
 # kav_params_all = [[0.4, 0.4], [0.2, 0.5]] # [[A], [B]]
-kav_params_all = [[0.1], [0.5]] # [[A], [B]]
+cusotom_isotherm_params_all = np.array([[3.21],[3.54]])
+kav_params_all = [[0.467], [0.462]] # [[A], [B]]
 parameter_sets = [
     {"C_feed": 0.42},    # Glucose SMB Launch
     {"C_feed": 0.42}] #, # Fructose
 
 
-Da_all = np.array([3.218e-5, 8.38e-6 ]) 
+Da_all = np.array([3.218e-6, 8.38e-6 ]) 
 
 column_func_inputs = [iso_type,  Names, color, parameter_sets, Da_all, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all, kav_params_all]
                     #   iso_type,  Names, color, parameter_sets, Da_all, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all
@@ -1207,11 +1207,11 @@ def col_elution_profile(t_vals, col_elution, num_comp,
     
     # === Plot experimental curves if provided ===
     if bor_curves is not None and t_data is not None:
-        ax.plot(t_data/60, bor_curves, 'k--', linewidth=2, label="Boric Acid Exp. Data")
+        ax.plot(t_data/60, bor_curves, 'k--', linewidth=2, label="Glucose Exp. Data")
 
     if hcl_curves is not None and t_data is not None:
         ax.plot(t_data/60, hcl_curves, 'gray', linestyle='dotted', linewidth=2, 
-                label="HCl Exp. Data")
+                label="Fructose Exp. Data")
 
     ax.set_xlabel('Time (min)')
     ax.set_ylabel('Concentration (g/mL)')

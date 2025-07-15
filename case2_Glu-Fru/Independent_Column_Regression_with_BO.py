@@ -46,16 +46,16 @@ see the steps below to serve as reminders of places to check when making the nec
 
 
 # Function to solve the concentration using the column model given a Pe, and tend
-def solve_concentration(Da, kfp, cusotom_isotherm_params_all, column_func_inputs):
+def solve_concentration(Da, kfp_params, cusotom_isotherm_params_all, column_func_inputs):
     """
     cusotom_isotherm_params_all = 1 < len(.) < number of paramters in isotherm
     Da =>  len(.) = 1
     kfp =>  len(.) = 1
     """
     column_func_inputs[4] =  np.array([Da]) # Insert the Dispersion in the correct position
-    column_func_inputs[3][0]["kfp"] = kfp  # Update kfp in the parameter set
+    column_func_inputs[-1] = kfp_params  # Update kfp in the parameter set
     # print(f'cusotom_isotherm_params_all: {cusotom_isotherm_params_all}')
-    column_func_inputs[-1] = cusotom_isotherm_params_all  # Update H in the parameter set
+    column_func_inputs[-2] = cusotom_isotherm_params_all  # Update H in the parameter set
     # print(f'len(column_func_inputs): {len(column_func_inputs)}')
     solution = column_func(column_func_inputs)
 
@@ -128,14 +128,16 @@ def objective_function(params, t_data, conc_data, column_func_inputs, max_of_eac
     # K3_max = max_of_each_input[4]
 
     Da = params[0]*Da_max
-    kfp = params[1]*kfp_max
-
+    kfp1 = params[1]*kfp_max
+    # kfp2 = params[3]*kfp_max
+    # Pack
+    kfp_params = [kfp1]
     # CHANGE-ISO
     # If fixing the isotherm parameters:
     # Linear:
-    # cusotom_isotherm_params_all = np.array([[4.94],[0.821]])
+    cusotom_isotherm_params_all = np.array([[4.494],[4.925]])
     # Fred:
-    cusotom_isotherm_params_all = np.array([[2.1788, 1.1352],[0.0235, 2.4334]])
+    # cusotom_isotherm_params_all = np.array([[2.1788, 1.1352],[0.0235, 2.4334]])
     # Langmuir:
     # cusotom_isotherm_params_all = np.array([[0.500, 9.14],[0.091, 9.26]]) 
     # ----------------------------------------------------------------------    
@@ -146,9 +148,11 @@ def objective_function(params, t_data, conc_data, column_func_inputs, max_of_eac
     # cusotom_isotherm_params_all = np.array([[params[2]*K1_max], [params[3]*K2_max]]) #, [params[3]*K2_max]]) # params[4]*K3_max]
 
 
-    t_predicted, predicted_conc = solve_concentration(Da, kfp, cusotom_isotherm_params, column_func_inputs)
+    t_predicted, predicted_conc = solve_concentration(Da, kfp_params, cusotom_isotherm_params, column_func_inputs)
     # Interpolate the predicted concentrations to match the time points in t_data
     # predicted_conc_interpolated = np.interp(t_data, np.linspace(0, tend_min, len(predicted_conc)), predicted_conc)
+
+    if 
     predicted_conc_interpolated = np.interp(t_data, t_predicted, predicted_conc) # concentratio values that match the experimental data
     
     # Calculate the sum of squared errors between the actual data and the predicted concentrations
@@ -234,7 +238,11 @@ def get_data_from_excel(file_path, t_start, t_end, resolution) :
 
 
 
+
     tend_min = df.iloc[t_end]['Time, min'] # min
+
+    # Mass Transfer Paraneters
+    kav_params = np.array([[1.70],[0.056]])
 
     # Linear:
     # cusotom_isotherm_params_all = np.array([[4.94],[0.821]])
@@ -247,7 +255,7 @@ def get_data_from_excel(file_path, t_start, t_end, resolution) :
     Da = 0 
     Bm = 0 
 
-    column_func_inputs = [iso_type,  Names, color, parameter_sets, Da, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all]
+    column_func_inputs = [iso_type,  Names, color, parameter_sets, Da, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all, kav_params]
     
     t_data, col_elution_data = df.iloc[t_start:t_end]['Time, s'], df.iloc[t_start:t_end]['g/cm^3']
 
