@@ -25,7 +25,7 @@ def solve_concentration(param_name, param_val, column_func_inputs, Hkfp):
     param => string | name of parameter to be changed as listed in column_func_inputs_names
     Hkfp = ['H' or 'kfp'] | string if we want to varry the kinetics :)
     """
-    column_func_inputs_names = ["iso_type", "Names", "color", "parameter_sets", "Pe", "Bm", "e", "Q_S", "Q_inj", "t_index", "tend_min", "nx", "L", "d_col"]
+    column_func_inputs_names = ["iso_type", "Names", "color", "parameter_sets", "Da_all", "Bm", "e", "Q_S", "Q_inj", "t_index", "tend_min", "nx", "L", "d_col", "cusotom_isotherm_params_all", "kav_params_all" ]
         # Ensure the input name matches one of the SMB input names
     if param_name not in column_func_inputs_names:
         raise ValueError(f"\n\n{param_name} is not a valid SMB input name. Please choose from {column_func_inputs_names}.")
@@ -270,40 +270,45 @@ num_comp = len(Names)
 # Units:
 # - Concentrations: g/cm^3
 # - kfp: 1/s
-parameter_sets = [{"kfp": 3.15/100, "H": 1, "C_feed": 5} ]#,    # Component A
-     #{"kfp": 2.217/100, "H": 0.23, "C_feed": 1}#] #, # Component B
-    # {"kfp": 0.05, "H": 2.5, "C_feed": 1.8},  # Component C
-#     {"kfp": 0.02, "H": 1.2, "C_feed": 3.0},  # Component D
-#     {"kfp": 0.03, "H": 4.0, "C_feed": 2.5},  # Component E
-#     {"kfp": 0.07, "H": 2.0, "C_feed": 1.5}   # Component  
+parameter_sets = [
+                    {"C_feed": 1},    # A
+                            ] #, # B
+kav_params_all = [[0.05]] # [[A], [B]]
+cusotom_isotherm_params_all = np.array([[1]])
+Da_all = np.array([1e-6]) 
+
 # ]
 # print("size:\n", np.shape(parameter_sets))  #]#
 
-Pe = 500 # Da = (u * L)/Pe 
-Bm = 300
+ 
+Bm = 0
 e = 0.4    # (0, 1]     # voidage
 Q_S = 1 # cm^3/s | The volumetric flowrate of the feed to the left of the feed port (pure solvent)
-Q_inj = 0.01 # cm^3/s | The volumetric flowrate of the injected concentration slug
-t_index = 10 # s # Index time # How long the SINGLE pulse holds for
+Q_inj = 0.1 # cm^3/s | The volumetric flowrate of the injected concentration slug
+t_index = 2 # s # Index time # How long the SINGLE pulse holds for
 tend_min = 80/60 # min
-nx = 70
+nx = 100
 ###################### COLUMN DIMENTIONS ########################
-L = 20 # cm
-d_col = 2.6 # cm
+L = 30 # cm
+d_col = 2 # cm
 
 
-column_func_inputs = [iso_type,  Names, color, parameter_sets, Pe, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col]
+column_func_inputs = [iso_type,  Names, color, parameter_sets, Da_all, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all, kav_params_all]
 
 
 ################ EXCUTING THE FUNCTIONS ####################################
-column_func_inputs_names = ["iso_type", "Names", "color", "parameter_sets", "Pe", "Bm", "e", "Q_S", "Q_inj", "t_index", "tend_min", "nx", "L", "d_col"]
+column_func_inputs_names = ["iso_type", "Names", "color", "parameter_sets", "Da_all", "Bm", "e", "Q_S", "Q_inj", "t_index", "tend_min", "nx", "L", "d_col", "cusotom_isotherm_params_all", "kav_params_all" ]
+
 
 print('\n\n\n\nSolving Parametric Study #1 . . . . . . ')
-
-lower_bound =  0.1
-upper_bound = 0.9
-dist_bn_points = 0.1
-var_name = 'e'
+# Units Note: 
+# - All lengths are in cm
+# - All concentrations are in g/cm^3 (g/mL)
+# 
+lower_bound =  30 # cm,
+upper_bound = 120 # cm
+dist_bn_points = 10
+var_name = 'L'
 # var_name = 'parameter_sets'
 Hkfp = None # 'H', 'kfp', None
 
