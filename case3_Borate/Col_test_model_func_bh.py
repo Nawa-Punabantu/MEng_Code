@@ -18,6 +18,7 @@
 # - the Error: "IndexError: index 10 is out of bounds for axis 0 with size 9"
 # may be due to a miss-match in size between the initial conditons and c, q in the ode func.
 
+#%%
 import numpy as np
 from scipy.integrate import solve_ivp
 import matplotlib.pyplot as plt
@@ -1127,10 +1128,10 @@ num_comp = len(Names)
 
 
 
-e = 0.5     # assuming shperical packing, voidage (0,1]
+e = 0.4     # assuming shperical packing, voidage (0,1]
 Q_S = 8.4*0.0166666667 # cm^3/s | The volumetric flowrate of the feed to the left of the feed port (pure solvent)
 t_index = 70 # s # Index time # How long the SINGLE pulse holds for
-slug_vol = 15 #cm^3
+slug_vol = 30 #cm^3
 Q_inj = slug_vol/t_index # cm^3/s | The volumetric flowrate of the injected concentration slug
 
 Ncol_num = 1
@@ -1138,22 +1139,21 @@ tend_min = 20 # min # How long the simulation is for
 nx = 50
 Bm = 300
 ###################### COLUMN DIMENTIONS ########################
-L = 17.5 # cm
+L = 24 # cm
 d_col = 2 # cm
 
 
 
 
-# # Uncomment as necessary:
+# Uncomment as necessary:
 # # Linear 
-cusotom_isotherm_params_all = np.array([[1],[1]])
 # cusotom_isotherm_params_all = np.array([[3.2069715], [3.54]]) # H_glu, H_fru 
 # # # Langmuir
 # # cusotom_isotherm_params_all = [[3,3]]
 # cusotom_isotherm_params_all = np.array([[2.51181596, 1.95381598], [2.55314612, 1.65186647]])
 
-# # Linear + Langmuir
-# # cusotom_isotherm_params_all = [[0.3, 1, 2]]
+# Linear + Langmuir
+# cusotom_isotherm_params_all = [[0.3, 1, 2]]
 
 # Parameter sets for different components
 # Units:
@@ -1161,13 +1161,15 @@ cusotom_isotherm_params_all = np.array([[1],[1]])
 # - kfp: 1/s
 
 # kav_params_all = [[0.4, 0.4], [0.2, 0.5]] # [[A], [B]]
-kav_params_all = [[0.1], [0.5]] # [[A], [B]]
+cusotom_isotherm_params_all = np.array([[4.33],[1.0]])
+kav_params_all = [[0.93], [0.6]] # [[A], [B]]
+Da_all = np.array([1.83e-6, 5.60e-24 ]) 
+
 parameter_sets = [
-    {"C_feed": 0.42},    # Glucose SMB Launch
-    {"C_feed": 0.42}] #, # Fructose
+    {"C_feed": 0.0029},    # Borate
+    {"C_feed": 0.017}] #, # Hcl
 
 
-Da_all = np.array([3.218e-5, 8.38e-6 ]) 
 
 column_func_inputs = [iso_type,  Names, color, parameter_sets, Da_all, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all, kav_params_all]
                     #   iso_type,  Names, color, parameter_sets, Da_all, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all
@@ -1179,6 +1181,8 @@ print('---------------------------')
 print(f'Computation Time: {end-start} s || {(end-start)/60} min')
 print('---------------------------\n\n')
 
+
+#%%
 def col_elution_profile(t_vals, col_elution, num_comp, 
                         bor_curves=None, hcl_curves=None, t_data=None):
     """
@@ -1224,12 +1228,32 @@ def col_elution_profile(t_vals, col_elution, num_comp,
     plt.show()
 
 # Glucose and Fructose Curves:
-t_exp = np.array([0.00, 0.60, 1.20, 1.80, 2.40, 3.00, 3.60, 4.20, 4.80, 5.40, 6.00, 6.60, 7.20, 7.80, 8.40, 9.00, 9.60, 10.20, 10.80, 11.40, 12.00, 12.60, 13.20, 13.80, 14.40, 15.00, 15.60 ])*60
-glu_exp_data = np.array([0, 0,0, 0, 0, 0.0104382, 0.081351, 0.0963738, 0.1582416, 0.1539864, 0.1369116, 0.1092042, 0.0830898, 0.0517428, 0.0267354, 0.0107838, 0.004887, 0.0023166, 0, 0, 0, 0, 0, 0, 0, 0, 0])
-fru_exp_data = np.array([0, 0, 0, 0, 0, 0, 0.004266, 0.03348, 0.141291, 0.1682154, 0.2087208, 0.1417824, 0.11043, 0.070011, 0.0423414, 0.0203148, 0.0065718, 0.0019008, 0.0006588, 0, 0, 0, 0, 0, 0, 0, 0])
+
+# UBK
+t_exp = np.array([0, 36, 72, 108, 144, 180, 216, 252, 288, 324, 360, 396, 432, 468, 504, 540, 576, 612, 648, 684, 720, 756, 792, 828, 864, 900, 936, 972, 1008, 1044, 1080, 1116, 1152,1188])
+bor_ubk_exp_data = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0.00000842, 0.00009736, 0.00036159, 0.00069426, 0.00112986, 0.00141598, 0.00145428, 0.00132795, 0.00087771, 0.0003979, 0.00011509, 0.00002407, 0.00000681, 0.00000384, 0.00000425, 0.0000027, 0.00000276, 0, 0, 0, 0, 0, 0, 0, 0, 0 ])
+hcl_ubk_exp_data = np.array([0, 0.00009786, 0.00007338, 0.00009397, 0.00001352, 0.00001293, 0.00029319, 0.00588077, 0.0093723, 0.01009793, 0.01023574, 0.01048639, 0.01033262, 0.00004391, 0.00012291, 0.00011352, 0.00011721, 0.00011115, 0.00000317, 0.00015094, 0.00012293, 0.00012035, 0.00012412, 0.0000182, 0.00012435,0.00001027,0.00005596, 0.00002058, 0.00011578, 0.00011998, 0.00003382, 0.00012022, 0.00012332, 5.858E-08 ])
+
+# # PCR
+# t_exp = np.array([])
+# bor_pcr_exp_data = np.array([])
+# hcl_pcr_exp_data = np.array([])
+
+
+# # ILLOVO WASTEWATER
+# # UBK
+# t_exp = np.array([])
+# bor_ubk_exp_illovo_data = np.array([])
+# hcl_ubk_exp_illovo_data = np.array([])
+
+# # PCR
+# t_exp = np.array([])
+# bor_ubk_exp_illovo_data = np.array([])
+# hcl_ubk_exp_illovo_data = np.array([])
+
 col_elution_profile(t, col_elution, num_comp, 
-                    bor_curves=glu_exp_data, 
-                    hcl_curves=fru_exp_data, 
+                    bor_curves=bor_ubk_exp_data, 
+                    hcl_curves=hcl_ubk_exp_data, 
                     t_data=t_exp)
 
 # print("\n\n\nStarting Animation. . . ")
@@ -1244,3 +1268,4 @@ col_elution_profile(t, col_elution, num_comp,
 # print('---------------------------')
 # print(f'Computation Time: {end-start} s')
 # print('---------------------------\n\n')
+# %%

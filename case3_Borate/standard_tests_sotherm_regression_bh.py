@@ -18,49 +18,50 @@ IMPORTANT NOTE: Qe is in g/mL that is, grams_of_solute /(per) VOLUME of solid ph
 """
 
 datasets = [ # UBK
-            np.array([[0.02164927,
-                        0.035623307,
-                        0.044316877,
-                        0.070399083,
-                        0.085215158,
-                        0.12964191,
-                        0.166012156
-
+            np.array([[
+                0.00002139,
+                0.00003479,
+                0.00004683,
+                0.00007148,
+                0.00008602,
+                0.00012791,
+                0.00016426
                         ],
-                    [# Qe (borate)
-                        0.000357933,
-                        0.000750979,
-                        0.000939695,
-                        0.001505836,
-                        0.001895031,
-                        0.003062712,
-                        0.003810274
-
+                    [
+                # Qe (borate)
+                0.000360,
+                0.000756,
+                0.000930,
+                0.001503,
+                0.001894,
+                0.003075,
+                0.003823
                         ]]),
 
             # PCR
             np.array([[ # Ce (borate)
 
-
-                        0.0174,
-                        0.0294,
-                        0.0411,
-                        0.0537,
-                        0.0688,
-                        0.0955,
-                        0.1341
-
+                    0.00000000,
+                    0.00001743,
+                    0.00002942,
+                    0.00004118,
+                    0.00005373,
+                    0.00006891,
+                    0.00009563,
+                    0.00013429
 
 
                         ], 
                     [# Qe (borate)
-                        0.000383509,
-                        0.000792281,
-                        0.000969905,
-                        0.001608309,
-                        0.00200227,
-                        0.003271597,
-                        0.004020939
+                        0.00000,
+                        0.00038,
+                        0.00079,
+                        0.00097,
+                        0.00161,
+                        0.00200,
+                        0.00328,
+                        0.00403
+
 
                         ]])
                         ]
@@ -97,6 +98,7 @@ def compute_r_squared(params, isotherm_func, c_data, q_data):
     ss_res = np.sum((q_data - q_model) ** 2)
     ss_tot = np.sum((q_data - np.mean(q_data)) ** 2)
     return 1 - ss_res / ss_tot
+
 
 # Multi-start fitting function with data collection
 def fit_isotherm_multistart(isotherm_func, c_data, q_data, bounds, n_starts=10000):
@@ -180,5 +182,64 @@ plt.title("Best-Fit Parameters and R² Values", fontsize=12)
 plt.tight_layout()
 plt.show()
 
+
+# %%
+def plot_combined_isotherm_fit(model_name, glu_data, fru_data, fit_results):
+    """
+    Plot both glucose and fructose data + fits for a single isotherm model.
+
+    Parameters:
+    - model_name: str, one of ['Linear', 'Langmuir', 'Freundlich']
+    - glu_data, fru_data: np.array, shape (2, N)
+    - fit_results: dict, keys = (Model, Component), values = (params, R²)
+    """
+    fig, ax = plt.subplots(figsize=(7, 5))
+
+    # Unpack data
+    c_glu, q_glu = glu_data
+    c_fru, q_fru = fru_data
+
+    # Generate smooth c range
+    c_fit_glu = np.linspace(c_glu.min(), c_glu.max(), 500)
+    c_fit_fru = np.linspace(c_fru.min(), c_fru.max(), 500)
+
+    # Get fitted params and models
+    params_glu, r2_glu = fit_results[(model_name, Names[0])]
+    params_fru, r2_fru = fit_results[(model_name, Names[1])]
+
+    # Select model function
+    model_func = {
+        'Linear': linear,
+        'Langmuir': langmuir,
+        'Freundlich': freundlich
+    }[model_name]
+
+    # Generate model fits
+    q_fit_glu = model_func(params_glu, c_fit_glu)
+    q_fit_fru = model_func(params_fru, c_fit_fru)
+
+    # Plot glucose
+    ax.scatter(c_glu, q_glu, color='green', marker='x', label= f"{Names[0]} Data")
+    ax.plot(c_fit_glu, q_fit_glu, color='green', linestyle='--',
+            label=f"{Names[0]} Fit\nParams: {', '.join([f'{p:.3f}' for p in params_glu])}\nR² = {r2_glu:.4f}")
+
+    # Plot fructose
+    ax.scatter(c_fru, q_fru, color='orange', marker='o', facecolors='none', label=f"{Names[1]} Data")
+    ax.plot(c_fit_fru, q_fit_fru, color='orange', linestyle='--',
+            label=f"{Names[1]} Fit\nParams: {', '.join([f'{p:.3f}' for p in params_fru])}\nR² = {r2_fru:.4f}")
+
+    # Aesthetics
+    ax.set_title(f"{model_name} Isotherm: {Names[0]} & {Names[1]}")
+    ax.set_xlabel("Ce (g/mL)")
+    ax.set_ylabel("Qe (g/mL)")
+    ax.legend()
+    ax.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+# Call the function for each isotherm type
+plot_combined_isotherm_fit("Linear", datasets[0], datasets[1], fit_results)
+plot_combined_isotherm_fit("Langmuir", datasets[0], datasets[1], fit_results)
+plot_combined_isotherm_fit("Freundlich", datasets[0], datasets[1], fit_results)
 
 # %%
