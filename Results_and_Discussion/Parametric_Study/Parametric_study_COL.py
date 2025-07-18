@@ -162,6 +162,73 @@ def convert_ndarrays(obj):
         return {key: convert_ndarrays(value) for key, value in obj.items()}
     else:
         return obj
+import os
+import json
+import numpy as np
+
+def convert_ndarrays(obj):
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, list):
+        return [convert_ndarrays(item) for item in obj]
+    elif isinstance(obj, dict):
+        return {key: convert_ndarrays(value) for key, value in obj.items()}
+    else:
+        return obj
+
+def infer_param_range(variable):
+    variable = np.asarray(variable)
+    sorted_vals = np.sort(variable)
+    unique_steps = np.unique(np.round(np.diff(sorted_vals), 10))  # round to avoid float noise
+    spacing = float(unique_steps[0]) if len(unique_steps) > 0 else None
+    return float(sorted_vals[0]), float(sorted_vals[-1]), spacing
+
+# def save_output_to_json(
+#     output,
+#     variable,
+#     param_name,
+#     description_text,
+#     save_path=None
+# ):
+#     if save_path is None:
+#         filename = f'study_{param_name}_variation.json'
+#         save_path = os.path.join(os.getcwd(), filename)
+
+#     lower_bound, upper_bound, dist_bn_points = infer_param_range(variable)
+
+#     results_dict = {
+#         "description_text": description_text,
+#         f"variable,{param_name}": convert_ndarrays(variable),
+#         "param_name": param_name,
+#         "lower_bound": lower_bound,
+#         "upper_bound": upper_bound,
+#         "dist_bn_points": dist_bn_points,
+#         "Error_percent": [],
+#         "Simulation_time": [],
+#         "col_elution": [],
+#         "t_sets": [],
+#         "t": [],
+#         "m_in": [],
+#         "m_out": [],
+#     }
+
+#     keys = [
+#         'Error_percent', 'Simulation_time', 'col_elution',
+#         't_sets', 't', 'm_in', 'm_out'
+#     ]
+
+#     for result in output.get('results', []):
+#         for key in keys:
+#             if key in result:
+#                 results_dict[key].append(convert_ndarrays(result[key]))
+
+#     with open(save_path, 'w') as f:
+#         json.dump(results_dict, f, indent=4)
+
+#     print(f"✅ Results saved to: {save_path}")
+#     print(f"   ➤ lower_bound = {lower_bound}")
+#     print(f"   ➤ upper_bound = {upper_bound}")
+#     print(f"   ➤ dist_bn_points = {dist_bn_points}")
 
 
 def save_output_to_json(
@@ -283,17 +350,29 @@ def plot_parametric_results(output, x_values, y_variable_name, x_variable_name, 
     elif y_variable_name == "Error_percent":
         plt.plot(x_values, y_values, marker='o', linestyle='-', color='red')
         plt.axhline(0, color='black', linestyle='--', linewidth=1.2, label="Zero Error")
-        plt.title(f"Parametric Study: {y_variable_name} vs {x_variable_name}")
+        plt.title(f"Effect of {x_variable_name} on Mass Balance Error Percent")
         plt.xlabel(x_variable_name)
         plt.ylabel(f'{y_variable_name}, (%)')
-        plt.ylim(-10, 10)
+
+
+        
+        y_limit = max(np.max(y_values), abs(np.min(y_values)))
+        y_padding =  y_limit * 0.05
+        if y_limit < 10:
+            y_plot = 10 + y_padding
+        else:
+            y_plot = y_limit + y_padding
+        
+        plt.ylim(-y_plot , y_plot)
+        
+
         plt.legend()
         plt.grid(True)
         plt.show()
 
     elif y_variable_name == "Simulation_time":
         plt.plot(x_values, y_values, marker='o', linestyle='-', color='blue')
-        plt.title(f"Parametric Study: {y_variable_name} vs {x_variable_name}")
+        plt.title(f"Effect of {x_variable_name} on Computation Time (min)")
         plt.xlabel(x_variable_name)
         plt.ylabel(f'{y_variable_name}, (min)')
         plt.ylim(0,)
@@ -402,12 +481,83 @@ def plot_elution_curves(output, tend, lower_bound, upper_bound, dist_bn_points, 
         else:
             plt.plot(time_vector, col_elution, label=f'{var_name}: {variable[i]}')
 
-    plt.xlabel("Time")
-    plt.ylabel("Concentration")
+    plt.xlabel("Time (min)")
+    plt.ylabel("Concentration (g/mL)")
     plt.title("Elution Curves")
     plt.legend()
     plt.grid(True)
     plt.xlim(0, tend)
+    plt.show()
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+def plot_all_parametric_results(output, x_values, x_variable_name, lower_bound, upper_bound, dist_bn_points, tend, var_name, Hkfp=None):
+    """
+    Plots three subplots:
+    (1) Mass Balance Error vs Varied Variable
+    (2) Simulation Time vs Varied Variable
+    (3) Elution Curves
+    """
+
+    # Extract y-values
+    mb_errors = []
+    sim_times = []
+
+    for result in output['results']:
+        mb_errors.append(result.get("Error_percent", 0))
+        sim_times.append(result.get("Simulation_time", 0))
+
+    # Elution data
+    variable = np.arange(lower_bound, upper_bound + dist_bn_points, dist_bn_points)
+
+    # Start figure
+    fig, axs = plt.subplots(1, 3, figsize=(18, 5))
+
+    # Plot 1: MB Error
+    axs[0].plot(x_values, mb_errors, marker='o', linestyle='-', color='red')
+    axs[0].axhline(0, color='black', linestyle='--', linewidth=1.2, label="Zero Error")
+    axs[0].set_title(f"Mass Balance Error (%) vs {x_variable_name}")
+    axs[0].set_xlabel(x_variable_name)
+    axs[0].set_ylabel("Error (%)")
+
+    y_limit = max(np.max(mb_errors), abs(np.min(mb_errors)))
+    y_padding = y_limit * 0.05
+    if y_limit < 10:
+        y_plot = 10 + y_padding
+    else:
+        y_plot = y_limit + y_padding
+    axs[0].set_ylim(-y_plot, y_plot)
+    axs[0].legend()
+    axs[0].grid(True)
+
+    # Plot 2: Simulation Time
+    axs[1].plot(x_values, sim_times, marker='o', linestyle='-', color='blue')
+    axs[1].set_title(f"Computation Time (min) vs {x_variable_name}")
+    axs[1].set_xlabel(x_variable_name)
+    # axs[1].set_ylabel("Simulation Time (min)")
+    axs[1].set_ylim(0,)
+    axs[1].grid(True)
+
+    # Plot 3: Elution Curves
+    for i, result in enumerate(output['results']):
+        col_elution = result['col_elution'][0]
+        if iso_type == "UNC":
+            time_vector = result['t_sets'][0]
+        else:
+            time_vector = result['t']
+
+        label_val = f'{Hkfp}: {variable[i]}' if var_name == 'parameter_sets' else f'{var_name}: {variable[i]}'
+        axs[2].plot(time_vector, col_elution, label=label_val)
+
+    axs[2].set_title("Elution Curves (g/mL) vs Time (min)")
+    axs[2].set_xlabel("Time (min)")
+    # axs[2].set_ylabel("Concentration (g/mL)")
+    axs[2].set_xlim(0, tend)
+    axs[2].grid(True)
+    axs[2].legend()
+
+    plt.tight_layout()
     plt.show()
 
 
@@ -425,7 +575,7 @@ num_comp = len(Names)
 # Units:
 # - Concentrations: g/cm^3
 # - kfp: 1/s
-parameter_sets = [ {"C_feed": 1}]
+parameter_sets = [ {"C_feed": 0.1}]
 kav_params_all = [[0.05]] # [[A], [B]]
 cusotom_isotherm_params_all = np.array([[1]])
 Da_all = np.array([1e-6]) 
@@ -437,9 +587,9 @@ Da_all = np.array([1e-6])
 Bm = 0
 e = 0.4    # (0, 1]     # voidage
 Q_S = 1 # cm^3/s | The volumetric flowrate of the feed to the left of the feed port (pure solvent)
-Q_inj = 1 # cm^3/s | The volumetric flowrate of the injected concentration slug
-t_index = 1 # s    # Index time # How long the SINGLE pulse holds for
-tend_min = 60/60 # min
+Q_inj = 0.5 # cm^3/s | The volumetric flowrate of the injected concentration slug
+t_index = 2 # s    # Index time # How long the SINGLE pulse holds for
+tend_min = 1 # min
 nx = 100
 ###################### COLUMN DIMENTIONS ########################
 L = 30 # cm
@@ -459,8 +609,8 @@ print('\n\n\n\nSolving Parametric Study #1 . . . . . . ')
 # - All concentrations are in g/cm^3 (g/mL)
 # 
 lower_bound = 30         # cm or g/cm^3
-upper_bound = 60         # cm or g/cm^3
-dist_bn_points = 30    # cm or g/cm^3
+upper_bound = 100         # cm or g/cm^3
+dist_bn_points = 10    # cm or g/cm^3
 var_name = 'L'     # C_feed
 
 Hkfp = None # 'H', 'kfp', None
@@ -469,15 +619,28 @@ column_func_inputs_names = ["iso_type", "Names", "color", "parameter_sets", "Da_
 Output, x_variable, x_variable_name, tend = point_value_parametric_study(var_name, lower_bound, upper_bound, dist_bn_points, Hkfp, column_func_inputs_names) # (Name of quantitiy, lower_bound, upper_bound, resolution(=space between points))
 # print(F'Output: {Output}')
 # Output, x_variable, x_variable_name = point_value_parametric_study('parameter_sets', 2, 10, 1, Hkfp='H') # 
-# Where resolution => space between points
+# # Where resolution => space between points
 # plot_parametric_results(output= Output, x_values = x_variable, y_variable_name = 'Error_percent', x_variable_name = x_variable_name, color=color)
-plot_parametric_results(output= Output, x_values = x_variable, y_variable_name = 'Simulation_time', x_variable_name = x_variable_name, color=color)
+# plot_parametric_results(output= Output, x_values = x_variable, y_variable_name = 'Simulation_time', x_variable_name = x_variable_name, color=color)
 # # # plot_parametric_results(output= Output, x_values = x_variable, y_variable_name = 'Model_Acc', x_variable_name = x_variable_name, color=color)
 # # # plot_parametric_results(output= Output, x_values = x_variable, y_variable_name = 'Expected_Acc', x_variable_name = x_variable_name, color=color)
 # plot_parametric_results(output= Output, x_values = x_variable, y_variable_name = 'm_in', x_variable_name = x_variable_name, color=color)
 # # plot_parametric_results(output= Output, x_values = x_variable, y_variable_name = 'm_out', x_variable_name = x_variable_name, color=color)
 # plot_parametric_results(output= Output, x_values = x_variable, y_variable_name = 'diff', x_variable_name = x_variable_name, color=color)
-# plot_elution_curves(Output, tend, lower_bound, upper_bound, dist_bn_points, var_name)
+plot_elution_curves(Output, tend, lower_bound, upper_bound, dist_bn_points, var_name)
+
+plot_all_parametric_results(
+    output=Output,
+    x_values=x_variable,
+    x_variable_name=x_variable_name,
+    lower_bound=lower_bound,
+    upper_bound=upper_bound,
+    dist_bn_points=dist_bn_points,
+    tend=tend,
+    var_name=var_name,
+    Hkfp=Hkfp
+)
+
 
 #%%
 # Save Files
