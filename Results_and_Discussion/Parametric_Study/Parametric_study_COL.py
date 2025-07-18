@@ -514,7 +514,51 @@ def plot_all_parametric_results(output, x_values, x_variable_name, lower_bound, 
     mb_errors = []
     sim_times = []
     if var_name == 'cusotom_isotherm_params_all':
-        var_name = 'Henry Constant'
+        var_name = 'Henry Constant, H'
+        var_name2 = 'H'
+
+    elif var_name == 'kav_params_all':
+        var_name = 'Mass Transfer Coefficient, kfp (1/s)'
+        var_name2 = 'kfp'
+
+    elif var_name == 'Da_all':
+        var_name = 'Dispersion Coefficient, Da (cm^3/s)'
+        var_name2 = 'Da'
+
+    elif var_name == 'Q_S':
+        var_name = 'Water Flowrate, Q (mL/s)'
+        var_name2 = 'Q'
+
+    elif var_name == 'Q_inj':
+        var_name = 'Injection Flowrate, Qinj (mL/s)'
+        var_name2 = 'Qinj'
+
+    elif var_name == 'c_inj':
+        var_name = 'Injection Concentration, c_ing (g/mL)'
+        var_name2 = 'c_inj'
+
+    elif var_name == 't_index':
+        var_name = 'Pulse Injection Time, t_pulse (seconds)'
+        var_name2 = 't_pulse'
+
+    elif var_name == 'e':
+        var_name = 'void fraction, e'
+        var_name2 = 'e'
+
+    elif var_name == 'nx':
+        var_name = '# Spacial Nodes, nx'
+        var_name2 = 'nx'
+
+    elif var_name == 'L':
+        var_name = 'Column Length, L (cm)'
+        var_name2 = 'L'
+
+    elif var_name == 'd_col':
+        var_name = 'Column Diameter, d_col (cm)'
+        var_name2 = 'd_col'
+
+
+
     for result in output['results']:
         mb_errors.append(result.get("Error_percent", 0))
         sim_times.append(result.get("Simulation_time", 0))
@@ -533,8 +577,8 @@ def plot_all_parametric_results(output, x_values, x_variable_name, lower_bound, 
     # Plot 1: MB Error
     axs[0].plot(x_values, mb_errors, marker='o', linestyle='-', color='red')
     axs[0].axhline(0, color='black', linestyle='--', linewidth=1.2, label="Zero Error")
-    axs[0].set_title(f"Mass Balance Error (%) vs {x_variable_name}")
-    axs[0].set_xlabel(x_variable_name)
+    axs[0].set_title(f"Mass Balance Error (%)") # vs {x_variable_name}")
+    axs[0].set_xlabel(var_name)
     axs[0].set_ylabel("Error (%)")
 
     y_limit = max(np.max(mb_errors), abs(np.min(mb_errors)))
@@ -549,8 +593,8 @@ def plot_all_parametric_results(output, x_values, x_variable_name, lower_bound, 
 
     # Plot 2: Simulation Time
     axs[1].plot(x_values, sim_times, marker='o', linestyle='-', color='blue')
-    axs[1].set_title(f"Computation Time (min) vs {x_variable_name}")
-    axs[1].set_xlabel(x_variable_name)
+    axs[1].set_title(f"Computation Time (min)") # vs {x_variable_name}")
+    axs[1].set_xlabel(var_name)
     # axs[1].set_ylabel("Simulation Time (min)")
     # axs[1].set_ylim(0,)
     axs[1].grid(True)
@@ -563,20 +607,13 @@ def plot_all_parametric_results(output, x_values, x_variable_name, lower_bound, 
             time_vector = result['t_sets'][0]
         else:
             time_vector = result['t']
-        if var_name == 'Da_all':
-            label_val = f'H: {variable[i]}' if var_name == 'cusotom_isotherm_params_all' else f'Da: {variable[i]:.0e}'
-        elif var_name == 'cusotom_isotherm_params_all':
-            label_val = f'H: {variable[i]}' if var_name == 'cusotom_isotherm_params_all' else f'H: {variable[i]}'
-        elif var_name == 'kav_params_all':
-            label_val = f'H: {variable[i]}' if var_name == 'cusotom_isotherm_params_all' else f'kfp: {variable[i]}'
-            
-        else:
-            label_val = f'H: {variable[i]}' if var_name == 'cusotom_isotherm_params_all' else f'{var_name}: {variable[i]}'
+
+        label_val = f'{var_name2}: {variable[i]}'
 
 
         axs[2].plot(time_vector, col_elution, label=label_val)
 
-    axs[2].set_title("Elution Curves (g/mL) vs Time (min)")
+    axs[2].set_title("Elution Profiles (g/mL)")
     axs[2].set_xlabel("Time (min)")
     # axs[2].set_ylabel("Concentration (g/mL)")
     axs[2].set_xlim(0, tend)
@@ -634,10 +671,10 @@ print('\n\n\n\nSolving Parametric Study #1 . . . . . . ')
 # - All lengths are in cm
 # - All concentrations are in g/cm^3 (g/mL)
 # 
-lower_bound = 3        # cm or g/cm^3
-upper_bound = 5     # cm or g/cm^3
-dist_bn_points = 1   # cm or g/cm^3
-var_name = 'cusotom_isotherm_params_all'     # C_feed
+lower_bound = 30       # cm or g/cm^3
+upper_bound = 80    # cm or g/cm^3
+dist_bn_points = 10   # cm or g/cm^3
+var_name = 'nx'     # C_feed
 
 Hkfp = None # 'H', 'kfp', None
 
