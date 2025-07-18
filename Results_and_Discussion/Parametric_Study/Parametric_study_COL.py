@@ -47,6 +47,9 @@ def solve_concentration(param_name, param_val, column_func_inputs, Hkfp, column_
 
 
 
+def generate_exponential_array(start, stop, step):
+    exponents = np.arange(start, stop - 1, -step)
+    return 10.0 ** exponents
 
 def point_value_parametric_study(param_name, lower_bound, upper_bound, dist_bn_points, Hkfp, column_func_inputs_names):
     """
@@ -62,6 +65,8 @@ def point_value_parametric_study(param_name, lower_bound, upper_bound, dist_bn_p
         dict: A dictionary containing the varied parameter values and corresponding SMB results.
     """
     
+
+
     # Ensure the input name matches one of the SMB input names
     if param_name != 'C_feed':
         if param_name not in column_func_inputs_names:
@@ -70,7 +75,11 @@ def point_value_parametric_study(param_name, lower_bound, upper_bound, dist_bn_p
     output = {'parameter_values': [], 'results': []}
     
     # array of the values of the variable to varry:
-    variable = np.arange(lower_bound, upper_bound + dist_bn_points, dist_bn_points)
+    if param_name == 'Da_all':
+        variable = generate_exponential_array(lower_bound, upper_bound + dist_bn_points, dist_bn_points)
+        print(f'variable: {variable}')
+    else:    
+        variable = np.arange(lower_bound, upper_bound + dist_bn_points, dist_bn_points)
 
     # Get the index of the parameter to vary:
     # name_idx = column_func_inputs_names.index(param_name)
@@ -88,7 +97,8 @@ def point_value_parametric_study(param_name, lower_bound, upper_bound, dist_bn_p
         # column_func_inputs[name_idx] = var_value
 
         param_val = var_value
-
+        if param_name == 'cusotom_isotherm_params_all' or param_name == 'Da_all' or param_name == 'kav_params_all':
+            param_val = np.array([param_val])
         # Run the simulation
         start_time = time.time()
 
@@ -503,13 +513,19 @@ def plot_all_parametric_results(output, x_values, x_variable_name, lower_bound, 
     # Extract y-values
     mb_errors = []
     sim_times = []
-
+    if var_name == 'cusotom_isotherm_params_all':
+        var_name = 'Henry Constant'
     for result in output['results']:
         mb_errors.append(result.get("Error_percent", 0))
         sim_times.append(result.get("Simulation_time", 0))
 
     # Elution data
-    variable = np.arange(lower_bound, upper_bound + dist_bn_points, dist_bn_points)
+    if x_variable_name == 'Da_all':
+        variable = generate_exponential_array(lower_bound, upper_bound + dist_bn_points, dist_bn_points)
+        
+        # print(f'variable: {variable}')
+    else:
+        variable = np.arange(lower_bound, upper_bound + dist_bn_points, dist_bn_points)
 
     # Start figure
     fig, axs = plt.subplots(1, 3, figsize=(18, 5))
@@ -536,18 +552,28 @@ def plot_all_parametric_results(output, x_values, x_variable_name, lower_bound, 
     axs[1].set_title(f"Computation Time (min) vs {x_variable_name}")
     axs[1].set_xlabel(x_variable_name)
     # axs[1].set_ylabel("Simulation Time (min)")
-    axs[1].set_ylim(0,)
+    # axs[1].set_ylim(0,)
     axs[1].grid(True)
 
     # Plot 3: Elution Curves
     for i, result in enumerate(output['results']):
         col_elution = result['col_elution'][0]
+
         if iso_type == "UNC":
             time_vector = result['t_sets'][0]
         else:
             time_vector = result['t']
+        if var_name == 'Da_all':
+            label_val = f'H: {variable[i]}' if var_name == 'cusotom_isotherm_params_all' else f'Da: {variable[i]:.0e}'
+        elif var_name == 'cusotom_isotherm_params_all':
+            label_val = f'H: {variable[i]}' if var_name == 'cusotom_isotherm_params_all' else f'H: {variable[i]}'
+        elif var_name == 'kav_params_all':
+            label_val = f'H: {variable[i]}' if var_name == 'cusotom_isotherm_params_all' else f'kfp: {variable[i]}'
+            
+        else:
+            label_val = f'H: {variable[i]}' if var_name == 'cusotom_isotherm_params_all' else f'{var_name}: {variable[i]}'
 
-        label_val = f'{Hkfp}: {variable[i]}' if var_name == 'parameter_sets' else f'{var_name}: {variable[i]}'
+
         axs[2].plot(time_vector, col_elution, label=label_val)
 
     axs[2].set_title("Elution Curves (g/mL) vs Time (min)")
@@ -608,10 +634,10 @@ print('\n\n\n\nSolving Parametric Study #1 . . . . . . ')
 # - All lengths are in cm
 # - All concentrations are in g/cm^3 (g/mL)
 # 
-lower_bound = 30         # cm or g/cm^3
-upper_bound = 100         # cm or g/cm^3
-dist_bn_points = 10    # cm or g/cm^3
-var_name = 'L'     # C_feed
+lower_bound = 3        # cm or g/cm^3
+upper_bound = 5     # cm or g/cm^3
+dist_bn_points = 1   # cm or g/cm^3
+var_name = 'cusotom_isotherm_params_all'     # C_feed
 
 Hkfp = None # 'H', 'kfp', None
 
@@ -627,7 +653,7 @@ Output, x_variable, x_variable_name, tend = point_value_parametric_study(var_nam
 # plot_parametric_results(output= Output, x_values = x_variable, y_variable_name = 'm_in', x_variable_name = x_variable_name, color=color)
 # # plot_parametric_results(output= Output, x_values = x_variable, y_variable_name = 'm_out', x_variable_name = x_variable_name, color=color)
 # plot_parametric_results(output= Output, x_values = x_variable, y_variable_name = 'diff', x_variable_name = x_variable_name, color=color)
-plot_elution_curves(Output, tend, lower_bound, upper_bound, dist_bn_points, var_name)
+# plot_elution_curves(Output, tend, lower_bound, upper_bound, dist_bn_points, var_name)
 
 plot_all_parametric_results(
     output=Output,

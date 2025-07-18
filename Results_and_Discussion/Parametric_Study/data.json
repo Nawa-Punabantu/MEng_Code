@@ -1,0 +1,29 @@
+{
+    "numbers": [
+        [
+            1,
+            2,
+            3
+        ],
+        [
+            "a",
+            "b",
+            "c"
+        ],
+        [
+            true,
+            false,
+            true
+        ]
+    ],
+    "letters": [
+        "a",
+        "b",
+        "c"
+    ],
+    "booleans": [
+        true,
+        false,
+        true
+    ]
+}
