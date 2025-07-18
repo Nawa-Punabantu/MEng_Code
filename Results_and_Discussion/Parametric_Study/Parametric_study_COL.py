@@ -1,4 +1,6 @@
-# IMPORTING LIBRARIES
+#%%
+# 
+# # IMPORTING LIBRARIES
 ###########################################
 import numpy as np
 import pandas as pd
@@ -12,6 +14,7 @@ import matplotlib.animation as animation
 # from PIL import Image
 from scipy import integrate
 import plotly.graph_objects as go
+import time
 ###########################################
 # IMPORTING MY OWN FUNCTIONS
 ###########################################
@@ -87,7 +90,12 @@ def point_value_parametric_study(param_name, lower_bound, upper_bound, dist_bn_p
         param_val = var_value
 
         # Run the simulation
+        start_time = time.time()
+
         col_elution, y_matrices, nx, t, t_sets, t_schedule, C_feed, m_in, m_out, Model_Acc, Expected_Acc, Error_percent = solve_concentration(param_name, param_val, column_func_inputs, Hkfp, column_func_inputs_names)
+        end_time = time.time()
+        sim_time = (end_time - start_time)/60 # min
+        
         if iso_type == "UNC":
             t_end = t_sets[0][-1]   
         else:
@@ -96,68 +104,258 @@ def point_value_parametric_study(param_name, lower_bound, upper_bound, dist_bn_p
         # Save the parameter value and corresponding results
         output['parameter_values'].append(var_value)
         output['results'].append({
-            'col_elution': col_elution,
-            'y_matrices': y_matrices,
+            # Not interested in matrices:
+            # 'y_matrices': y_matrices,
+            # 't_schedule': t_schedule,
+
+
+            # Appended scalars:
             'nx': nx,
-            't': t,
-            't_sets': t_sets,
-            't_schedule': t_schedule,
             'C_feed': C_feed,
             'm_in': m_in,
             'm_out': m_out,
             'Model_Acc': Model_Acc,
             'Expected_Acc': Expected_Acc,
-            'Error_percent': Error_percent
-        })
+            'Error_percent': Error_percent,
+            'Simulation_time':sim_time,
+
+            # Appended vectors (np arrays)
+            'col_elution': col_elution,
+            't_sets': t_sets,
+            't': t,
+
+
+            })
     
     return output, variable, param_name, t_end
 
- 
+# FUNCTION TO SAVE RESULTS:
+import json
+import os
+
+import json
+import numpy as np
+
+import json
+import numpy as np
+
+import json
+import numpy as np
+import os
+
+import json
+import os
+import numpy as np
+import os
+import json
+import numpy as np
+
+def convert_ndarrays(obj):
+    """
+    Recursively converts numpy arrays in an object to lists for JSON serialization.
+    """
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, list):
+        return [convert_ndarrays(item) for item in obj]
+    elif isinstance(obj, dict):
+        return {key: convert_ndarrays(value) for key, value in obj.items()}
+    else:
+        return obj
+
+
+def save_output_to_json(
+    output,
+    variable,
+    param_name,
+    description_text,
+    save_path=None
+):
+    """
+    Saves a parametric study output dictionary to a JSON file with clear structure.
+
+    Parameters:
+    - output: dict containing 'results', each of which is a dict with simulation outputs
+    - variable: np.ndarray or list of parameter values (varied across runs)
+    - param_name: str, name of the varied parameter
+    - description_text: str, explanation of what the study represents
+    - save_path: optional full file path; if None, defaults to current directory
+    """
+
+    # Set default save path
+    if save_path is None:
+        filename = f'study_{param_name}_variation.json'
+        save_path = os.path.join(os.getcwd(), filename)
+
+    # Initialize the output dictionary
+    results_dict = {
+        "description_text": description_text,
+        f"variable,{param_name}": convert_ndarrays(variable),
+        "param_name": param_name,
+        "Error_percent": [],
+        "Simulation_time": [],
+        "col_elution": [],
+        "t_sets": [],
+        "t": [],
+        "m_in": [],
+        "m_out": [],
+    }
+
+    keys = [
+        'Error_percent', 'Simulation_time', 'col_elution', 
+        't_sets', 't', 'm_in', 'm_out'
+    ]
+
+    for result in output.get('results', []):
+        for key in keys:
+            if key in result:
+                results_dict[key].append(convert_ndarrays(result[key]))
+
+    # Save to JSON
+    with open(save_path, 'w') as f:
+        json.dump(results_dict, f, indent=4)
+
+    print(f"✅ Results saved to: {save_path}")
+
+
+
+
+
 
 def plot_parametric_results(output, x_values, y_variable_name, x_variable_name, color):
     """
     Plot the parametric study results for a given output variable.
-    
+
     Args:
         output (dict): The results dictionary returned from `point_value_parametric_study`.
-        y_variable_name (str): The name of the output variable to plot (e.g., 'raff_recov', 'ext_recov').
-        x_variable_name (str): The name of the independent variable (default is 'parameter_values').
-    
+        x_values (array-like): The values of the independent variable.
+        y_variable_name (str): The name of the output variable to plot.
+        x_variable_name (str): The name of the independent variable.
+        color (list or str): Color(s) used for plotting.
+
     Raises:
         ValueError: If the y_variable_name is not found in the results.
     """
-    # Extract the x-axis values (independent variable)
-    
     if x_values is None:
         raise ValueError(f"{x_variable_name} is not a valid independent variable.")
     
-    # Extract the y-axis values (dependent variable)
     y_values = []
+
     for result in output['results']:
-        if y_variable_name in result:
-            y_values.append(result[y_variable_name])
+        if y_variable_name == "diff":
+            if 'Model_Acc' in result and 'Expected_Acc' in result:
+                diff = np.array(result['Model_Acc']) - np.array(result['Expected_Acc'])
+                # If it's a scalar, wrap into a list
+                if np.isscalar(diff):
+                    y_values.append(diff)
+                else:
+                    y_values.append(np.mean(diff))  # or np.max(np.abs(diff)) depending on what you want
+            else:
+                raise ValueError("Both 'Model_Acc' and 'Expected_Acc' must be in result when y_variable_name is 'diff'.")
         else:
-            raise ValueError(f"{y_variable_name} is not a valid output variable. Available keys: {list(output['results'][0].keys())}")
-    # print('y_values:\n',y_values)
-    # print('y_values[0]:\n',y_values[0])
-    
-    # Plot the results
+            if y_variable_name in result:
+                y_values.append(result[y_variable_name])
+            else:
+                raise ValueError(f"{y_variable_name} not found. Available keys: {list(result.keys())}")
+
     plt.figure(figsize=(10, 6))
-    if y_variable_name == 'raff_intgral_purity' or y_variable_name =="ext_intgral_purity":
+    
+    if y_variable_name == 'raff_intgral_purity' or y_variable_name == "ext_intgral_purity":
         y_values = np.concatenate(y_values)
         y_values_A = y_values[0::2]
         y_values_B = y_values[1::2]
         
-        plt.plot(x_values, y_values_A, marker='o', linestyle='-', color = color[0], label = Names[0])
-        plt.plot(x_values, y_values_B, marker='o', linestyle='-', color = color[1], label = Names[1])
+        plt.plot(x_values, y_values_A, marker='o', linestyle='-', color=color[0], label=Names[0])
+        plt.plot(x_values, y_values_B, marker='o', linestyle='-', color=color[1], label=Names[1])
+
+        
+        
+    elif y_variable_name == "diff":
+        plt.plot(x_values, y_values, marker='o', linestyle='-', color='purple')
+        plt.axhline(0, color='black', linestyle='--', linewidth=1.2, label="Zero Error")
+        plt.title(f"Parametric Study: {y_variable_name} vs {x_variable_name}")
+        plt.xlabel(x_variable_name)
+        plt.ylabel(f'{y_variable_name}, grams')
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+
+    elif y_variable_name == "Error_percent":
+        plt.plot(x_values, y_values, marker='o', linestyle='-', color='red')
+        plt.axhline(0, color='black', linestyle='--', linewidth=1.2, label="Zero Error")
+        plt.title(f"Parametric Study: {y_variable_name} vs {x_variable_name}")
+        plt.xlabel(x_variable_name)
+        plt.ylabel(f'{y_variable_name}, (%)')
+        plt.ylim(-10, 10)
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+
+    elif y_variable_name == "Simulation_time":
+        plt.plot(x_values, y_values, marker='o', linestyle='-', color='blue')
+        plt.title(f"Parametric Study: {y_variable_name} vs {x_variable_name}")
+        plt.xlabel(x_variable_name)
+        plt.ylabel(f'{y_variable_name}, (min)')
+        plt.ylim(0,)
+        plt.legend()
+        plt.grid(True)
+        plt.show()
     else:
-        plt.plot(x_values, y_values, marker='o', linestyle='-', color = 'purple')
-    plt.title(f"Parametric Study: {y_variable_name} vs {x_variable_name}")
-    plt.xlabel(x_variable_name)
-    plt.ylabel(y_variable_name)
-    plt.legend()
-    plt.grid(True)
-    plt.show()
+        plt.plot(x_values, y_values, marker='o', linestyle='-', color='purple')
+        plt.title(f"Parametric Study: {y_variable_name} vs {x_variable_name}")
+        plt.xlabel(x_variable_name)
+        plt.ylabel(y_variable_name)
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+        
+
+
+
+# def plot_parametric_results(output, x_values, y_variable_name, x_variable_name, color):
+#     """
+#     Plot the parametric study results for a given output variable.
+    
+#     Args:
+#         output (dict): The results dictionary returned from `point_value_parametric_study`.
+#         y_variable_name (str): The name of the output variable to plot (e.g., 'raff_recov', 'ext_recov').
+#         x_variable_name (str): The name of the independent variable (default is 'parameter_values').
+    
+#     Raises:
+#         ValueError: If the y_variable_name is not found in the results.
+#     """
+#     # Extract the x-axis values (independent variable)
+    
+#     if x_values is None:
+#         raise ValueError(f"{x_variable_name} is not a valid independent variable.")
+    
+#     # Extract the y-axis values (dependent variable)
+#     y_values = []
+#     for result in output['results']:
+#         if y_variable_name in result:
+#             y_values.append(result[y_variable_name])
+#         else:
+#             raise ValueError(f"{y_variable_name} is not a valid output variable. Available keys: {list(output['results'][0].keys())}")
+#     # print('y_values:\n',y_values)
+#     # print('y_values[0]:\n',y_values[0])
+    
+#     # Plot the results
+#     plt.figure(figsize=(10, 6))
+#     if y_variable_name == 'raff_intgral_purity' or y_variable_name =="ext_intgral_purity":
+#         y_values = np.concatenate(y_values)
+#         y_values_A = y_values[0::2]
+#         y_values_B = y_values[1::2]
+        
+#         plt.plot(x_values, y_values_A, marker='o', linestyle='-', color = color[0], label = Names[0])
+#         plt.plot(x_values, y_values_B, marker='o', linestyle='-', color = color[1], label = Names[1])
+#     else:
+#         plt.plot(x_values, y_values, marker='o', linestyle='-', color = 'purple')
+#     plt.title(f"Parametric Study: {y_variable_name} vs {x_variable_name}")
+#     plt.xlabel(x_variable_name)
+#     plt.ylabel(y_variable_name)
+#     plt.legend()
+#     plt.grid(True)
+#     plt.show()
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -241,7 +439,7 @@ e = 0.4    # (0, 1]     # voidage
 Q_S = 1 # cm^3/s | The volumetric flowrate of the feed to the left of the feed port (pure solvent)
 Q_inj = 1 # cm^3/s | The volumetric flowrate of the injected concentration slug
 t_index = 1 # s    # Index time # How long the SINGLE pulse holds for
-tend_min = 80/60 # min
+tend_min = 60/60 # min
 nx = 100
 ###################### COLUMN DIMENTIONS ########################
 L = 30 # cm
@@ -261,19 +459,42 @@ print('\n\n\n\nSolving Parametric Study #1 . . . . . . ')
 # - All concentrations are in g/cm^3 (g/mL)
 # 
 lower_bound = 30         # cm or g/cm^3
-upper_bound = 40         # cm or g/cm^3
-dist_bn_points = 1    # cm or g/cm^3
+upper_bound = 60         # cm or g/cm^3
+dist_bn_points = 30    # cm or g/cm^3
 var_name = 'L'     # C_feed
 
 Hkfp = None # 'H', 'kfp', None
 
 column_func_inputs_names = ["iso_type", "Names", "color", "parameter_sets", "Da_all", "Bm", "e", "Q_S", "Q_inj", "t_index", "tend_min", "nx", "L", "d_col", "cusotom_isotherm_params_all", "kav_params_all" ]
 Output, x_variable, x_variable_name, tend = point_value_parametric_study(var_name, lower_bound, upper_bound, dist_bn_points, Hkfp, column_func_inputs_names) # (Name of quantitiy, lower_bound, upper_bound, resolution(=space between points))
+# print(F'Output: {Output}')
 # Output, x_variable, x_variable_name = point_value_parametric_study('parameter_sets', 2, 10, 1, Hkfp='H') # 
 # Where resolution => space between points
-plot_parametric_results(output= Output, x_values = x_variable, y_variable_name = 'Error_percent', x_variable_name = x_variable_name, color=color)
-# plot_parametric_results(output= Output, x_values = x_variable, y_variable_name = 'Model_Acc', x_variable_name = x_variable_name, color=color)
-# plot_parametric_results(output= Output, x_values = x_variable, y_variable_name = 'Expected_Acc', x_variable_name = x_variable_name, color=color)
-plot_parametric_results(output= Output, x_values = x_variable, y_variable_name = 'm_in', x_variable_name = x_variable_name, color=color)
-plot_parametric_results(output= Output, x_values = x_variable, y_variable_name = 'm_out', x_variable_name = x_variable_name, color=color)
-plot_elution_curves(Output, tend, lower_bound, upper_bound, dist_bn_points, var_name)
+# plot_parametric_results(output= Output, x_values = x_variable, y_variable_name = 'Error_percent', x_variable_name = x_variable_name, color=color)
+plot_parametric_results(output= Output, x_values = x_variable, y_variable_name = 'Simulation_time', x_variable_name = x_variable_name, color=color)
+# # # plot_parametric_results(output= Output, x_values = x_variable, y_variable_name = 'Model_Acc', x_variable_name = x_variable_name, color=color)
+# # # plot_parametric_results(output= Output, x_values = x_variable, y_variable_name = 'Expected_Acc', x_variable_name = x_variable_name, color=color)
+# plot_parametric_results(output= Output, x_values = x_variable, y_variable_name = 'm_in', x_variable_name = x_variable_name, color=color)
+# # plot_parametric_results(output= Output, x_values = x_variable, y_variable_name = 'm_out', x_variable_name = x_variable_name, color=color)
+# plot_parametric_results(output= Output, x_values = x_variable, y_variable_name = 'diff', x_variable_name = x_variable_name, color=color)
+# plot_elution_curves(Output, tend, lower_bound, upper_bound, dist_bn_points, var_name)
+
+#%%
+# Save Files
+par_std_save_location = r"C:\Users\28820169\Downloads\BO_Papers\MEng_Code\Results_and_Discussion\Parametric_Study"
+description_text = (
+    f"Parametric study varying {x_variable_name} from {lower_bound} to {upper_bound} "
+    f"with a step of {dist_bn_points}. Results include col_elution and mass metrics. "
+    f"All lengths are in cm, time in s, concentrations in g/cm³, volumes in cm³."
+)
+
+save_output_to_json(
+    output=Output,
+    variable=x_variable,
+    param_name=x_variable_name,
+    description_text=description_text,
+    save_path= None
+
+)
+
+# %%
