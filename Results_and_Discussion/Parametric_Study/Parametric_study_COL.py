@@ -193,52 +193,6 @@ def infer_param_range(variable):
     spacing = float(unique_steps[0]) if len(unique_steps) > 0 else None
     return float(sorted_vals[0]), float(sorted_vals[-1]), spacing
 
-# def save_output_to_json(
-#     output,
-#     variable,
-#     param_name,
-#     description_text,
-#     save_path=None
-# ):
-#     if save_path is None:
-#         filename = f'study_{param_name}_variation.json'
-#         save_path = os.path.join(os.getcwd(), filename)
-
-#     lower_bound, upper_bound, dist_bn_points = infer_param_range(variable)
-
-#     results_dict = {
-#         "description_text": description_text,
-#         f"variable,{param_name}": convert_ndarrays(variable),
-#         "param_name": param_name,
-#         "lower_bound": lower_bound,
-#         "upper_bound": upper_bound,
-#         "dist_bn_points": dist_bn_points,
-#         "Error_percent": [],
-#         "Simulation_time": [],
-#         "col_elution": [],
-#         "t_sets": [],
-#         "t": [],
-#         "m_in": [],
-#         "m_out": [],
-#     }
-
-#     keys = [
-#         'Error_percent', 'Simulation_time', 'col_elution',
-#         't_sets', 't', 'm_in', 'm_out'
-#     ]
-
-#     for result in output.get('results', []):
-#         for key in keys:
-#             if key in result:
-#                 results_dict[key].append(convert_ndarrays(result[key]))
-
-#     with open(save_path, 'w') as f:
-#         json.dump(results_dict, f, indent=4)
-
-#     print(f"✅ Results saved to: {save_path}")
-#     print(f"   ➤ lower_bound = {lower_bound}")
-#     print(f"   ➤ upper_bound = {upper_bound}")
-#     print(f"   ➤ dist_bn_points = {dist_bn_points}")
 
 
 def save_output_to_json(
@@ -400,52 +354,6 @@ def plot_parametric_results(output, x_values, y_variable_name, x_variable_name, 
         
 
 
-
-# def plot_parametric_results(output, x_values, y_variable_name, x_variable_name, color):
-#     """
-#     Plot the parametric study results for a given output variable.
-    
-#     Args:
-#         output (dict): The results dictionary returned from `point_value_parametric_study`.
-#         y_variable_name (str): The name of the output variable to plot (e.g., 'raff_recov', 'ext_recov').
-#         x_variable_name (str): The name of the independent variable (default is 'parameter_values').
-    
-#     Raises:
-#         ValueError: If the y_variable_name is not found in the results.
-#     """
-#     # Extract the x-axis values (independent variable)
-    
-#     if x_values is None:
-#         raise ValueError(f"{x_variable_name} is not a valid independent variable.")
-    
-#     # Extract the y-axis values (dependent variable)
-#     y_values = []
-#     for result in output['results']:
-#         if y_variable_name in result:
-#             y_values.append(result[y_variable_name])
-#         else:
-#             raise ValueError(f"{y_variable_name} is not a valid output variable. Available keys: {list(output['results'][0].keys())}")
-#     # print('y_values:\n',y_values)
-#     # print('y_values[0]:\n',y_values[0])
-    
-#     # Plot the results
-#     plt.figure(figsize=(10, 6))
-#     if y_variable_name == 'raff_intgral_purity' or y_variable_name =="ext_intgral_purity":
-#         y_values = np.concatenate(y_values)
-#         y_values_A = y_values[0::2]
-#         y_values_B = y_values[1::2]
-        
-#         plt.plot(x_values, y_values_A, marker='o', linestyle='-', color = color[0], label = Names[0])
-#         plt.plot(x_values, y_values_B, marker='o', linestyle='-', color = color[1], label = Names[1])
-#     else:
-#         plt.plot(x_values, y_values, marker='o', linestyle='-', color = 'purple')
-#     plt.title(f"Parametric Study: {y_variable_name} vs {x_variable_name}")
-#     plt.xlabel(x_variable_name)
-#     plt.ylabel(y_variable_name)
-#     plt.legend()
-#     plt.grid(True)
-#     plt.show()
-
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -557,6 +465,14 @@ def plot_all_parametric_results(output, x_values, x_variable_name, lower_bound, 
         var_name = 'Column Diameter, d_col (cm)'
         var_name2 = 'd_col'
 
+    elif var_name == 'tend_min':
+        var_name = 'End Time, (min)'
+        var_name2 = 't_end'
+
+    elif var_name == 'C_feed':
+        var_name = 'Feed Concentration, c_feed (g/ml)'
+        var_name2 = 'c_feed'
+
 
 
     for result in output['results']:
@@ -608,13 +524,16 @@ def plot_all_parametric_results(output, x_values, x_variable_name, lower_bound, 
         else:
             time_vector = result['t']
 
-        label_val = f'{var_name2}: {variable[i]}'
+        if var_name == 'Dispersion Coefficient, Da (cm^3/s)':
+            label_val = f'{var_name2}: {variable[i]:.0e}'
+        else:
+            label_val = f'{var_name2}: {variable[i]:.0f}'
 
 
         axs[2].plot(time_vector, col_elution, label=label_val)
 
     axs[2].set_title("Elution Profiles (g/mL)")
-    axs[2].set_xlabel("Time (min)")
+    axs[2].set_xlabel("Time (s)")
     # axs[2].set_ylabel("Concentration (g/mL)")
     axs[2].set_xlim(0, tend)
     axs[2].grid(True)
@@ -638,7 +557,7 @@ num_comp = len(Names)
 # Units:
 # - Concentrations: g/cm^3
 # - kfp: 1/s
-parameter_sets = [ {"C_feed": 0.1}]
+parameter_sets = [ {"C_feed": 10}]
 kav_params_all = [[0.05]] # [[A], [B]]
 cusotom_isotherm_params_all = np.array([[1]])
 Da_all = np.array([1e-6]) 
@@ -671,9 +590,9 @@ print('\n\n\n\nSolving Parametric Study #1 . . . . . . ')
 # - All lengths are in cm
 # - All concentrations are in g/cm^3 (g/mL)
 # 
-lower_bound = 30       # cm or g/cm^3
-upper_bound = 80    # cm or g/cm^3
-dist_bn_points = 10   # cm or g/cm^3
+lower_bound = 100       # cm or g/cm^3
+upper_bound = 200    # cm or g/cm^3
+dist_bn_points = 25   # cm or g/cm^3
 var_name = 'nx'     # C_feed
 
 Hkfp = None # 'H', 'kfp', None
