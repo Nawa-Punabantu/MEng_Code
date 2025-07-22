@@ -572,7 +572,7 @@ Bm = 300
 
 # How many columns in each Zone?
 
-Z1, Z2, Z3, Z4 = 3,3,3,3 # *3 for smb config
+Z1, Z2, Z3, Z4 = 1,1,1,1 # *3 for smb config
 zone_config = np.array([Z1, Z2, Z3, Z4])
 nnn = Z1 + Z2 + Z3 + Z4
 
@@ -668,10 +668,10 @@ print('\n\n\n\nSolving Parametric Study #1 . . . . . . ')
 # - All lengths are in cm
 # - All concentrations are in g/cm^3 (g/mL)
 # 
-lower_bound = 0.27       # cm or g/cm^3
-upper_bound = 0.53   # cm or g/cm^3
-dist_bn_points = 0.10  # cm or g/cm^3
-var_name = 'cusotom_isotherm_params_all'     # C_feed
+lower_bound = 5       # cm or g/cm^3
+upper_bound = 100   # cm or g/cm^3
+dist_bn_points = 20  # cm or g/cm^3
+var_name = 'nx_per_col'     # C_feed
 
 Output, x_variable, x_variable_name, tend = point_value_parametric_study(var_name, lower_bound, upper_bound, dist_bn_points, SMB_inputs, SMB_inputs_names) # (Name of quantitiy, lower_bound, upper_bound, resolution(=space between points))
 # print(F'Output: {Output}')
