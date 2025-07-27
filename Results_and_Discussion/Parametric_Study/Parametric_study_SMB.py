@@ -548,6 +548,17 @@ def plot_all_parametric_results(output, x_values, x_variable_name, lower_bound, 
     plt.tight_layout()
     plt.show()
 
+    # Start new figure for simulation time:
+
+    fig, bxs = plt.subplots(1, 1, figsize=(18, 5))
+        # Plot 2: Simulation Time
+    bxs.plot(x_values, sim_times, marker='o', linestyle='-', color='blue')
+    bxs.set_title(f"Computation Time (min)") # vs {x_variable_name}")
+    bxs.set_xlabel(var_name)
+    # axs[1].set_ylabel("Simulation Time (min)")
+    # axs[1].set_ylim(0,)
+    bxs.grid(True)
+
 
 ##################### PRIMARY INPUTS #########################
 
@@ -668,9 +679,9 @@ print('\n\n\n\nSolving Parametric Study #1 . . . . . . ')
 # - All lengths are in cm
 # - All concentrations are in g/cm^3 (g/mL)
 # 
-lower_bound = 5       # cm or g/cm^3
-upper_bound = 100   # cm or g/cm^3
-dist_bn_points = 20  # cm or g/cm^3
+lower_bound = 10       # cm or g/cm^3
+upper_bound = 30   # cm or g/cm^3
+dist_bn_points = 10  # cm or g/cm^3
 var_name = 'nx_per_col'     # C_feed
 
 Output, x_variable, x_variable_name, tend = point_value_parametric_study(var_name, lower_bound, upper_bound, dist_bn_points, SMB_inputs, SMB_inputs_names) # (Name of quantitiy, lower_bound, upper_bound, resolution(=space between points))
@@ -686,6 +697,7 @@ Output, x_variable, x_variable_name, tend = point_value_parametric_study(var_nam
 # plot_parametric_results(output= Output, x_values = x_variable, y_variable_name = 'diff', x_variable_name = x_variable_name, color=color)
 # plot_elution_curves(Output, tend, lower_bound, upper_bound, dist_bn_points, var_name)
 
+#%%
 plot_all_parametric_results(
     output=Output,
     x_values=x_variable,

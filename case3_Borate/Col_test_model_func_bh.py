@@ -113,7 +113,7 @@ def column_func(column_func_inputs):
         # K1 = cusotom_isotherm_params[0]
         # K2 = cusotom_isotherm_params[1]
 
-        # # # # #  2.1 Langmuir  
+        # # # # # #  2.1 Langmuir  
         # Q_max = K1
         # b = K2
         # #-------------------------------
@@ -1121,16 +1121,22 @@ def animate_profiles(t_sets, title, y, nx, labels, colors, t_start_inject_all, t
 # Coupled: "CUP"
 # Uncoupled: "UNC"
 iso_type = "CUP" 
-Names = ["Borate", "HCl"] #, "C"]#, "D", "E", "F"]
-color = ["red", "green"] #, "b"]#, "r", "purple", "brown"]
+Names = ["Borate",
+         "HCl"
+         ] #, "C"]#, "D", "E", "F"]
+color = ["red",
+         
+          "green"
+          
+          ] #, "b"]#, "r", "purple", "brown"]
 num_comp = len(Names)
 
 
 
 
-e = 0.4     # assuming shperical packing, voidage (0,1]
+e = 0.56     # assuming shperical packing, voidage (0,1]
 Q_S = 8.4*0.0166666667 # cm^3/s | The volumetric flowrate of the feed to the left of the feed port (pure solvent)
-t_index = 70 # s # Index time # How long the SINGLE pulse holds for
+t_index = 150 # s # Index time # How long the SINGLE pulse holds for
 slug_vol = 30 #cm^3
 Q_inj = slug_vol/t_index # cm^3/s | The volumetric flowrate of the injected concentration slug
 
@@ -1161,13 +1167,30 @@ d_col = 2 # cm
 # - kfp: 1/s
 
 # kav_params_all = [[0.4, 0.4], [0.2, 0.5]] # [[A], [B]]
-cusotom_isotherm_params_all = np.array([[4.33],[1.0]])
-kav_params_all = [[0.93], [0.6]] # [[A], [B]]
-Da_all = np.array([1.83e-6, 5.60e-24 ]) 
+# cusotom_isotherm_params_all = np.array([[9.8114, 2.34],[9.15, 3.33]])
+cusotom_isotherm_params_all = np.array([
+
+                                        [3.2],
+                                        
+                                        [2.1]
+                                        
+                                        ])
+kav_params_all = [
+    
+                    [0.9], 
+                  
+                  [0.9]
+                  ] # [[A], [B]]
+
+Da_all = np.array([1.83e-6, 
+                   
+                   5.60e-6 
+                   ]) 
 
 parameter_sets = [
-    {"C_feed": 0.0029},    # Borate
-    {"C_feed": 0.017}] #, # Hcl
+    {"C_feed": 0.001752	* 1.2},    # Borate 0.001752	
+
+    {"C_feed": 0.009726 * 1.80}]    # Hcl 0.009726
 
 
 
@@ -1196,34 +1219,44 @@ def col_elution_profile(t_vals, col_elution, num_comp,
     - t_data: optional, time array for experimental curves (shared between bor/hcl).
     """
 
-    fig, ax = plt.subplots(1, 1, figsize=(15, 5))
+    fig, ax = plt.subplots(1, num_comp, figsize=(15, 5))
 
     # Plot based on isotherm type
     if iso_type == 'UNC':
         for i in range(num_comp):
-            ax.plot(t_vals[i]/60, col_elution[i], color=color[i], 
+            ax[i].plot(t_vals[i]/60, col_elution[i], color=color[i], 
                     label=f"Model: {Names[i]}")
 
     elif iso_type == 'CUP':
         for i in range(num_comp):
-            ax.plot(t_vals/60, col_elution[i], color=color[i], 
+            ax[i].plot(t_vals/60, col_elution[i], color=color[i], 
                     label=f"Model: {Names[i]}")
     
     # === Plot experimental curves if provided ===
     if bor_curves is not None and t_data is not None:
-        ax.plot(t_data/60, bor_curves, 'k--', linewidth=2, label="Boric Acid Exp. Data")
+        ax[0].plot(t_data/60, bor_curves, 'o', label="Boric Acid Exp. Data")
 
     if hcl_curves is not None and t_data is not None:
-        ax.plot(t_data/60, hcl_curves, 'gray', linestyle='dotted', linewidth=2, 
-                label="HCl Exp. Data")
+        ax[1].plot(t_data/60, hcl_curves, 'o', label="HCl Exp. Data")
 
-    ax.set_xlabel('Time (min)')
-    ax.set_ylabel('Concentration (g/mL)')
-    ax.set_title(f"Single Column Elution Curves\n{Names}\n"
-                 f"Da: {Da_all}, kfp: [{kav_params_all[0]}, {kav_params_all[1]}], "
-                 f"Isotherm Params: {cusotom_isotherm_params_all}")
-    ax.legend()
-    ax.grid(True)
+
+    # BORATE
+    ax[0].set_xlabel('Time (min)')
+    ax[0].set_ylabel(f'{Names[0]} Concentration (g/mL)')
+    ax[0].set_title(f"Single Column Elution Curves\n{Names[0]}\n"
+                 f"Da: {Da_all[0]}, kfp: [{kav_params_all[0]},"
+                 f"Isotherm Params: {cusotom_isotherm_params_all[0]}")
+    ax[0].legend()
+    ax[0].grid(True)
+
+    # HCL
+    ax[1].set_xlabel('Time (min)')
+    ax[1].set_ylabel(f'{Names[1]} Concentration (g/mL)')
+    ax[1].set_title(f"Single Column Elution Curves\n{Names[1]}\n"
+                 f"Da: {Da_all[1]}, kfp: [{kav_params_all[1]},"
+                 f"Isotherm Params: {cusotom_isotherm_params_all[1]}")
+    # ax[1].legend()
+    ax[1].grid(True)
     plt.tight_layout()
     plt.show()
 
@@ -1232,7 +1265,9 @@ def col_elution_profile(t_vals, col_elution, num_comp,
 # UBK
 t_exp = np.array([0, 36, 72, 108, 144, 180, 216, 252, 288, 324, 360, 396, 432, 468, 504, 540, 576, 612, 648, 684, 720, 756, 792, 828, 864, 900, 936, 972, 1008, 1044, 1080, 1116, 1152,1188])
 bor_ubk_exp_data = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0.00000842, 0.00009736, 0.00036159, 0.00069426, 0.00112986, 0.00141598, 0.00145428, 0.00132795, 0.00087771, 0.0003979, 0.00011509, 0.00002407, 0.00000681, 0.00000384, 0.00000425, 0.0000027, 0.00000276, 0, 0, 0, 0, 0, 0, 0, 0, 0 ])
+bor_ubk_exp_data = None
 hcl_ubk_exp_data = np.array([0, 0.00009786, 0.00007338, 0.00009397, 0.00001352, 0.00001293, 0.00029319, 0.00588077, 0.0093723, 0.01009793, 0.01023574, 0.01048639, 0.01033262, 0.00004391, 0.00012291, 0.00011352, 0.00011721, 0.00011115, 0.00000317, 0.00015094, 0.00012293, 0.00012035, 0.00012412, 0.0000182, 0.00012435,0.00001027,0.00005596, 0.00002058, 0.00011578, 0.00011998, 0.00003382, 0.00012022, 0.00012332, 5.858E-08 ])
+hcl_ubk_exp_data = None
 
 # # PCR
 # t_exp = np.array([])

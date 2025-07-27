@@ -125,19 +125,43 @@ fru_profiles = []
 fit_results = {}
 
 # Fit and collect profiles
+from sklearn.linear_model import LinearRegression
+import numpy as np
+
 for i, isotherm_func in enumerate(standard_isotherms):
     bounds = bounds_list[i]
     model_name = isotherm_func.__name__.capitalize()
+
     for name, (c_data, q_data) in zip(Names, datasets):
-        result, r2 = fit_isotherm_multistart(isotherm_func, c_data, q_data, bounds)
-        c_data = np.linspace(c_data[0], c_data[-1], 1000)
-        q_model = isotherm_func(result.x, c_data)
+        if isotherm_func.__name__.lower() == "linear":
+            # --- Linear Fit with Zero Intercept ---
+            c_data_reshaped = np.array(c_data).reshape(-1, 1)
+            q_data = np.array(q_data)
+            linreg = LinearRegression(fit_intercept=False)
+            linreg.fit(c_data_reshaped, q_data)
+            slope = linreg.coef_[0]
+            r2 = linreg.score(c_data_reshaped, q_data)
+
+            c_line = np.linspace(min(c_data), max(c_data), 1000)
+            q_model = linreg.predict(c_line.reshape(-1, 1))
+
+            result_params = np.array([slope])  # Only one parameter: slope
+        else:
+            # --- Use existing multistart optimization ---
+            result, r2 = fit_isotherm_multistart(isotherm_func, c_data, q_data, bounds)
+            c_line = np.linspace(c_data[0], c_data[-1], 1000)
+            q_model = isotherm_func(result.x, c_line)
+            result_params = result.x
+
         label = f"{model_name} (R²={r2:.4f})"
         if name == Names[0]:
-            glu_profiles.append((c_data, q_model, label))
+            glu_profiles.append((c_line, q_model, label))
         else:
-            fru_profiles.append((c_data, q_model, label))
-        fit_results[(model_name, name)] = (result.x, r2)
+            fru_profiles.append((c_line, q_model, label))
+
+        fit_results[(model_name, name)] = (result_params, r2)
+
+
 
 # Plotting the Isotherm Profiles
 fig, axs = plt.subplots(1, 2, figsize=(12, 5), sharey=False)
@@ -234,12 +258,17 @@ def plot_combined_isotherm_fit(model_name, glu_data, fru_data, fit_results):
     ax.set_ylabel("Qe (g/mL)")
     ax.legend()
     ax.grid(True)
+
+    # Force the axes to start at (0, 0)
+    ax.set_xlim(left=0)
+    ax.set_ylim(bottom=0)
+    ax.margins(x=0, y=0)
+
     plt.tight_layout()
     plt.show()
 
+# %%
 # Call the function for each isotherm type
 plot_combined_isotherm_fit("Linear", datasets[0], datasets[1], fit_results)
 plot_combined_isotherm_fit("Langmuir", datasets[0], datasets[1], fit_results)
 plot_combined_isotherm_fit("Freundlich", datasets[0], datasets[1], fit_results)
-
-# %%

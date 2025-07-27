@@ -131,13 +131,13 @@ def objective_function(params, t_data, conc_data, column_func_inputs, max_of_eac
     kfp1_bor = params[2]*kfp_max
     kfp1_hcl = params[3]*kfp_max
 
-    kfp2_bor = params[4]*kfp_max
-    kfp2_hcl = params[5]*kfp_max
+    # kfp2_bor = params[4]*kfp_max
+    # kfp2_hcl = params[5]*kfp_max
 
 
     # Isotherm Parameters
-    K1_bor = params[6]*K1_max
-    K1_hcl = params[7]*K1_max
+    K1_bor = params[4]*K1_max
+    K1_hcl = params[5]*K1_max
     # ------------------------
     # K1_hcl = params[4]*K1_max
     # ------------------------
@@ -150,7 +150,7 @@ def objective_function(params, t_data, conc_data, column_func_inputs, max_of_eac
     # K1_bor = 0.031
 
     # Pack the rest:
-    kfp_all = [[kfp1_bor, kfp2_bor], [kfp1_hcl, kfp2_hcl]]
+    kfp_all = [[kfp1_bor], [kfp1_hcl]]
 
     Da_all = [Da_bor, Da_hcl]
 
@@ -472,27 +472,27 @@ if __name__ == "__main__":
     ##
     #                               Borate    HCl
     max_of_each_input = np.array([  1e-5,     1e-5,    # Da_max,
-                                    4,        4,       # kfp1_max
-                                    4,        4,       # kfp2_max
+                                    3,        3,       # kfp1_max
+                                    # 4,        4,       # kfp2_max
 
                                   # Isotherm:
                                     # 5,        5,
-                                    10,       10])      # K_max]
+                                    4,       4])      # K_max]
     ##
 
     # Da guesses:
     Da_bor_guess = 9.8e-15 # cm^2/s
     Da_hcl_guess = 6.8e-15 # cm^2/s
     # kfp guesses:
-    kfp1_bor_guess = 0.05387
-    kfp1_hcl_guess = 0.05062
+    kfp1_bor_guess = 0.9
+    kfp1_hcl_guess = 0.9
 
-    kfp2_bor_guess = 0.5387
-    kfp2_hcl_guess = 0.5062
+    # kfp2_bor_guess = 0.5387
+    # kfp2_hcl_guess = 0.5062
 
     # Isotherm Guesses
-    K1_bor_guess = 3.239
-    K1_hcl_guess = 3.234
+    K1_bor_guess = 3.2
+    K1_hcl_guess = 2
 
     # K2_bor_guess = 3.239
     # K2_hcl_guess = 2.234
@@ -501,7 +501,7 @@ if __name__ == "__main__":
     # When doing Fru:
 
     # FOR LATER PLOTTING 
-    param_names = ["D_bor", "D_hcl", "kfp_bor", "kfp_hcl", "K1_bor", "K2_bor", "K1_hcl", "K2_hcl"]
+    param_names = ["D_bor", "D_hcl", "kfp_bor", "kfp_hcl", "K1_bor", "K1_hcl"]
 
     x_initial_guess = np.array([
                                 # 1. Dispersion Coefficeint
@@ -512,8 +512,8 @@ if __name__ == "__main__":
                                 kfp1_bor_guess,
                                 kfp1_hcl_guess,
 
-                                kfp2_bor_guess,
-                                kfp2_hcl_guess,
+                                # kfp2_bor_guess,
+                                # kfp2_hcl_guess,
 
                                 # 3. Isotherm Parameters:
                                 K1_bor_guess,
@@ -539,8 +539,8 @@ if __name__ == "__main__":
                 (0.0001, 1), # kfp1_bor
                 (0.0001, 1), # kfp1_hcl
             
-                (0.0001, 1), # kfp2_bor
-                (0.0001, 1), # kfp2_hcl
+                # (0.0001, 1), # kfp2_bor
+                # (0.0001, 1), # kfp2_hcl
 
 
                 # Isotherms
@@ -574,7 +574,7 @@ if __name__ == "__main__":
 
     # --------- 3. BORATE & HCL DATA
     # UBK:
-    file_path_bor_hcl_UBK = r"C:\Users\nawau\OneDrive\Desktop\MEng\MEng_Code\case3_Borate\Excel_Files\_bor_hcl_UBK_530.xlsx"
+    file_path_bor_hcl_UBK = r"C:\Users\28820169\Downloads\BO_Papers\MEng_Code\case3_Borate\Excel_Files\_bor_hcl_UBK_530.xlsx"
     # PCR
     file_path_bor_hcl_PCR = r"C:\Users\nawau\OneDrive\Desktop\MEng\MEng_Code\case3_Borate\Excel_Files\_bor_hcl_PCR642Ca.xlsx"
 
@@ -586,12 +586,12 @@ if __name__ == "__main__":
 
 
     # --------------------------------
-    t_data, col_elution_data, column_func_inputs = get_data_from_excel(file_path_bor_hcl_UBK_illovo, resolution=None)
+    t_data, col_elution_data, column_func_inputs = get_data_from_excel(file_path_bor_hcl_UBK, resolution=None)
     num_points = len(t_data)
 
     print(f't_data: {t_data}')
     tend_min = t_data.iloc[-1]/60 # min
-#%%
+#%% # Evaluate Initial guess:
     # --------------------------------
 
     # ---- PART 2: GET DATA  -------#
@@ -602,7 +602,7 @@ if __name__ == "__main__":
     # Evaluate Initial guess:
     f_initial, bor_elution_curve_initial_guess, hcl_elution_curve_initial_guess = objective_function(x_initial_guess, t_data, col_elution_data, column_func_inputs,max_of_each_input)
     
-#%%
+#%% # Perform the Bayesian Optimization
     print(f'{f_initial} for {x_initial_guess}')
 
     # Perform the Bayesian Optimization
@@ -669,7 +669,7 @@ if __name__ == "__main__":
 
 
         # Example data setup
-    project_name = "PCR-Borate-HCl_Lin_Type_2_Column_Regression."
+    project_name = "UBK-Borate-HCl_Lin_Type_1_Column_Regression."
     project_description = "Resin: PCR-642.Ca, Isotherm Model: Coupled-Langmuir for both components\nMT Model: Linear" \
     "\nType 1: No isotherm data for both comp" \
     "\nType 2: Isotherm data for 1 comp" \
