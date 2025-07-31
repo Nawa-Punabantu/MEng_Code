@@ -17,50 +17,57 @@ IMPORTANT NOTE: Ce is in g/mL that is, grams_of_solute /(per) volume of liquid p
 IMPORTANT NOTE: Qe is in g/mL that is, grams_of_solute /(per) VOLUME of solid phase 
 """
 
-datasets = [ # UBK
+datasets = [ 
             np.array([[
-                0.00002139,
-                0.00003479,
-                0.00004683,
-                0.00007148,
-                0.00008602,
-                0.00012791,
-                0.00016426
+
+                # UBK
+                # Ce (borate)
+                0,
+                0.000168139,
+                0.000131666,
+                0.000084601,
+                0.000069481,
+                0.000041908
+
+
                         ],
                     [
                 # Qe (borate)
-                0.000360,
-                0.000756,
-                0.000930,
-                0.001503,
-                0.001894,
-                0.003075,
-                0.003823
+                0,
+                0.0000306,
+                0.0000375,
+                0.0000129,
+                0.0000021,
+                0.0000082
+
                         ]]),
 
             # PCR
             np.array([[ # Ce (borate)
 
-                    0.00000000,
-                    0.00001743,
-                    0.00002942,
-                    0.00004118,
-                    0.00005373,
-                    0.00006891,
-                    0.00009563,
-                    0.00013429
+                        0,
+                        1.65692E-05,
+                        2.26497E-05,
+                        4.08792E-05,
+                        4.72966E-05,
+                        6.64787E-05,
+                        8.64799E-05,
+                        0.000144785
 
 
                         ], 
                     [# Qe (borate)
-                        0.00000,
-                        0.00038,
-                        0.00079,
-                        0.00097,
-                        0.00161,
-                        0.00200,
-                        0.00328,
-                        0.00403
+
+                        0.0000000,
+                        0.0000043,
+                        0.0000573,
+                        0.0000132,
+                        0.0001053,
+                        0.0000974,
+                        0.0002483,
+                        0.0001397
+
+
 
 
                         ]])
@@ -272,3 +279,5 @@ def plot_combined_isotherm_fit(model_name, glu_data, fru_data, fit_results):
 plot_combined_isotherm_fit("Linear", datasets[0], datasets[1], fit_results)
 plot_combined_isotherm_fit("Langmuir", datasets[0], datasets[1], fit_results)
 plot_combined_isotherm_fit("Freundlich", datasets[0], datasets[1], fit_results)
+# %%
+ 
