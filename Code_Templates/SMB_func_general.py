@@ -1552,6 +1552,7 @@ def SMB(SMB_inputs):
                 # P_vflows_2_add = np.array(get_X_row(Q_all_flows[i], row_start_schedule, jump_schedule, t_idx_all_Q[i]))
 
             elif iso_type == 'CUP':
+
                 C_R1_add = np.array(get_X_row( y_odes[i][:nx,:], row_start_matrix-1, jump_matrix, t_idx_all)) # exclude q
                 C_R2_add = np.array(get_X_row( y_odes[i][:nx,:], row_start_matrix, jump_matrix, t_idx_all))
                 # P_vflows_1_add = np.array(get_X_row(Q_all_flows, row_start_schedule-1, jump_schedule, t_idx_all_Q))
@@ -1566,7 +1567,7 @@ def SMB(SMB_inputs):
             # print('np.shape(P_vflows_1_add):\n', np.shape(P_vflows_1_add))
 
             # Assuming only conc change accross port when (i) adding feed or (ii) desorbent
-            C_R2_add = C_R1_add
+            C_R1_add = C_R2_add
             # P_mflows_1_add = C_R1_add * P_vflows_1_add  # (g/cm^3 * cm^3/s)  =>  g/s
             # P_mflows_2_add = C_R2_add * P_vflows_2_add  # g/s
 
@@ -1596,7 +1597,6 @@ def SMB(SMB_inputs):
 
             P_mflows_1_add_smooth = rolling_mean(P_mflows_1_add, window_size)
             C_R1_add_smooth =  rolling_mean(C_R1_add, window_size)
-            C_R2_add_smooth =  rolling_mean(C_R2_add, window_size)
             # P_mflows_2_add_smooth = rolling_mean(P_mflows_2_add, window_size)
 
             if iso_type == 'UNC':
@@ -2074,7 +2074,7 @@ nx_per_col = 15
 
 ################ Time Specs #################################################################################
 t_index_min = 5 # min # Index time # How long the pulse holds before swtiching
-n_num_cycles = 12    # Number of Cycles you want the SMB to run for
+n_num_cycles = 15    # Number of Cycles you want the SMB to run for
 ###############  FLOWRATES   #################################################################################
 
 # Jochen et al:
