@@ -1044,6 +1044,7 @@ def SMB(SMB_inputs):
                     Q_2 = get_X(t, Q_pulse_all, i)
                     W1 = Q_1 / (Q_1 + Q_2)
                     W2 = Q_2 / (Q_1 + Q_2)
+
                     u = get_X(t, u_col_all, i)
                     c_injection = get_C(t, Cj_pulse_all, i, comp_idx)
 
@@ -1060,7 +1061,7 @@ def SMB(SMB_inputs):
 
 
                 # Calcualte alpha, bata and gamma:
-                # Da = get_X(t, D_col_all, i)
+                
                 Da = get_C(t, D_col_all, i, comp_idx)
                 beta = 1 / alpha
                 gamma = 1 - 3 * Da / (2 * u * dx)
@@ -1567,7 +1568,7 @@ def SMB(SMB_inputs):
             # print('np.shape(P_vflows_1_add):\n', np.shape(P_vflows_1_add))
 
             # Assuming only conc change accross port when (i) adding feed or (ii) desorbent
-            C_R1_add = C_R2_add
+            C_R1_add = C_R2_add # ??
             # P_mflows_1_add = C_R1_add * P_vflows_1_add  # (g/cm^3 * cm^3/s)  =>  g/s
             # P_mflows_2_add = C_R2_add * P_vflows_2_add  # g/s
 
@@ -2024,7 +2025,7 @@ iso_type = "CUP"
 Names = ["Glucose", "Fructose"]#, 'C', 'D']#, "C"]#, "D", "E", "F"]
 colors = ["green", "orange"]    #, "purple", "brown"]#, "b"]#, "r", "purple", "brown"]
 num_comp = len(Names) # Number of components
-e = 0.56         # bed voidage
+e = 0.4 # 0.56         # bed voidage
 Bm = 300
 
 # Column Dimensions
@@ -2045,14 +2046,41 @@ zone_config = np.array([Z1, Z2, Z3, Z4])
 sub-zones are counted from the feed onwards i.e. sub_zone_1 is the first subzone "seen" by the feed stream. 
 Bays are counted in the same way, starting from 1 rather than 0
 """
-sub_zone_1 = [[6], [1, 2]] # ---> in subzone 1, there are 2 columns stationed at bay 3 and 4. Bay 3 and 4 recieve feed from bay 1"""
-sub_zone_11 = [[1, 2], [3]] 
+# Borate-HCL
+# sub_zone_1 = [[22, 23, 24], [1]] # ---> in subzone 1, there are 2 columns stationed at bay 3 and 4. Bay 3 and 4 recieve feed from bay 1"""
 
-sub_zone_2 = [[3], [4, 5]] 
-sub_zone_22 = [[4, 5], [6]] 
+# sub_zone_2 = [[3], [4,5,6]] 
+# sub_zone_3 = [[4,5,6], [7]] 
+
+# sub_zone_4 = [[9], [10, 11, 12]] 
+# sub_zone_5 = [[10,11,12], [13]]
+
+# sub_zone_6 = [[15],[16, 17, 18]]
+# sub_zone_7 = [[16, 17, 18],[19]]
+
+# sub_zone_8 = [[21],[22, 23, 24]]
+
+
+# subzone_set = [sub_zone_1,sub_zone_2,sub_zone_3,sub_zone_4,sub_zone_5,sub_zone_6, sub_zone_7, sub_zone_8]
+
+# # PACK:
+# subzone_set = [sub_zone_1,sub_zone_2,sub_zone_3,sub_zone_4,sub_zone_5,sub_zone_6,sub_zone_7,sub_zone_8]
+
+# Glucose Fructose
+sub_zone_1 = [[3], [4,5,6]] # ---> in subzone 1, there are 2 columns stationed at bay 3 and 4. Bay 3 and 4 recieve feed from bay 1"""
+sub_zone_2 = [[4,5,6], [7,8,9]] 
+
+sub_zone_3 = [[7,8,9], [10,11,12]] 
+sub_zone_4 = [[10,11,12], [13]]
+
+sub_zone_5 = [[15],[16, 17, 18]]
+sub_zone_6 = [[16, 17, 18],[19, 20, 21]]
+sub_zone_7 = [[19, 20, 21], [22, 23, 24]]
+sub_zone_8 = [[22, 23, 24], [1]]
+
 # PACK:
-subzone_set = [sub_zone_1, sub_zone_11, sub_zone_2, sub_zone_22]
-subzone_set = [] # no subzoning
+subzone_set = [sub_zone_1,sub_zone_2,sub_zone_3,sub_zone_4,sub_zone_5,sub_zone_6,sub_zone_7,sub_zone_8]
+# subzone_set = [] # no subzoning
 
 # PLEASE ASSIGN THE BAYS THAT ARE TO THE IMMEDIATE LEFT OF THE RAFFIANTE AND EXTRACT
 # product_bays = [2, 5] # [raff, extract]
@@ -2060,7 +2088,7 @@ subzone_set = [] # no subzoning
 
 
 L = 30 # cm # Length of one column
-d_col = 2 # cm # column internal diameter
+d_col = 2.6 # cm # column internal diameter
 
 # Calculate the radius
 r_col = d_col / 2
@@ -2070,12 +2098,12 @@ V_col = A_col*L # cm^3
 # Dimensions of the tubing and from each column:
 # Assuming the pipe diameter is 20% of the column diameter:
 d_in = 0.2 * d_col # cm
-nx_per_col = 12
+nx_per_col = 15
 
 
 ################ Time Specs #################################################################################
 t_index_min = 3.3 # min # Index time # How long the pulse holds before swtiching
-n_num_cycles = 15    # Number of Cycles you want the SMB to run for
+n_num_cycles = 12    # Number of Cycles you want the SMB to run for
 ###############  FLOWRATES   #################################################################################
 
 # Jochen et al:
@@ -2139,7 +2167,9 @@ duration = end_test - start_test
 # print(f'raff_cprofile: {raff_cprofile}')
 #%% Plotting
 
-
+print(f'Simulation Took: {duration/60} min')
+# print(f'ext_cprofile: {ext_cprofile}')
+# print(f'raff_cprofile: {raff_cprofile}')
 print("-----------------------------------------------------------")
 Y = [C_feed, raff_cprofile, ext_cprofile, raff_vflow, ext_vflow]
 
