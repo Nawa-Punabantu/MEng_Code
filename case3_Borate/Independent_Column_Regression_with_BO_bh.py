@@ -123,23 +123,23 @@ def objective_function(params, t_data, conc_data, column_func_inputs, max_of_eac
     params = np.array(params)
     Da_max = max_of_each_input[0]
     kfp_max = max_of_each_input[1]
-    K1_max = max_of_each_input[2]
+    # K1_max = max_of_each_input[2]
     # K2_max = max_of_each_input[3]
     # K3_max = max_of_each_input[4]
 
     Da = params[0]*Da_max
     kfp1 = params[1]*kfp_max
-    K1 = params[2]*K1_max
+    # K1 = params[2]*K1_max
     # K2 = params[3]*K2_max
     # If lookig for isotherm parameters:
-    cusotom_isotherm_params = np.array([[K1]])
+    # cusotom_isotherm_params = np.array([[K1]])
     # kfp2 = params[3]*kfp_max
     # Pack
     kfp_params = [kfp1]
     # CHANGE-ISO
     # If fixing the isotherm parameters:
     # Linear:
-    # cusotom_isotherm_params_all = np.array([[4.494],[4.925]])
+    cusotom_isotherm_params_all = np.array([[0.197]])
     # Fred:
     # cusotom_isotherm_params_all = np.array([[2.1788, 1.1352],[0.0235, 2.4334]])
     # Langmuir:
@@ -152,7 +152,7 @@ def objective_function(params, t_data, conc_data, column_func_inputs, max_of_eac
     # cusotom_isotherm_params_all = np.array([[params[2]*K1_max], [params[3]*K2_max]]) #, [params[3]*K2_max]]) # params[4]*K3_max]
 
 
-    t_predicted, predicted_conc = solve_concentration(Da, kfp_params, cusotom_isotherm_params, column_func_inputs)
+    t_predicted, predicted_conc = solve_concentration(Da, kfp_params, cusotom_isotherm_params_all, column_func_inputs)
     # Interpolate the predicted concentrations to match the time points in t_data
     # predicted_conc_interpolated = np.interp(t_data, np.linspace(0, tend_min, len(predicted_conc)), predicted_conc)
 
@@ -462,7 +462,8 @@ if __name__ == "__main__":
     max_of_each_input = np.array([1e-6,  # Da_max
                                   1.5 ,   # kfp_max
                                 #    5, # K1_max  (Q_max)
-                                   5 ]) # K2_max   (b)
+                                #    5 
+                                   ]) # K2_max   (b)
     
 
     # Da guesses:
@@ -472,8 +473,8 @@ if __name__ == "__main__":
     kfp_bor_guess = 0.93
     kfp_hcl_guess = 0.93
     # Isotherm Guesses
-    K1_bor_guess = 4.33
-    K1_hcl_guess = 2.5 
+    # K1_bor_guess = 4.33
+    # K1_hcl_guess = 2.5 
     # #//
     # K2_bor_guess = 5.76
     # K2_hcl_guess = 2.89
@@ -488,7 +489,7 @@ if __name__ == "__main__":
 
     bounds = [  (0.000001, 1), # Da
                 (0.0001, 1), # kfp
-                (0.0001, 1), # K1 - Q_max OR H
+                # (0.0001, 1), # K1 - Q_max OR H
                 # (0.0001, 1), # K2 - b
                 # (0.0001, 1), # K3
             ]
@@ -510,12 +511,12 @@ if __name__ == "__main__":
 
     # --------- BORATE & HCL DATA
     # --------  General
-    file_path_borate_ubk = r"C:\Users\28820169\Downloads\BO_Papers\MEng_Code\case3_Borate\Excel_Files\_borate_UBK_530.xlsx"
-    file_path_hcl_ubk= r"C:\Users\28820169\Downloads\BO_Papers\MEng_Code\case3_Borate\Excel_Files\_HCL_UBK_530.xlsx"
+    file_path_borate_ubk = r"C:\Users\nawau\OneDrive\Desktop\MEng\MEng_Code\case3_Borate\Excel_Files\_borate_UBK_530.xlsx"
+    file_path_hcl_ubk= r"C:\Users\nawau\OneDrive\Desktop\MEng\MEng_Code\case3_Borate\Excel_Files\_HCL_UBK_530.xlsx"
 
     # PCR
-    file_path_bor_pcr = r"C:\Users\28820169\Downloads\BO_Papers\MEng_Code\case3_Borate\Excel_Files\_borate_PCR642Ca.xlsx"
-    file_path_hcl_pcr = r"C:\Users\28820169\Downloads\BO_Papers\MEng_Code\case3_Borate\Excel_Files\_HCL_PCR642Ca.xlsx"
+    file_path_bor_pcr = r"C:\Users\nawau\OneDrive\Desktop\MEng\MEng_Code\case3_Borate\Excel_Files\_borate_PCR642Ca.xlsx"
+    file_path_hcl_pcr = r"C:\Users\nawau\OneDrive\Desktop\MEng\MEng_Code\case3_Borate\Excel_Files\_HCL_PCR642Ca.xlsx"
 
 
     # ---------- ILLovo Waste Water
@@ -530,7 +531,7 @@ if __name__ == "__main__":
 
     
     # Solve one resin at a time:
-    SMB_resin_comps = [file_path_borate_ubk, file_path_hcl_ubk, 'PCR-Resin']
+    SMB_resin_comps = [file_path_borate_ubk, file_path_hcl_ubk, 'UBK-Resin']
 
     comp_data = []
     comp_best_profiles = []
@@ -545,12 +546,12 @@ if __name__ == "__main__":
     for comp in SMB_resin_comps[:-1]: 
             
             if  counter == 0:
-                    x_initial_guess = np.array([Da_bor_guess, kfp_bor_guess, K1_bor_guess]) # , K2_bor_guess])  # [Da, kfp, K1, K2, ... Kn]
+                    x_initial_guess = np.array([Da_bor_guess, kfp_bor_guess]) # , K2_bor_guess])  # [Da, kfp, K1, K2, ... Kn]
                     print(f'x_initial_guess: {x_initial_guess}')
                     # Normalize Initial Guess
                     x_initial_guess = x_initial_guess/max_of_each_input
             else:
-                    x_initial_guess = np.array([Da_hcl_guess, kfp_hcl_guess, K1_hcl_guess ]) #, K2_hcl_guess]) #, K2_hcl_guess])  # [Da, kfp, K1, K2, ... Kn] ])
+                    x_initial_guess = np.array([Da_hcl_guess, kfp_hcl_guess]) #, K2_hcl_guess]) #, K2_hcl_guess])  # [Da, kfp, K1, K2, ... Kn] ])
                     print(f'x_initial_guess: {x_initial_guess}')
                     # Normalize Initial Guess
                     x_initial_guess = x_initial_guess/max_of_each_input
