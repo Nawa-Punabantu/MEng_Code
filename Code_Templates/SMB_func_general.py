@@ -2031,7 +2031,7 @@ Bm = 300
 
 # How many columns in each Zone?
 
-Z1, Z2, Z3, Z4 = 2, 1, 2, 1 # *3 for smb config
+Z1, Z2, Z3, Z4 = 6, 6, 6, 6 # *3 for smb config
 zone_config = np.array([Z1, Z2, Z3, Z4])
 
 # sub_zone information - EASIER TO FILL IN IF YOU DRAW THE SYSTEM
@@ -2046,12 +2046,13 @@ sub-zones are counted from the feed onwards i.e. sub_zone_1 is the first subzone
 Bays are counted in the same way, starting from 1 rather than 0
 """
 sub_zone_1 = [[6], [1, 2]] # ---> in subzone 1, there are 2 columns stationed at bay 3 and 4. Bay 3 and 4 recieve feed from bay 1"""
-sub_zone_2 = [[1, 2], [3]] 
-sub_zone_3 = [[3], [4, 5]] 
-sub_zone_4 = [[4, 5], [6]] 
+sub_zone_11 = [[1, 2], [3]] 
+
+sub_zone_2 = [[3], [4, 5]] 
+sub_zone_22 = [[4, 5], [6]] 
 # PACK:
-subzone_set = [sub_zone_1, sub_zone_2, sub_zone_3, sub_zone_4]
-# subzone_set = [] # no subzoning
+subzone_set = [sub_zone_1, sub_zone_11, sub_zone_2, sub_zone_22]
+subzone_set = [] # no subzoning
 
 # PLEASE ASSIGN THE BAYS THAT ARE TO THE IMMEDIATE LEFT OF THE RAFFIANTE AND EXTRACT
 # product_bays = [2, 5] # [raff, extract]
@@ -2069,11 +2070,11 @@ V_col = A_col*L # cm^3
 # Dimensions of the tubing and from each column:
 # Assuming the pipe diameter is 20% of the column diameter:
 d_in = 0.2 * d_col # cm
-nx_per_col = 15
+nx_per_col = 12
 
 
 ################ Time Specs #################################################################################
-t_index_min = 5 # min # Index time # How long the pulse holds before swtiching
+t_index_min = 3.3 # min # Index time # How long the pulse holds before swtiching
 n_num_cycles = 15    # Number of Cycles you want the SMB to run for
 ###############  FLOWRATES   #################################################################################
 
