@@ -1,3 +1,4 @@
+
 # The general form of the advection-diffusion equation with reaction for any number of components, n:
 
 # $$\frac{\partial C_n}{\partial t} = D \frac{\partial^2 C_n}{\partial x^2} - v \frac{\partial C_n}{\partial x} - F\frac{\partial q_n}{\partial t}$$
@@ -1136,8 +1137,8 @@ num_comp = len(Names)
 
 e = 0.56     # assuming shperical packing, voidage (0,1]
 Q_S = 8.4*0.0166666667 # cm^3/s | The volumetric flowrate of the feed to the left of the feed port (pure solvent)
-t_index = 150 # s # Index time # How long the SINGLE pulse holds for
-slug_vol = 30 #cm^3
+t_index = 50 # 150 s # Index time # How long the SINGLE pulse holds for
+slug_vol = 25 #cm^3
 Q_inj = slug_vol/t_index # cm^3/s | The volumetric flowrate of the injected concentration slug
 
 Ncol_num = 1
@@ -1170,16 +1171,16 @@ d_col = 2 # cm
 # cusotom_isotherm_params_all = np.array([[9.8114, 2.34],[9.15, 3.33]])
 cusotom_isotherm_params_all = np.array([
 
-                                        [3.4], # bor, iso_ubk: 0.197, iso_pcr: 1.519   
+                                        [4.13], # bor, iso_ubk: 0.197, iso_pcr: 1.519   
                                         
-                                        [3.1] # hcl  iso_ubk: 2.1, iso_pcr: 3.13  
+                                        [2.30] # hcl  iso_ubk: 2.1, iso_pcr: 3.13  
                                         
                                         ])
 kav_params_all = [
     
-                    [0.73], 
+                    [0.127], 
                   
-                  [0.51]
+                  [0.142]
                   ] # [[A], [B]]
 
 Da_all = np.array([0, 
@@ -1187,11 +1188,12 @@ Da_all = np.array([0,
                    0
                    ]) 
 
+
+
 parameter_sets = [
-    {"C_feed": 0.001752	* 1.2},    # Borate 0.001752	
+    {"C_feed": 0.001752*1.2},    # Borate syn_sol: 0.001752*1.2 | illovo wastewater: 0.003190078*1.4
 
-    {"C_feed": 0.009726 * 1.50}]    # Hcl 0.009726
-
+    {"C_feed": 0.009726*1.5}]    # Hcl syn_sol: 0.009726*1.5 | illovo wastewater: 0.012222*0.8
 
 
 column_func_inputs = [iso_type,  Names, color, parameter_sets, Da_all, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all, kav_params_all]
@@ -1220,16 +1222,22 @@ def col_elution_profile(t_vals, col_elution, num_comp,
     """
 
     fig, ax = plt.subplots(1, num_comp, figsize=(15, 5))
+    fig, bx = plt.subplots(1, figsize=(15, 5))
 
     # Plot based on isotherm type
     if iso_type == 'UNC':
         for i in range(num_comp):
             ax[i].plot(t_vals[i]/60, col_elution[i], color=color[i], 
                     label=f"Model: {Names[i]}")
+            
+            bx.plot(t_vals[i]/60, col_elution[i], color=color[i], 
+                    label=f"Model: {Names[i]}")
 
     elif iso_type == 'CUP':
         for i in range(num_comp):
             ax[i].plot(t_vals/60, col_elution[i], color=color[i], 
+                    label=f"Model: {Names[i]}")
+            bx.plot(t_vals/60, col_elution[i], color=color[i], 
                     label=f"Model: {Names[i]}")
     
     # === Plot experimental curves if provided ===
@@ -1257,8 +1265,16 @@ def col_elution_profile(t_vals, col_elution, num_comp,
                  f"Isotherm Params: {cusotom_isotherm_params_all[1]}")
     # ax[1].legend()
     ax[1].grid(True)
+
+    bx.plot(t_data/60, bor_curves, 'o', label="Boric Acid Exp. Data", color=color[0])
+    bx.plot(t_data/60, hcl_curves, 'o', label="HCl Exp. Data", color=color[1])
+
     plt.tight_layout()
     plt.show()
+
+
+
+
 
 # Glucose and Fructose Curves:
 
@@ -1277,19 +1293,19 @@ hcl_pcr_exp_data = np.array([0,0.000154305,0.000149925,0.000151255,0.000146515,0
 
 # # ILLOVO WASTEWATER
 # # UBK
-# t_exp = np.array([])
-# bor_ubk_exp_illovo_data = np.array([])
-# hcl_ubk_exp_illovo_data = np.array([])
+t_exp_ubk_illovo = np.array([0,36.0,72.0,108.0,144.0,180.0,216.0,252.0,288.0,324.0,360.0,396.0,432.0,468.0,504.0,540.0, 576.0,612.0,648.0,684.0,720.0,756.0,792.0,828.0,864.0,900.0])
+bor_ubk_exp_illovo_data = np.array([0,0.00000166,0.00000146,0.00000163,0.00000093,0.00000373,0.0000014,0.00000086,0.00000189,0.00000529,0.00002167,0.00005207,0.00015759,0.00074432, 0.00156656,0.0022878,0.00267807,0.00233031,0.00157596,0.00066076,0.00023214,0.00001642,0.00000969,0.00000658,0.00000508,0.00000447])
+hcl_ubk_exp_illovo_data = np.array([0,0.00016253,0.00029606,0.00029133,0.00001247,0.00018021,0.00016214,0.00040836,0.00274557,0.00446939,0.00481726,0.00549309,0.00414702,0.00031449,0.00017398,0.00013014,0.00001442,0.00005009,0.00016138,0.00016243,0.00000364,0.00017506,0.00016683,0.00002736,0.00013809,0.00016229])
 
 # # PCR
-# t_exp = np.array([])
-# bor_ubk_exp_illovo_data = np.array([])
-# hcl_ubk_exp_illovo_data = np.array([])
+t_exp_pcr_illovo = np.array([0.0,36.0,76.2,114.0,153.0,193.8,234.0, 274.8, 316.2, 355.8, 394.8, 436.8, 478.2, 517.8, 559.2, 598.8, 637.8, 679.2, 721.2, 763.2, 805.2, 844.2, 886.2, 928.2, 970.8, 1012.2 ])
+bor_pcr_exp_illovo_data = np.array([0, 0.000089379, 0.000088917, 0.000088875, 0.000091292, 0.000283338, 0.001535874, 0.002497957, 0.002871265, 0.004216045, 0.003070591, 0.002824839, 0.002581647, 0.000780516, 0.000237783, 0.000151468, 0.000122487, 0.000109069, 0.000102408, 0.000097303, 0.000095827, 0.000093259, 0.000092191, 0.000091462, 0.000090582, 0.000095137 ])
+hcl_pcr_exp_illovo_data = np.array([0, 0.00016615, 0.0000054, 0.00016321, 0.00000287, 0.0000678, 0.00233887, 0.00412077, 0.00492319, 0.00520473, 0.00508107, 0.00589219, 0.0041031, 0.00100611, 0.00028994, 0.00019753, 0.00005782, 0.00017425, 0.00015523, 0.00016247, 0.00016429, 0.00016433, 0.00023953, 0.00001003, 0.00016187, 0.00006041 ])
 
 col_elution_profile(t, col_elution, num_comp, 
-                    bor_curves=     bor_pcr_exp_data, 
-                    hcl_curves=     hcl_pcr_exp_data, 
-                    t_data=         t_exp_pcr)
+                    bor_curves  =     bor_ubk_exp_data, 
+                    hcl_curves  =     hcl_ubk_exp_data, 
+                    t_data      =         t_exp_ubk)
 
 # print("\n\n\nStarting Animation. . . ")
 # if iso_type == "UNC":

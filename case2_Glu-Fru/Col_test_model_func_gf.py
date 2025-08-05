@@ -1160,7 +1160,7 @@ d_col = 2 # cm
 # - kfp: 1/s
 
 # kav_params_all = [[0.4, 0.4], [0.2, 0.5]] # [[A], [B]]
-cusotom_isotherm_params_all = np.array([[3.21],[3.54]])
+cusotom_isotherm_params_all = np.array([[2.71],[2.94]])
 kav_params_all = [[0.467], [0.462]] # [[A], [B]]
 parameter_sets = [
     {"C_feed": 0.42},    # Glucose SMB Launch

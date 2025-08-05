@@ -1,8 +1,12 @@
+# -*- coding: utf-8 -*-
+# # %%
+
+
 #%%
 import numpy as np
 # -*- coding: utf-8 -*-
 # # %%
-                        
+
 
 #%%
 import numpy as np
@@ -19,24 +23,13 @@ from scipy.integrate import solve_ivp
 from scipy import integrate
 import warnings
 import time
-# import pandas as pd
 
-# --------------------------------------------------- Functions
+# Import the custom SMB model
+# from SMB_func_bh import SMB
 
-# ----- smb
-
-# UNITS:
-# All units must conform to:
-# Time - s
-# Lengths - cm^2
-# Volumes - cm^3
-# Masses - g
-# Concentrations - g
-# Volumetric flowrates - cm^3/s
-
-
+#%%
 def SMB(SMB_inputs):
-    iso_type, Names, color, num_comp, nx_per_col, e, D_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_params_all, kav_params_all ,subzone_set = SMB_inputs[0:]
+    iso_type, Names, color, num_comp, nx_per_col, e, D_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_params_all, kav_params_all ,subzone_set, t_simulation_end = SMB_inputs[0:]
 
     ###################### (CALCUALTED) SECONDARY INPUTS #########################
 
@@ -67,16 +60,30 @@ def SMB(SMB_inputs):
     # - Cyclic Steady state typically happens only after 10 cycles (ref: https://doi.org/10.1205/026387603765444500)
     # - The system is not currently designed to account for periods of no external flow
 
-    n_1_cycle = t_index * Ncol_num  # s How long a single cycle takes
+    if n_num_cycles != None and t_simulation_end == None:
+        
+        
+        n_1_cycle = t_index * Ncol_num  # s How long a single cycle takes
 
-    total_cycle_time = n_1_cycle*n_num_cycles # s
+        total_cycle_time = n_1_cycle*n_num_cycles # s
 
-    tend = total_cycle_time # s # Final time point in ODE solver
+        tend = total_cycle_time # s # Final time point in ODE solver
 
+
+    elif n_num_cycles == None and t_simulation_end != None: # we specified tend instead
+        
+        
+        n_1_cycle = t_index * Ncol_num # s
+
+        total_cycle_time = t_simulation_end * 60 * 60  # hrs => s
+
+        n_num_cycles = np.round(total_cycle_time/n_1_cycle)
+
+        tend = t_simulation_end* 60 * 60 
+    
+    
     tend_min = tend/60
-
     t_span = (0, tend) # +dt)  # from t=0 to t=n
-
     num_of_injections = int(np.round(tend/t_index)) # number of switching periods
 
     # 't_start_inject_all' is a vecoter containing the times when port swithes occur for each port
@@ -471,43 +478,43 @@ def SMB(SMB_inputs):
     Bay_matrix = build_matrix_from_vector(np.arange(1,Ncol_num+1), t_schedule)
 
 
-    # DISPLAYING INPUT INFORMATION:
-    print('---------------------------------------------------')
-    print('Number of Components:', num_comp)
-    print('---------------------------------------------------')
-    print('\nTime Specs:\n')
-    print('---------------------------------------------------')
+    # # DISPLAYING INPUT INFORMATION:
+    # print('---------------------------------------------------')
+    # print('Number of Components:', num_comp)
+    # print('---------------------------------------------------')
+    # print('\nTime Specs:\n')
+    # print('---------------------------------------------------')
     print('Number of Cycles:', n_num_cycles)
     print('Time Per Cycle:', n_1_cycle/60, "min")
-    print('Simulation Time:', tend_min, 'min')
+    print('Simulation Time:', tend_min/60, 'hrs')
     print('Index Time:', t_index, 's OR', t_index/60, 'min' )
-    print('Number of Port Switches:', num_of_injections)
-    print('Injections happen at t(s) = :', t_schedule, 'seconds')
-    print('---------------------------------------------------')
-    print('\nColumn Specs:\n')
-    print('---------------------------------------------------')
-    print('Configuration:', zone_config, '[Z1,Z2,Z3,Z4]')
-    print(f"Number of Columns: {Ncol_num}")
-    print('Column Length:', L, 'cm')
-    print('Column Diameter:', d_col, 'cm')
-    print('Column Volume:', V_col, 'cm^3')
+    # print('Number of Port Switches:', num_of_injections)
+    # print('Injections happen at t(s) = :', t_schedule, 'seconds')
+    # print('---------------------------------------------------')
+    # print('\nColumn Specs:\n')
+    # print('---------------------------------------------------')
+    # print('Configuration:', zone_config, '[Z1,Z2,Z3,Z4]')
+    # print(f"Number of Columns: {Ncol_num}")
+    # print('Column Length:', L, 'cm')
+    # print('Column Diameter:', d_col, 'cm')
+    # print('Column Volume:', V_col, 'cm^3')
 
-    print("alpha:", alpha, '(alpha = A_in / A_col)')
-    print("Nodes per Column:",nx_col)
-    print("Boundary Nodes locations,x[i], i =", start)
-    print("Total Number of Nodes (nx):",nx)
-    print('---------------------------------------------------')
-    print('\nFlowrate Specs:\n')
-    print('---------------------------------------------------')
-    print("External Flowrates =", Q_external, '[F,R,D,X] ml/min')
-    print("Ineternal Flowrates =", Q_internal, 'ml/min')
-    print('---------------------------------------------------')
-    print('\nPort Schedules:')
-    for i in range(num_comp):
-        print(f"Concentration Schedule:\nShape:\n {Names[i]}:\n",np.shape(Cj_pulse_all[i]),'\n', Cj_pulse_all[i], "\n")
-    print("Injection Flowrate Schedule:\nShape:",np.shape(Q_pulse_all),'\n', Q_pulse_all, "\n")
-    print("Respective Column Flowrate Schedule:\nShape:",np.shape(Q_col_all),'\n', Q_col_all, "\n")
-    print("Bay Schedule:\nShape:",np.shape(Bay_matrix),'\n', Bay_matrix, "\n")
+    # print("alpha:", alpha, '(alpha = A_in / A_col)')
+    # print("Nodes per Column:",nx_col)
+    # print("Boundary Nodes locations,x[i], i =", start)
+    # print("Total Number of Nodes (nx):",nx)
+    # print('---------------------------------------------------')
+    # print('\nFlowrate Specs:\n')
+    # print('---------------------------------------------------')
+    # print("External Flowrates =", Q_external, '[F,R,D,X] ml/min')
+    # print("Ineternal Flowrates =", Q_internal, 'ml/min')
+    # print('---------------------------------------------------')
+    # print('\nPort Schedules:')
+    # for i in range(num_comp):
+    #     print(f"Concentration Schedule:\nShape:\n {Names[i]}:\n",np.shape(Cj_pulse_all[i]),'\n', Cj_pulse_all[i], "\n")
+    # print("Injection Flowrate Schedule:\nShape:",np.shape(Q_pulse_all),'\n', Q_pulse_all, "\n")
+    # print("Respective Column Flowrate Schedule:\nShape:",np.shape(Q_col_all),'\n', Q_col_all, "\n")
+    # print("Bay Schedule:\nShape:",np.shape(Bay_matrix),'\n', Bay_matrix, "\n")
 
 
     ###########################################################################################
@@ -582,12 +589,12 @@ def SMB(SMB_inputs):
                     divid_by = len(downstream_bays)
                     u_col_adj_at_t0[i] = u_col_at_t0[i] / divid_by
                     adjusted = True
-                    print(f"Bay {bay}: {u_col_at_t0[i]} divided by {divid_by} -> {u_col_adj_at_t0[i]}")
+                    # print(f"Bay {bay}: {u_col_at_t0[i]} divided by {divid_by} -> {u_col_adj_at_t0[i]}")
                     break  # Stop after finding the first matching subzone
 
             if not adjusted:
                 u_col_adj_at_t0[i] = u_col_at_t0[i]
-                print(f"Bay {bay}: not in subzone, remains {u_col_at_t0[i]}")
+                # print(f"Bay {bay}: not in subzone, remains {u_col_at_t0[i]}")
 
         return u_col_adj_at_t0
 
@@ -600,8 +607,8 @@ def SMB(SMB_inputs):
     u_col_at_t0_new = get_u_col_at_t0_adj(u_col_at_t0, subzone_set)
     Q_col_at_t0_new = get_u_col_at_t0_adj(Q_col_at_t0, subzone_set)
 
-    print(f'u_col_at_t0:{u_col_at_t0}')
-    print(f'u_col_at_t0_new:{u_col_at_t0_new}\n\n')
+    # print(f'u_col_at_t0:{u_col_at_t0}')
+    # print(f'u_col_at_t0_new:{u_col_at_t0_new}\n\n')
 
     u_col_all = build_matrix_from_vector(u_col_at_t0_new, t_schedule)
     Q_col_all = build_matrix_from_vector(Q_col_at_t0_new, t_schedule)
@@ -1414,9 +1421,9 @@ def SMB(SMB_inputs):
 
         elif iso_type == 'CUP':
             Q_all_flows, t_idx_all_Q = get_all_values(Q_col_all, t_odes, t_schedule, 'Column Flowrates')
-            print('Q_all_flows:\n', Q_all_flows)
-            print('Q_all_flows:\n', np.shape(Q_all_flows))
-            print(f't_idx_all_Q: {np.shape(t_idx_all_Q)}')
+            # print('Q_all_flows:\n', Q_all_flows)
+            # print('Q_all_flows:\n', np.shape(Q_all_flows))
+            # print(f't_idx_all_Q: {np.shape(t_idx_all_Q)}')
 
 
         for i in range(num_comp):# for each component
@@ -1710,179 +1717,800 @@ def SMB(SMB_inputs):
 
     return y_matrices, nx, t, t_sets, t_schedule, C_feed, m_in, m_out, raff_cprofile, ext_cprofile, raff_intgral_purity, raff_recov, ext_intgral_purity, ext_recov, raff_vflow, ext_vflow, Model_Acc, Expected_Acc, Error_percent
 
+#%%
+#--------------------------------------------------- Functions
 
 
+# ---------------- sampling
 
-# Plotting Fucntions - if need be
-###########################################################################################
-# Loading the Plotting Libraries
-from matplotlib.pyplot import subplots
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-# from PIL import Image
-from scipy import integrate
-import plotly.graph_objects as go
-###########################################
-# IMPORTING MY OWN FUNCTIONS
-###########################################
-# Loading the Plotting Libraries
-from matplotlib.pyplot import subplots
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-# from PIL import Image
-from scipy import integrate
-import plotly.graph_objects as go
-###########################################
-# IMPORTING MY OWN FUNCTIONS
-###########################################
-def see_prod_curves(t_odes, Y, t_index) :
-    # Y = C_feed, C_raff, C_ext
-    # X = t_sets
-    fig, ax = plt.subplots(1, 3, figsize=(25, 5))
+def lhq_sample_mj(m_min, m_max, n_samples, diff=0.1):
+    """
+    Function that performs Latin Hypercube (LHS) sampling for [m1, m2, m3, m4]
+    Note that for all mjs: (m_min < m_j < m_max)
+    And that:
+          (i)   m4 < m1 - (diff*m1) and m2 < m1 - (diff*m1)
+          (ii)  m2 < m3 - (diff*m3)
+          (iii) m3 > m4 + (diff*m4)
+    Final result is an np.array of size: (n_samples, 4)
+    """
+
+    # Initialize the array to store the samples
+    samples = np.zeros((n_samples, 4))
+
+    for i in range(n_samples):
+        # Sample m1, m2, m3, m4 within bounds and respecting constraints
+        m1 = np.random.uniform(m_min, m_max)
+        m4 = np.random.uniform(m_min, m1-diff*m1)
+
+        # Sample m2 such that it respects the constraint: m2 < m1 - (diff*m1)
+        m2 = np.random.uniform(m_min, m_max)
+        while m2 >= m1 - (diff * m1):  # Ensuring m2 < m1 - (diff*m1)
+            m2 = np.random.uniform(m_min, m_max)
+
+        # Sample m3 such that it respects the constraint: m3 > m2 + (diff*m2)
+        m3 = np.random.uniform(m_min, m_max)
+        while m3 <= m2 + (diff * m2):  # Ensuring m3 > m2 + (diff*m2)
+            m3 = np.random.uniform(m_min, m_max)
+
+        # Ensure the constraint: m3 > m4 + (diff * m4)
+        while m3 <= m4 + (diff * m4):  # Ensuring m3 > m4 + (diff*m4)
+            m3 = np.random.uniform(m_min, m_max)
+
+        # Store the sample in the array
+        samples[i] = [m1, m2, m3, m4]
+
+
+    return samples
+
+def fixed_feed_lhq_sample_mj(t_index_min, Q_fixed_feed, m_min, m_max, n_samples, diff=0.1):
+    """
+    Since the feed is fixed, m3 is caluclated
+
+    Function that performs Latin Hypercube (LHS) sampling for [m1, m2, m3, m4]
+    Note that for all mjs: (m_min < m_j < m_max)
+    And that:
+          (i)   m4 < m1 - (diff*m1) and m2 < m1 - (diff*m1)
+          (ii)  m2 < m3 - (diff*m3)
+          (iii) m3 > m4 + (diff*m4)
+    Final result is an np.array of size: (n_samples, 4)
+    """
+    # Initialize the array to store the samples
+    samples = np.zeros((n_samples, 4))
+
+    for i in range(n_samples):
+        # Sample m1, m2, m3, m4 within bounds and respecting constraints
+        m1 = np.random.uniform(m_min, m_max)
+        m4 = np.random.uniform(m_min, m1-diff*m1)
+
+        # Sample m2 such that it respects the constraint: m2 < m1 - (diff*m1)
+        m2 = np.random.uniform(m_min, m_max)
+        while m2 >= m1 - (diff * m1):  # Ensuring m2 < m1 - (diff*m1)
+            m2 = np.random.uniform(m_min, m_max)
+
+        # Sample m3 such that it respects the constraint: m3 > m2 + (diff*m2)
+        m3 = np.random.uniform(m_min, m_max)
+        while m3 <= m2 + (diff * m2):  # Ensuring m3 > m2 + (diff*m2)
+            m3 = np.random.uniform(m_min, m_max)
+
+        # Ensure the constraint: m3 > m4 + (diff * m4)
+        while m3 <= m4 + (diff * m4):  # Ensuring m3 > m4 + (diff*m4)
+            m3 = np.random.uniform(m_min, m_max)
+
+        # Store the sample in the array
+        samples[i] = [m1, m2, m3, m4]
+
+    return samples
+
+def fixed_m1_and_m4_lhq_sample_mj(m1, m4, m_min, m_max, n_samples, n_m2_div, diff=0.1):
+    """
+    - Since the feed is fixed, m3 is caluclated AND
+    - Since the desorbant is fixed, m1 is caluclated
+
+    Function that performs Latin Hypercube (LHS) sampling for [m1, m2, m3, m4]
+    Note that for all mjs: (m_min < m_j < m_max)
+    And that:
+          (i)   m4 < m1 - (diff*m1) and m2 < m1 - (diff*m1)
+          (ii)  m2 < m3 - (diff*m3)
+          (iii) m3 > m4 + (diff*m4)
+    Final result is an np.array of size: (n_samples, 4)
+
+    [1.78902051 1.10163238 1.75875405 0.20421105], 7.438074624877448
+    """
     
+    # Initialize the array to store the samples
+    samples = np.zeros((n_samples*n_m2_div, 5))
+    samples[:,0] = np.ones(n_samples*n_m2_div)*m_max
+    
+    samples[:,-2] = np.ones(n_samples*n_m2_div)*2
+    # print(f'samples: {samples}')
+    nn = int(np.round(n_samples/2))
+    num_of_m3_per_m2 = n_samples
 
-    # 0 - Feed Profile
-    # 1 - Raffinate Profile
-    # 2 - Extract Profile
-    t_odes  = t_odes/60/60
-    # Concentration Plots
-    for i in range(num_comp): # for each component
-        if iso_type == "UNC":
-            ax[0].plot(t_odes[i], Y[0][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
-            ax[1].plot(t_odes[i], Y[1][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
-            ax[2].plot(t_odes[i], Y[2][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
-        
-        elif iso_type == "CUP":    
-            ax[0].plot(t_odes, Y[0][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
-            ax[1].plot(t_odes, Y[1][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
-            ax[2].plot(t_odes, Y[2][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
-        
-    # Add Accessories
-    ax[0].set_xlabel('Time, hrs')
-    ax[0].set_ylabel('($\mathregular{g/cm^3}$)')
-    ax[0].set_title(f'Feed Concentration Curves\nConfig: {Z1}:{Z2}:{Z3}:{Z4},\nNumber of Cycles:{n_num_cycles}\nIndex Time: {t_index}s')
-    # ax[0].legend()
+    m2_set = np.linspace(m_min, m_max*0.9, n_m2_div)
+    # print(f'm2_set: {m2_set}')
 
-    ax[1].set_xlabel('Time, hrs')
-    ax[1].set_ylabel('($\mathregular{g/cm^3}$)')
-    ax[1].set_title(f'Raffinate Elution Curves\nConfig: {Z1}:{Z2}:{Z3}:{Z4},\nNumber of Cycles:{n_num_cycles}\nIndex Time: {t_index}s')
-    # ax[1].legend()
+    i = np.arange(len(m2_set))
+    k = np.repeat(i,num_of_m3_per_m2)
 
-    ax[2].set_xlabel('Time, hrs')
-    ax[2].set_ylabel('($\mathregular{g/cm^3}$)')
-    ax[2].set_title(f'Extract Elution Curves\nConfig: {Z1}:{Z2}:{Z3}:{Z4},\nNumber of Cycles:{n_num_cycles}\nIndex Time: {t_index}s')
-    # ax[2].legend()
+    print(f'k:{k}')
+    #Sample from the separation triangle:
+    for i in range(len(k)): # for each vertical line
+        # print(f'k: {k[i]}')
+        m2 = m2_set[k[i]]
+
+        samples[i, 1] = m2
+
+        if i == 0:
+          m2 = 0.8
+          m3 = m2 + 0.1
+          samples[i, 1] = m2
+          samples[i, 2] = m3  # apex of trianlge
+        else:
+          m3 = np.random.uniform(m2, m_max)
+
+        samples[i, 2] = m3
+        samples[i, -2] = m2 - 0.3
+        samples[i,-1] = 0.6
+    return samples
 
 
-    plt.show()
+# ---------- Objective Function
 
-    # Volumetric Flowrate Plots
-    fig, vx = plt.subplots(1, 2, figsize=(25, 5))
-    for i in range(num_comp): # for each component
-        if iso_type == "UNC":
+def mj_to_Qj(mj, t_index_min):
+  '''
+  Converts flowrate ratios to internal flowrates - flowrates within columns
+  '''
+  Qj = (mj*V_col*(1-e) + V_col*e)/(t_index_min*60) # cm^3/s
+  return Qj
+
+# Define the obj and constraint functions
+# All parameteres
+def obj_con(X):
+  """Feasibility weighted objective; zero if not feasible.
+
+    X = [m1, m2, m3, m4, t_index];
+    Objective: WAR = Weighted Average Recovery
+    Constraint: WAP = Weighted Average Purity
+
+    Use WAP to calculate the feasibility weights. Which
+    will scale teh EI output.
+
+  """
+  X = np.array(X)
+
+
+  # print(f'np.shape(x_new)[0]: {np.shape(X)}')
+  if X.ndim == 1:
+
+      Pur = np.zeros(2)
+      Rec = np.zeros(2)
+      # Unpack and convert to float and np.arrays from torch.tensors:
+      m1, m2, m3, m4, t_index_min = float(X[0]), float(X[1]), float(X[2]), float(X[3]), float(X[4])*t_reff
+
+      print(f'[m1, m2, m3, m4]: [{m1}, {m2}, {m3}, {m4}], t_index: {t_index_min}')
+
+      Q_I, Q_II, Q_III, Q_IV = mj_to_Qj(m1, t_index_min), mj_to_Qj(m2, t_index_min), mj_to_Qj(m3, t_index_min), mj_to_Qj(m4, t_index_min)
+      Q_internal = np.array([Q_I, Q_II, Q_III, Q_IV]) # cm^3/s
+      Qfeed = Q_III - Q_II
+      Qraffinate = Q_III - Q_IV
+      Qdesorbent = Q_I - Q_IV
+      Qextract = Q_I - Q_II
+      Q_external = np.array([Qfeed, Qraffinate, Qdesorbent,Qextract])
+      print(f'Q_internal: {Q_internal} cm^s/s')
+      print(f'Q_internal: {Q_internal*3.6} L/h')
+
+      print(f'----------------------------------')
+      print(f'Q_external: {Q_external} cm^s/s')
+      print(f'Q_external: {Q_external*3.6} L/h')
+      # print(f'Q_internal type: {type(Q_internal)}')
+
+      SMB_inputs[12] = t_index_min  # Update t_index
+      SMB_inputs[14] = Q_internal # Update Q_internal
+
+      results = SMB(SMB_inputs)
+
+      # print(f'done solving sample {i+1}')
+
+      raff_purity = results[10]  # [Glu, Fru]
+      ext_purity = results[12]  # [Glu, Fru]
+
+      raff_recovery = results[11]  # [Glu, Fru]
+      ext_recovery = results[13]  # [Glu, Fru]
+
+      pur1 = raff_purity[0]
+      pur2 = ext_purity[1]
+
+      rec1 = raff_recovery[0]
+      rec2 = ext_recovery[1]
+
+      # Pack
+      # WAP[i] = WAP_add
+      # WAR[i] = WAR_add
+      Pur[:] = [pur1, pur2]
+      Rec[:] = [rec1, rec2]
+
+  elif X.ndim > 1:
+      Pur = np.zeros((len(X[:,0]), 2))
+      Rec = np.zeros((len(X[:,0]), 2))
+
+      for i in range(len(X[:,0])):
+
+          # Unpack and convert to float and np.arrays from torch.tensors:
+          m1, m2, m3, m4, t_index_min = float(X[i,0]), float(X[i,1]), float(X[i,2]), float(X[i,3]), float(X[i,4])*t_reff
+
+          print(f'[m1, m2, m3, m4]: [{m1}, {m2}, {m3}, {m4}], t_index: {t_index_min}')
+          Q_I, Q_II, Q_III, Q_IV = mj_to_Qj(m1, t_index_min), mj_to_Qj(m2, t_index_min), mj_to_Qj(m3, t_index_min), mj_to_Qj(m4, t_index_min) 
+          Q_internal = np.array([Q_I, Q_II, Q_III, Q_IV]) # cm^3/s
+          # Calculate and display external flowrates too
+          Qfeed = Q_III - Q_II
+          Qraffinate = Q_III - Q_IV
+          Qdesorbent = Q_I - Q_IV
+          Qextract = Q_I - Q_II
+
+          Q_external = np.array([Qfeed, Qraffinate, Qdesorbent,Qextract])
+          print(f'Q_internal: {Q_internal} cm^s/s')
+          print(f'Q_internal: {Q_internal*3.6} L/h')
+
+          print(f'----------------------------------')
+          print(f'Q_external: {Q_external} cm^s/s')
+          print(f'Q_external: {Q_external*3.6} L/h')
+
+
+          # print(f'Q_internal type: {type(Q_internal)}')
+          # Update SMB_inputs:
+          SMB_inputs[12] = t_index_min  # Update t_index
+          SMB_inputs[14] = Q_internal # Update Q_internal
+
+          results = SMB(SMB_inputs)
+
+          # print(f'done solving sample {i+1}')
+
+          raff_purity = results[10]  # [Glu, Fru]
+          ext_purity = results[12]  # [Glu, Fru]
+
+          raff_recovery = results[11]  # [Glu, Fru]
+          ext_recovery = results[13]  # [Glu, Fru]
+
+          pur1 = raff_purity[0]
+          pur2 = ext_purity[1]
+
+          rec1 = raff_recovery[0]
+          rec2 = ext_recovery[1]
+
+          # Pack
+          # WAP[i] = WAP_add
+          # WAR[i] = WAR_add
+          Pur[i,:] = [pur1, pur2]
+          Rec[i,:] = [rec1, rec2]
+          print(f'Pur: {pur1}, {pur2}')
+          print(f'Rec: {rec1}, {rec2}\n\n')
+
+  return  Rec, Pur, np.array([m1, m2, m3, m4, t_index_min])
+
+# Fixed index time
+def obj_con_fix_t(X):
+  """Feasibility weighted objective; zero if not feasible.
+
+    X = [m1, m2, m3, m4];
+    Objective: WAR = Weighted Average Recovery
+    Constraint: WAP = Weighted Average Purity
+
+    Use WAP to calculate the feasibility weights. Which
+    will scale teh EI output.
+
+  """
+  X = np.array(X)
+
+
+  # print(f'np.shape(x_new)[0]: {np.shape(X)}')
+  if X.ndim == 1:
+
+      Pur = np.zeros(2)
+      Rec = np.zeros(2)
+      # Unpack and convert to float and np.arrays from torch.tensors:
+      m1, m2, m3, m4 = float(X[0]), float(X[1]), float(X[2]), float(X[3])
+
+      print(f'[m1, m2, m3, m4]: [{m1}, {m2}, {m3}, {m4}], t_index: {t_index_min}')
+
+      Q_I, Q_II, Q_III, Q_IV = mj_to_Qj(m1), mj_to_Qj(m2), mj_to_Qj(m3), mj_to_Qj(m4)
+      Q_internal = np.array([Q_I, Q_II, Q_III, Q_IV]) # cm^3/s
+      Qfeed = Q_III - Q_II
+      Qraffinate = Q_III - Q_IV
+      Qdesorbent = Q_I - Q_IV
+      Qextract = Q_I - Q_II
+      Q_external = np.array([Qfeed, Qraffinate, Qdesorbent,Qextract])
+      print(f'Q_internal: {Q_internal} cm^s/s')
+      print(f'Q_internal: {Q_internal*3.6} L/h')
+
+      print(f'----------------------------------')
+      print(f'Q_external: {Q_external} cm^s/s')
+      print(f'Q_external: {Q_external*3.6} L/h')
+      # print(f'Q_internal type: {type(Q_internal)}')
+
+      # ref: SMB_inputs = [iso_type, Names, color, num_comp, nx_per_col, e, Da_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_params_all, kav_params_all, subzone_set, t_simulation_end]
+
+      SMB_inputs[12] = t_index_min  # Update t_index
+      SMB_inputs[14] = Q_internal # Update Q_internal
+
+      results = SMB(SMB_inputs)
+
+      # print(f'done solving sample {i+1}')
+
+      raff_purity = results[10]  # [Glu, Fru]
+      ext_purity = results[12]  # [Glu, Fru]
+
+      raff_recovery = results[11]  # [Glu, Fru]
+      ext_recovery = results[13]  # [Glu, Fru]
+
+      pur1 = raff_purity[0]
+      pur2 = ext_purity[1]
+
+      rec1 = raff_recovery[0]
+      rec2 = ext_recovery[1]
+
+      # Pack
+      # WAP[i] = WAP_add
+      # WAR[i] = WAR_add
+      Pur[:] = [pur1, pur2]
+      Rec[:] = [rec1, rec2]
+
+  elif X.ndim > 1:
+      Pur = np.zeros((len(X[:,0]), 2))
+      Rec = np.zeros((len(X[:,0]), 2))
+
+      for i in range(len(X[:,0])):
+
+          # Unpack and convert to float and np.arrays from torch.tensors:
+          m1, m2, m3, m4, t_index_min = float(X[i,0]), float(X[i,1]), float(X[i,2]), float(X[i,3]), float(X[i,4])*t_reff
+
+          print(f'[m1, m2, m3, m4]: [{m1}, {m2}, {m3}, {m4}], t_index: {t_index_min}')
+          Q_I, Q_II, Q_III, Q_IV = mj_to_Qj(m1), mj_to_Qj(m2), mj_to_Qj(m3), mj_to_Qj(m4)
+          Q_internal = np.array([Q_I, Q_II, Q_III, Q_IV]) # cm^3/s
+          # Calculate and display external flowrates too
+          Qfeed = Q_III - Q_II
+          Qraffinate = Q_III - Q_IV
+          Qdesorbent = Q_I - Q_IV
+          Qextract = Q_I - Q_II
+
+          Q_external = np.array([Qfeed, Qraffinate, Qdesorbent,Qextract])
+          print(f'Q_internal: {Q_internal} cm^s/s')
+          print(f'Q_internal: {Q_internal*3.6} L/h')
+
+          print(f'----------------------------------')
+          print(f'Q_external: {Q_external} cm^s/s')
+          print(f'Q_external: {Q_external*3.6} L/h')
+
+
+          # print(f'Q_internal type: {type(Q_internal)}')
+          # Update SMB_inputs:
+          SMB_inputs[12] = t_index_min  # Update t_index
+          SMB_inputs[14] = Q_internal # Update Q_internal
+
+          results = SMB(SMB_inputs)
+
+          # print(f'done solving sample {i+1}')
+
+          raff_purity = results[10]  # [Glu, Fru]
+          ext_purity = results[12]  # [Glu, Fru]
+
+          raff_recovery = results[11]  # [Glu, Fru]
+          ext_recovery = results[13]  # [Glu, Fru]
+
+          pur1 = raff_purity[0]
+          pur2 = ext_purity[1]
+
+          rec1 = raff_recovery[0]
+          rec2 = ext_recovery[1]
+
+          # Pack
+          # WAP[i] = WAP_add
+          # WAR[i] = WAR_add
+          Pur[i,:] = [pur1, pur2]
+          Rec[i,:] = [rec1, rec2]
+          print(f'Pur: {pur1}, {pur2}')
+          print(f'Rec: {rec1}, {rec2}\n\n')
+
+  return  Rec, Pur, np.array([m1, m2, m3, m4, t_index_min])
+
+
+# ------ Generate Initial Data
+def generate_initial_data(sampling_budget):
+
+    # generate training data
+    # print(f'Getting {sampling_budget} Samples')
+    # train_x = lhq_sample_mj(0.2, 1.7, n, diff=0.1)
+    # train_x = fixed_feed_lhq_sample_mj(t_index_min, Q_fixed_feed, 0.2, 1.7, n, diff=0.1)
+    train_all = fixed_m1_and_m4_lhq_sample_mj(m_max, m_min, m_min, m_max, sampling_budget, 1, diff=0.1)
+    # print(f'train_all: {train_all}')
+    # print(f'Done Getting {sampling_budget} Samples')
+
+    # print(f'Solving Over {sampling_budget} Samples')
+    Rec, Pur, mjs = obj_con(train_all)
+    # print(f'Rec: {Rec}, Pur: {Pur}')
+    # print(f'Done Getting {sampling_budget} Samples')
+    all_outputs = np.hstack((Rec, Pur))
+    return train_all, all_outputs
+
+# ------------------ BO FUNTIONS
+# --- Surrogate model creation ---
+def surrogate_model(X_train, y_train):
+    X_train = np.atleast_2d(X_train)
+    y_train = np.atleast_1d(y_train)
+
+    if y_train.ndim == 2 and y_train.shape[1] == 1:
+        y_train = y_train.ravel()
+
+    # kernel = C(1.0, (1e-4, 10.0)) * RBF(1.0, (1e-4, 10.0))
+    kernel = Matern(length_scale=1.0, nu=1.5)
+
+    gp = GaussianProcessRegressor(kernel=kernel, alpha=1e-5, normalize_y=True, n_restarts_optimizer=5)
+
+    gp.fit(X_train, y_train)
+
+    return gp
+
+# --- AQ funcs:
+
+# --- AQ func: Expected Constrained Improvement ---
+def log_expected_constrained_improvement(x, surrogate_obj_gp, constraint_gps, constraint_thresholds, y_best,job, PF_weight, xi=0.01):
+    x = np.asarray(x).reshape(1, -1)
+
+    mu_obj, sigma_obj = surrogate_obj_gp.predict(x, return_std=True)
+    # print(f'mu_obj: {mu_obj}, sigma_obj: {sigma_obj} ')
+
+
+
+    with np.errstate(divide='warn'):
+	# Note that, because we are maximizing, y_best > mu_obj - always,
+	# So Z is always positive. And if Z is positive then its on the "right-hand-side" of the mean
+	# Because norm.cdf calcualtes the integral from left to right, it will by default calculate-
+	# the probability of begin LESS than (or equal to), Z.
+	# Since we want to probability of being greater than or equal to Z, we have two options
+	# (1.) Calculate Z -> and compute 1-norm.cdf(Z) 
+	# (2.) Calculate abs(Z) -> make Z negative, -abs(Z) -> integrate norm.cdf(-abs(Z))
+	
+	# The (2.) option is more robust - because by simply omitting the negative sign, it will also work for cases where we are minimizing the objective
+	# (2.) is used below
+	
+        if job == 'maximize':
+                # print(f'{job}ing')
+                # Calulate Z and enforce, -ve
+                Z = -np.abs(y_best - mu_obj) / sigma_obj
+                #  Note: ei is always positive
+
+                # 1. 
+                # use logcdf() to get the log probability for cases where Z is very small
+                # Since Z < 0, logcdf() < 0 (not a probability)
+                log_cdf_term = norm.logcdf(Z) 
+                # recover the actual probabitlty
+                cdf_term = np.exp(log_cdf_term)
+
+                # 2. Do the same for the pdf term
+                # Since Z < 0, logpdf() < 0 (not a likihood)
+                log_pdf_term = norm.logcdf(Z) 
+                # recover the actual likihood
+                pdf_term = np.exp(log_pdf_term)
+                # ---------------------------------------------------
+                ei = (y_best - mu_obj) * cdf_term + sigma_obj * pdf_term
+
+        elif job == 'minimize':
+                # Calulate Z and enforce, -ve
+                Z = np.abs(y_best - mu_obj) / sigma_obj
+                #  Note: ei is always positive
+
+                # 1. 
+                # use logcdf() to get the log probability for cases where Z is very small
+                # Since Z < 0, logcdf() < 0 (not a probability)
+                log_cdf_term = norm.logcdf(Z) 
+                # recover the actual probabitlty
+                cdf_term = np.exp(log_cdf_term)
+
+                # 2. Do the same for the pdf term
+                # Since Z < 0, logpdf() < 0 (not a likihood)
+                log_pdf_term = norm.logcdf(Z) 
+                # recover the actual likihood
+                pdf_term = np.exp(log_pdf_term)
+                # ---------------------------------------------------
+                ei = (mu_obj-y_best)*cdf_term + sigma_obj * pdf_term
+    
+		# print(f'ei: {ei}')
+
+    # print(f'ei: {ei}')
+
+
+    # Calcualte the probability of Feasibility, "prob_feas"
+    prob_feas = 1.0 # initialize
+
+    for gp_c, lam in zip(constraint_gps, constraint_thresholds):
+
+        mu_c, sigma_c = gp_c.predict(x, return_std=True)
+
+        # lam -> inf = 1- (-inf -> lam)
+        prob_that_LESS_than_mu = norm.cdf((lam - mu_c) / sigma_c)
+
+        prob_that_GREATER_than_mu = 1 - prob_that_LESS_than_mu
+
+        pf = prob_that_GREATER_than_mu
+
+        # pf is a vector,
+        # We just want the non-zero part
+        pf = pf[pf != 0]
+        # If theres no, non-zero part, we need to Avoid pf being an empty array:
+        if pf.size == 0 or pf < 1e-12:
+            pf = 1e-8
+
+
+        # print(f'pf: {pf}')
+
+        # if we assume that the condtions are independent,
+        # then we can "multiply" the weights to get the "joint probability" of feasility
+        prob_feas *= pf
+
+    # print(f'ei: {ei}')
+    # print(f'prob_feas: {prob_feas}')
+
+    log_eic = np.log(ei) + PF_weight*np.log(prob_feas)
+    # print(f'log_eic: {log_eic}')
+    # print(f'Convert to float')
+
+    log_eic = float(np.squeeze(log_eic))  # Convert to scalar
+    # print(f'log_eic: {log_eic}')
+    return -log_eic
+
+# 1. Expected Improvement ---
+def expected_improvement(x, surrogate_gp, y_best):
+    """
+    Computes the Expected Improvement at a point x.
+    Scalarizes the surrogate predictions using Tchebycheff, then computes EI.
+
+    Note that the surrogate GP already has the weights applied to it
+    """
+    x = np.array(x).reshape(1, -1)
+
+    mu, sigma = surrogate_gp.predict(x, return_std=True)
+
+    # print(f'mu: {mu}')
+    # print(f'y_best: {y_best}')
+    # Compute EI
+
+    xi = 0.2 # the greater the value of xi, the more we encourage exploration
+    with np.errstate(divide='warn'):
+        Z = ( mu - y_best - xi) / sigma
+        ei = np.abs(mu - y_best - xi) * norm.cdf(Z) + sigma * norm.pdf(Z)
+        ei[sigma == 0.0] = 0.0
+
+    return -ei[0]  # Negative for minimization
+
+    # 2. Probability of Imporovement:
+def probability_of_improvement(x, surrogate_gp, y_best, xi=0.005):
+    """
+    Computes the Probability of Improvement (PI) acquisition function.
+
+    Parameters:
+    - mu: np.array of predicted means (shape: [n_samples])
+    - sigma: np.array of predicted std deviations (shape: [n_samples])
+    - best_f: scalar, best objective value observed so far
+    - xi: float, small value to balance exploration/exploitation (default: 0.01)
+
+    Returns:
+    - PI: np.array of probability of improvement values
+    """
+    x = np.array(x).reshape(1, -1)
+
+    mu, sigma = surrogate_gp.predict(x, return_std=True)
+
+    # Avoid division by zero
+    if sigma == 0:
+      sigma = 1e-8
+
+    z = (y_best - mu - xi) / sigma
+
+    pi = 1 - norm.cdf(z)
+
+    return -pi
+
+# --- ParEGO Main Loop ---
+def constrained_BO(optimization_budget, bounds, initial_guess, all_initial_inputs, all_initial_ouputs, job_max_or_min, constraint_thresholds, xi):
+
+    # xi = exploration parameter (the larger it is, the more we explore)
+
+    # Initial values
+    # Unpack from: all_initial_ouputs: [GPur, FPur, GRec, FRec]
+    # Recovery Objectives
+    f1_vals = all_initial_ouputs[:,0]
+    f2_vals = all_initial_ouputs[:,1]
+    # print(f'f1_vals: {f1_vals}')
+    # print(f'f2_vals: {f2_vals}')
+    # Purity constraints
+    c1_vals  = all_initial_ouputs[:,2]
+    c2_vals  = all_initial_ouputs[:,3]
+    print(f'c1-size: {np.shape(c1_vals)}')
+    print(f'c2-size: {np.shape(c2_vals)}')
+
+    # population = np.delete(all_initial_inputs, 2, axis=1)
+    population = all_initial_inputs
+    all_inputs = all_initial_inputs # [m1, m2, m3, m4, t_index]
+    # print(f'np.shape(all_inputs):{np.shape(all_inputs)}')
+    # print(f'np.shape(all_initial_inputs):{np.shape(all_initial_inputs)}')
+
+
+    # Unpack from: all_initial_inputs
+
+    # print(f'shpae_f1_vals = {np.shape(f1_vals)}')
+
+    # Initialize where we will store solutions
+    population_all = []
+    all_constraint_1_gps = []
+    all_constraint_2_gps = []
+    ei_all = []
+
+
+    for gen in range(optimization_budget):
+        # generation = iteration
+        print(f"\n\nStarting gen {gen+1}")
+
+
+        # Generate random weights for scalarization
+        lam = np.random.rand()
+        weights = [lam, 1 - lam]
+        # print(f'weights: {weights}')
+        # Note that we generate new weights in each iteration/generation
+        # i.e. each time we update the training set
+
+        #SCALARIZE THE OBJECTIVES (BEFORE APPLYING GP)
+        phi = 0.05
+        scalarized_f_vals = np.maximum(weights[0]*f1_vals, weights[1]*f2_vals)
+
+        scalarized_f_vals += phi*(weights[0]*f1_vals + weights[1]*f2_vals)
+
+        scalarized_f_vals = weights[0]*f1_vals + weights[1]*f2_vals
+
+        # Fit GP to scalarized_surrogate_objective
+        # print(f'population { population}, \nscalarized_f_vals {scalarized_f_vals} ')
+        scalarized_surrogate_gp = surrogate_model(population, scalarized_f_vals)
+        # Pull mean at relevant poputlation points
+        # Mean & Varriance
+        scalarized_surrogate_gp_mean, scalarized_surrogate_gp_std = scalarized_surrogate_gp.predict(population, return_std=True)
+        # The best value so far:
+        y_best = np.max(scalarized_surrogate_gp_mean)
+        # y_best = 0.60
+
+
+        # Fit a GP to each constraint:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+
+            # Glu Raff Purity:
+            constraint_1_gp = surrogate_model(population, c1_vals)
+            all_constraint_1_gps.append(constraint_1_gp)
+            # Fru Ext Purity:
+            constraint_2_gp = surrogate_model(population, c2_vals)
+            all_constraint_2_gps.append(constraint_2_gp)
+
+        # Define the constraint function for the ei optimizer
+        # Constraint function with correct shape
+
+        # Define the non-linear constraint functions with dependencies
+        # note that each constraint must be written independently
+        # --- CONSTANTS ---
+        eps = 0.01  # Safety margin (1%)
+        small_value = 1e-6  # To avoid division by zero
+
+        # --- Helper: safe t_index ---
+        def get_safe_tindex(x):
+            return max(x[-1]*60*t_reff, small_value)
+
+        # --- CONSTRAINT FUNCTIONS ---
+
+        # Standard Flow Ratio Constraints:
+        def constraint_m1_gt_m2(x): return x[0] - (1 + eps) * x[1]
+        def constraint_m1_gt_m4(x): return x[0] - (1 + eps) * x[3]
+
+        def constraint_m2_lt_m1(x): return (1 - eps) * x[0] - x[1]
+        def constraint_m2_lt_m3(x): return (1 - eps) * x[2] - x[1]
+
+        def constraint_m3_gt_m2(x): return x[2] - (1 + eps) * x[1]
+        def constraint_m3_gt_m4(x): return x[2] - (1 + eps) * x[3]
+
+        def constraint_m4_lt_m1(x): return (1 - eps) * x[0] - x[3]
+        def constraint_m4_lt_m3(x): return (1 - eps) * x[2] - x[3]
+
+        # Pump Constraints (flow differences divided by t_index)
+        def constraint_feed_pump_upper(x): return m_diff_max - (x[2] - x[1]) / get_safe_tindex(x)
+        def constraint_feed_pump_lower(x): return (x[2] - x[1]) / get_safe_tindex(x) - m_diff_min
+
+        def constraint_desorb_pump_upper(x): return m_diff_max - (x[0] - x[3]) / get_safe_tindex(x)
+        def constraint_desorb_pump_lower(x): return (x[0] - x[3]) / get_safe_tindex(x) - m_diff_min
+
+        def constraint_raff_pump_upper(x): return m_diff_max - (x[2] - x[3]) / get_safe_tindex(x)
+        def constraint_raff_pump_lower(x): return (x[2] - x[3]) / get_safe_tindex(x) - m_diff_min
+
+        def constraint_extract_pump_upper(x): return m_diff_max - (x[0] - x[1]) / get_safe_tindex(x)
+        def constraint_extract_pump_lower(x): return (x[0] - x[1]) / get_safe_tindex(x) - m_diff_min
+
+        # Fixed Feed Flow Constraint
+        def constraint_fixed_feed(x):
+            return (x[2] - x[1]) - (Q_fixed_feed / ((V_col * (1-e)) / get_safe_tindex(x)))
+
+        # --- Nonlinear Constraints Setup ---
+
+        nonlinear_constraints = [
+            NonlinearConstraint(constraint_m1_gt_m2, 0, np.inf),
+            NonlinearConstraint(constraint_m1_gt_m4, 0, np.inf),
+            NonlinearConstraint(constraint_m2_lt_m1, 0, np.inf),
+            NonlinearConstraint(constraint_m2_lt_m3, 0, np.inf),
+            NonlinearConstraint(constraint_m3_gt_m2, 0, np.inf),
+            NonlinearConstraint(constraint_m3_gt_m4, 0, np.inf),
+            NonlinearConstraint(constraint_m4_lt_m1, 0, np.inf),
+            NonlinearConstraint(constraint_m4_lt_m3, 0, np.inf),
             
-            vx[0].plot(t_odes[i], Y[3][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
-            vx[1].plot(t_odes[i], Y[4][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
-        
-        elif iso_type == "CUP":    
+            NonlinearConstraint(constraint_feed_pump_upper, 0, np.inf),
+            NonlinearConstraint(constraint_feed_pump_lower, 0, np.inf),
             
-            vx[0].plot(t_odes, Y[3][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
-            vx[1].plot(t_odes, Y[4][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
-        
-    # Add Accessories
-    vx[0].set_xlabel('Time, hrs')
-    vx[0].set_ylabel('($\mathregular{cm^3/s}$)')
-    vx[0].set_title(f'Raffinate Volumetric Flowrates')
-    vx[0].legend()
+            NonlinearConstraint(constraint_desorb_pump_upper, 0, np.inf),
+            NonlinearConstraint(constraint_desorb_pump_lower, 0, np.inf),
+            
+            NonlinearConstraint(constraint_raff_pump_upper, 0, np.inf),
+            NonlinearConstraint(constraint_raff_pump_lower, 0, np.inf),
+            
+            NonlinearConstraint(constraint_extract_pump_upper, 0, np.inf),
+            NonlinearConstraint(constraint_extract_pump_lower, 0, np.inf),
+            
+            # Fixed feed constraint (Optional â€” can comment if not needed)
+            # NonlinearConstraint(constraint_fixed_feed, -0.001, 0.001)
+        ]
 
-    vx[1].set_xlabel('Time, hrs')
-    vx[1].set_ylabel('($\mathregular{cm^3/s}$)')
-    vx[1].set_title(f'Extract Volumetric Flowrates')
-    # vx[1].legend()
-
-    plt.show()
-
-def col_liquid_profile(t, y, Axis_title, c_in, Ncol_num, L_total):
-    y_plot = np.copy(y)
-    # # Removeing the BC nodes
-    # for del_row in start:
-    #     y_plot = np.delete(y_plot, del_row, axis=0)
-        
-    # print('y_plot:', y_plot.shape)
-    
-    x = np.linspace(0, L_total, np.shape(y_plot[0:nx, :])[0])
-    dt = t[1] - t[0]
-    
-
-    
-    # Start vs End Snapshot
-    fig, ax = plt.subplots(1, 2, figsize=(25, 5))
-
-    ax[0].plot(x, y_plot[:, 0], label="t_start")
-    ax[0].plot(x, y_plot[:, -1], label="t_end")
-
-    # Add vertical black lines at positions where i % nx_col == 0
-    for col_idx in range(Ncol_num + 1):  # +1 to include the last column boundary
-        x_pos = col_idx #nx_col + col_idx*nx_col + col_idx #col_idx * ((nx_col) * dx)
-        #x_pos = dx * x_pos
-        ax[0].axvline(x=x_pos, color='k', linestyle='-')
-        ax[1].axvline(x=x_pos, color='k', linestyle='-')
-
-    ax[0].set_xlabel('Column Length, m')
-    ax[0].set_ylabel('($\mathregular{g/l}$)')
-    ax[0].axhline(y=c_in, color='g', linestyle= '--', linewidth=1, label="Inlet concentration")  # Inlet concentration
-    # ax[0].legend()
-
-    # Progressive Change at all ts:
-    for j in range(np.shape(y_plot)[1]):
-        ax[1].plot(x, y_plot[:, j])
-        ax[1].set_xlabel('Column Length, m')
-        ax[1].set_ylabel('($\mathregular{g/l}$)')
-    plt.show()
+        # ? Now you can pass:
+        # constraints=nonlinear_constraints
+        # into your differential_evolution call
 
 
-def col_solid_profile(t, y, Axis_title, Ncol_num, start, L_total):
-    
-    # Removeing the BC nodes
-    y_plot = np.copy(y)
-    # Removeing the BC nodes
-    for del_row in start:
-        y_plot = np.delete(y_plot, del_row, axis=0)
-        
-    # print('y_plot:', y_plot.shape)
-    
-    x = np.linspace(0, L_total, np.shape(y_plot[0:nx, :])[0])
-    dt = t[1] - t[0]
-    
-    # Start vs End Snapshot
-    fig, ax = plt.subplots(1, 2, figsize=(25, 5))
+        # --- Run the optimization ---
+        print(f'Maxing ECI')
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
 
-    ax[0].plot(x, y_plot[:, 0], label="t_start")
-    ax[0].plot(x, y_plot[:, -1], label="t_end")
-    # ax[0].plot(x, y_plot[:, len(t) // 2], label="t_middle")
+            result = differential_evolution(
+                func=log_expected_constrained_improvement, # probability_of_improvement(x, surrogate_gp, y_best, xi=0.005), expected_improvement(x, surrogate_gp, y_best) | log_expected_constrained_improvement(x, scalarized_surrogate_gp, [constraint_1_gp, constraint_2_gp], constraint_thresholds, y_best, xi)
+                bounds=bounds,
+                args=(scalarized_surrogate_gp, [constraint_1_gp, constraint_2_gp], constraint_thresholds, y_best, job_max_or_min, PF_weight, xi),
+                strategy='best1bin',
+                maxiter=200,
+                popsize=15,
+                disp=False,
+                 constraints=(nonlinear_constraints)
+                 )
 
-    # Add vertical black lines at positions where i % nx_col == 0
-    for col_idx in range(Ncol_num + 1):  # +1 to include the last column boundary
-        x_pos = col_idx*L #nx_col + col_idx*nx_col + col_idx #col_idx * ((nx_col) * dx)
-        #x_pos = dx * x_pos
-        ax[0].axvline(x=x_pos, color='k', linestyle='-')
-        ax[1].axvline(x=x_pos, color='k', linestyle='-')
+                # Perform the optimization using L-BFGS-B method
+        # result = minimize(
+        #     expected_improvement,
+        #     initial_guess,
+        #     args=(scalarized_surrogate_gp, y_best),
+        #     method='L-BFGS-B',
+        #     bounds=bounds,
+        #     options={'maxiter': 100, 'disp': True})
 
-    ax[0].set_xlabel('Column Length, m')
-    ax[0].set_ylabel('($\mathregular{g/l}$)')
-    ax[0].set_title(f'{Axis_title}')
-    ax[0].legend()
-
-    # Progressive Change at all ts:
-    for j in range(np.shape(y_plot)[1]):
-        ax[1].plot(x, y_plot[:, j])
-        ax[1].set_xlabel('Column Length, m')
-        ax[1].set_ylabel('($\mathregular{g/l}$)')
-        ax[1].set_title(f'{Axis_title}')
-    plt.show()  # Display all the figures 
+        x_new = result.x # [m1, m2, m3, m4, t_index_min]
+        # print(f"x_new: { x_new}")
+        f_new, c_new, mj_and_t_new = obj_con(x_new)
 
 
 
+        # Add the new row to all_inputs
+        all_inputs = np.vstack((all_inputs, mj_and_t_new))
+
+        # Add to population
+        population_all.append(population)
+        population = np.vstack((population, x_new))
+
+        f1_vals = np.vstack([f1_vals.reshape(-1,1), f_new[0]])
+        f2_vals = np.vstack([f2_vals.reshape(-1,1), f_new[1]])
+        c1_vals  = np.vstack([c1_vals.reshape(-1,1), c_new[0]])
+        c2_vals  = np.vstack([c2_vals.reshape(-1,1), c_new[1]])
+
+        print(f"Gen {gen+1} Status:\n | Sampled Inputs:{x_new[:-1]}, {x_new[-1]*t_reff} [m1, m2, m3, m4, t_index]|\n Outputs: G_f1: {f_new[0]*100} %, F_f2: {f_new[1]*100} % | GPur, FPur: {c_new[0]*100}%, {c_new[1]*100}%")
+
+    return population_all, f1_vals, f2_vals, c1_vals , c2_vals , all_inputs
 
 
 
@@ -1892,26 +2520,23 @@ def col_solid_profile(t, y, Axis_title, Ncol_num, start, L_total):
 
 # SMB VARIABLES
 #######################################################
-# What tpye of isoherm is required?
-# Coupled: "CUP"
-# Uncoupled: "UNC"
-iso_type = "CUP"
+
 
 ###################### PRIMARY INPUTS #########################
 # Define the names, colors, and parameter sets for 6 components
-Names = ["Glucose", "Fructose"]#, 'C', 'D']#, "C"]#, "D", "E", "F"]
-colors = ["green", "orange"]    #, "purple", "brown"]#, "b"]#, "r", "purple", "brown"]
+Names = ["Borate", "HCl"]#, 'C', 'D']#, "C"]#, "D", "E", "F"]
+color = ["red", "green"]#, "purple", "brown"]#, "b"]#, "r", "purple", "brown"]
 num_comp = len(Names) # Number of components
-e = 0.4 # 0.56         # bed voidage
+e = 0.56        # bed voidage
 Bm = 300
 
 # Column Dimensions
 
 # How many columns in each Zone?
 
-Z1, Z2, Z3, Z4 = 1, 1, 1, 1 # *3 for smb config
+Z1, Z2, Z3, Z4 = 6,6,6,6 # *3 for smb config
 zone_config = np.array([Z1, Z2, Z3, Z4])
-
+nnn = Z1 + Z2 + Z3 + Z4
 # sub_zone information - EASIER TO FILL IN IF YOU DRAW THE SYSTEM
 # -----------------------------------------------------
 # sub_zone_j = [[feed_bays], [reciveinig_bays]]
@@ -1924,48 +2549,40 @@ sub-zones are counted from the feed onwards i.e. sub_zone_1 is the first subzone
 Bays are counted in the same way, starting from 1 rather than 0
 """
 # Borate-HCL
-# sub_zone_1 = [[22, 23, 24], [1]] # ---> in subzone 1, there are 2 columns stationed at bay 3 and 4. Bay 3 and 4 recieve feed from bay 1"""
+sub_zone_1 = [[22, 23, 24], [1]] # ---> in subzone 1, there are 2 columns stationed at bay 3 and 4. Bay 3 and 4 recieve feed from bay 1"""
 
-# sub_zone_2 = [[3], [4,5,6]] 
-# sub_zone_3 = [[4,5,6], [7]] 
+sub_zone_2 = [[3], [4,5,6]] 
+sub_zone_3 = [[4,5,6], [7]] 
 
-# sub_zone_4 = [[9], [10, 11, 12]] 
-# sub_zone_5 = [[10,11,12], [13]]
+sub_zone_4 = [[9], [10, 11, 12]] 
+sub_zone_5 = [[10,11,12], [13]]
 
-# sub_zone_6 = [[15],[16, 17, 18]]
-# sub_zone_7 = [[16, 17, 18],[19]]
+sub_zone_6 = [[15],[16, 17, 18]]
+sub_zone_7 = [[16, 17, 18],[19]]
 
-# sub_zone_8 = [[21],[22, 23, 24]]
+sub_zone_8 = [[21],[22, 23, 24]]
 
+# # PACK:
+subzone_set = [sub_zone_1,sub_zone_2,sub_zone_3,sub_zone_4,sub_zone_5,sub_zone_6, sub_zone_7, sub_zone_8]
+# subzone_set = []
 
-# subzone_set = [sub_zone_1,sub_zone_2,sub_zone_3,sub_zone_4,sub_zone_5,sub_zone_6, sub_zone_7, sub_zone_8]
+# Glucose Fructose
+# sub_zone_1 = [[3], [4,5,6]] # ---> in subzone 1, there are 2 columns stationed at bay 3 and 4. Bay 3 and 4 recieve feed from bay 1"""
+# sub_zone_2 = [[4,5,6], [7,8,9]] 
+
+# sub_zone_3 = [[7,8,9], [10,11,12]] 
+# sub_zone_4 = [[10,11,12], [13]]
+
+# sub_zone_5 = [[15],[16, 17, 18]]
+# sub_zone_6 = [[16, 17, 18],[19, 20, 21]]
+# sub_zone_7 = [[19, 20, 21], [22, 23, 24]]
+# sub_zone_8 = [[22, 23, 24], [1]]
 
 # # PACK:
 # subzone_set = [sub_zone_1,sub_zone_2,sub_zone_3,sub_zone_4,sub_zone_5,sub_zone_6,sub_zone_7,sub_zone_8]
 
-# Glucose Fructose
-sub_zone_1 = [[3], [4,5,6]] # ---> in subzone 1, there are 2 columns stationed at bay 3 and 4. Bay 3 and 4 recieve feed from bay 1"""
-sub_zone_2 = [[4,5,6], [7,8,9]] 
-
-sub_zone_3 = [[7,8,9], [10,11,12]] 
-sub_zone_4 = [[10,11,12], [13]]
-
-sub_zone_5 = [[15],[16, 17, 18]]
-sub_zone_6 = [[16, 17, 18],[19, 20, 21]]
-sub_zone_7 = [[19, 20, 21], [22, 23, 24]]
-sub_zone_8 = [[22, 23, 24], [1]]
-
-# PACK:
-subzone_set = [sub_zone_1,sub_zone_2,sub_zone_3,sub_zone_4,sub_zone_5,sub_zone_6,sub_zone_7,sub_zone_8]
-subzone_set = [] # no subzoning
-
-# PLEASE ASSIGN THE BAYS THAT ARE TO THE IMMEDIATE LEFT OF THE RAFFIANTE AND EXTRACT
-# product_bays = [2, 5] # [raff, extract]
-
-
-
-L = 30 # cm # Length of one column
-d_col = 2.6 # cm # column internal diameter
+L = 60 # cm # Length of one column
+d_col = 5 # cm # column internal diameter
 
 # Calculate the radius
 r_col = d_col / 2
@@ -1974,25 +2591,27 @@ A_col = np.pi * (r_col ** 2) # cm^2
 V_col = A_col*L # cm^3
 # Dimensions of the tubing and from each column:
 # Assuming the pipe diameter is 20% of the column diameter:
-d_in = 0.2 * d_col # cm
+d_in = 1 # cm
 nx_per_col = 15
 
 
 ################ Time Specs #################################################################################
-t_index_min = 3.3 # min # Index time # How long the pulse holds before swtiching
-n_num_cycles = 2    # Number of Cycles you want the SMB to run for
+t_index_min = 5      # min    # Index time # How long the pulse holds before swtiching
+n_num_cycles = None   # Number of Cycles you want the SMB to run for
+t_simulation_end = 12 # hrs
 ###############  FLOWRATES   #################################################################################
 
 # Jochen et al:
-Q_P, Q_Q, Q_R, Q_S = 5.21, 4, 5.67, 4.65 # x10-7 m^3/s
+# Q_P, Q_Q, Q_R, Q_S = 5.21, 4, 5.67, 4.65 # x10-7 m^3/s
 conv_fac = 0.1 # x10-7 m^3/s => cm^3/s
-Q_P, Q_Q, Q_R, Q_S  = Q_P*conv_fac, Q_Q*conv_fac, Q_R*conv_fac, Q_S*conv_fac
+# # Q_P, Q_Q, Q_R, Q_S  = Q_P*conv_fac, Q_Q*conv_fac, Q_R*conv_fac, Q_S*conv_fac
+# Q_I, Q_II, Q_III, Q_IV  = Q_P, Q_Q, Q_R, Q_S 
+# Q_internal = np.array([Q_I, Q_II, Q_III, Q_IV])
 
-Q_I, Q_II, Q_III, Q_IV = Q_R,  Q_S, Q_P, Q_Q
+# Other flowrates:
+Q_I, Q_II, Q_III, Q_IV = 11.8, 8.8, 10.6, 8.31 # L/h
+Q_internal = np.array([Q_I, Q_II, Q_III, Q_IV])/3.6 # L/h => cm^3/s
 
-# Q_I, Q_II, Q_III, Q_IV = 2,1,2,1
-
-Q_internal = np.array([Q_I, Q_II, Q_III, Q_IV])
 
 
 
@@ -2009,319 +2628,207 @@ Q_internal = np.array([Q_I, Q_II, Q_III, Q_IV])
 # Units:
 # - Concentrations: g/cm^3
 # - kfp: 1/s
-parameter_sets = [
-                    {"C_feed": 0.2222},    # Glucose SMB Launch
-                    {"C_feed": 0.2222}] #, # Fructose
 
-Da_all = np.array([6.218e-6, 6.38e-6 ]) 
+
 
 # ISOTHERM PARAMETERS
-####################################################################### ####################
+###########################################################################################
+# What tpye of isoherm is required?
+# Coupled: "CUP"
+# Uncoupled: "UNC"
+iso_type = "CUP"
+
 # Uncomment as necessary:
 
-# Linear, H
-kav_params_all = np.array([[0.0315], [0.0217]])
-cusotom_isotherm_params_all = np.array([[0.27], [0.53]]) # H_glu, H_fru 
-# Sub et al = np.array([[0.27], [0.53]])
 
-# # Langmuir, [Q_max, b]
-# cusotom_isotherm_params_all = np.array([[2.51181596, 1.95381598], [3.55314612, 1.65186647]])
+parameter_sets = [  # Adjusted Concentrations (g/cm^3)
+                    {"C_feed": 0.001752*1.2}, 
+                    {"C_feed": 0.009726*1.5}] 
 
-# Linear + Langmuir, [H, Q_max, b]
-# cusotom_isotherm_params_all = np.array([[1, 2.70420148, 1.82568197], [1, 3.4635919, 1.13858329]])
+# # UBK Linear Isotherm
+# Da_all = np.array([1.83e-15, 5.6-15]) 
+# kav_params_all = np.array([[0.395], [0.151]])
+# cusotom_isotherm_params_all = np.array([[3.63], [2.40]]) # [ [H_borate], [H_hcl] ]
+
+# # PCR Linear Isotherm
+Da_all = np.array([5.77e-17, 2.3812e-16]) 
+kav_params_all = np.array([[0.215], [0.132]])
+cusotom_isotherm_params_all = np.array([[3.93], [3.23]]) # [ [H_borate], [H_hcl] ]
+
+# ----------- ILLOVO FEED STREAM
+# # UBK 
+# Da_all = np.array([1.83e-15, 5.6-15]) 
+# kav_params_all = np.array([[0.173], [0.151]])
+# cusotom_isotherm_params_all = np.array([[4.13], [2.3]]) # [ [H_borate], [H_hcl] ]
 
 
+# PCR 
+# Da_all = np.array([5.77e-17, 2.3812e-16]) 
+# kav_params_all = np.array([[0.170], [0.154]])
+# cusotom_isotherm_params_all = np.array([[2.13], [2.3]]) # [ [H_borate], [H_hcl] ]
+
+
+
+
+#%%
 # STORE/INITALIZE SMB VAIRABLES
-SMB_inputs = [iso_type, Names, colors, num_comp, nx_per_col, e, Da_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_params_all, kav_params_all, subzone_set]
-#%% ---------- SAMPLE RUN IF NECESSARY
+SMB_inputs = [iso_type, Names, color, num_comp, nx_per_col, e, Da_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_params_all, kav_params_all, subzone_set, t_simulation_end]
+# ref: SMB_inputs = [iso_type, Names, color, num_comp, nx_per_col, e, Da_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_params_all, kav_params_all, subzone_set, t_simulation_end]
+
+# ---------- SAMPLE RUN IF NECESSARY
 start_test = time.time()
-y_matrices, nx, t, t_sets, t_schedule, C_feed, m_in, m_out, raff_cprofile, ext_cprofile, raff_intgral_purity, raff_recov, ext_intgral_purity, ext_recov, raff_vflow, ext_vflow, Model_Acc, Expected_Acc, Error_percent = SMB(SMB_inputs)
-end_test = time.time()
+results = SMB(SMB_inputs)
+# ref:  [y_matrices, nx, t, t_sets, t_schedule, C_feed, m_in, m_out, raff_cprofile, ext_cprofile, raff_intgral_purity, raff_recov, ext_intgral_purity, ext_recov, raff_vflow, ext_vflow, Model_Acc, Expected_Acc, Error_percent]
+# STORE
+Raffinate_Purity = results[10]
+Raffinate_Recovery = results[11]
+Extract_Purity = results[12]
+Extract_Recovery = results[13]
+Mass_Balance_Error_Percent = results[-1]
+m_in = results[6]
+m_out = results[7]
+Model_Acc =  results[-3]
+Expected_Acc = results[-2]
+raff_cprofile = results[8]
+ext_cprofile= results[9]
+import matplotlib.pyplot as plt
 
-duration = end_test - start_test
-# print(f'Simulation Took: {duration/60} min')
-# print(f'ext_cprofile: {ext_cprofile}')
-# print(f'raff_cprofile: {raff_cprofile}')
-#%% Plotting
+# Plotting the data
+plt.plot(results[2]/60/60, raff_cprofile[0], label='Raff CProfile 0')
+plt.plot(results[2]/60/60, raff_cprofile[1], label='Raff CProfile 1')
+plt.plot(results[2]/60/60, ext_cprofile[0], label='Ext CProfile 0')
+plt.plot(results[2]/60/60, ext_cprofile[1], label='Ext CProfile 1')
 
-print(f'Simulation Took: {duration/60} min')
-# print(f'ext_cprofile: {ext_cprofile}')
-# print(f'raff_cprofile: {raff_cprofile}')
-print("-----------------------------------------------------------")
-Y = [C_feed, raff_cprofile, ext_cprofile, raff_vflow, ext_vflow]
+# Adding labels and title
+plt.xlabel('Time, hrs')
+plt.ylabel('g/mL')
+plt.title('Comparison of Raff and Ext CProfiles')
 
-# Y = [C_feed, ext_vflow, raff_vflow ]
-if iso_type == "UNC":
-    see_prod_curves(t_sets, Y, t_index_min*60)
-elif iso_type == "CUP":
-    see_prod_curves(t, Y, t_index_min*60)
+# Adding legend
+plt.legend()
 
-# Define the data for the table
-data = {
-    'Metric': [
-        'Total Expected Acc (IN-OUT)', 
-        'Total Model Acc (r+l)', 
-        'Total Error Percent (relative to Exp_Acc)', 
-        'Mass In',
-        'Mass Out',
-        
-        'Raffinate Purity [A, B,. . ]', 
-        'Extract Purity [A, B,. . ]',
-        'Raffinate Recovery[A, B,. . ]', 
-        'Extract Recovery[A, B,. . ]'
-    ],
-    'Value': [
-        f'{sum(Expected_Acc)} g', 
-        f'{sum(Model_Acc)} g', 
-        f'{Error_percent} %',
-
-        f'{m_in} g',
-        f'{m_out} g', 
-
-        f'{raff_intgral_purity} %', 
-        f'{ext_intgral_purity} %', 
-        f'{raff_recov} %', 
-        f'{ext_recov} %'
-    ]
-}
-
-import pandas as pd
-# Create a DataFrame
-df = pd.DataFrame(data)
-
-# Display the DataFrame
-print(df)
-
-
-# Plot the table as a figure
-fig, ax = plt.subplots(figsize=(8, 4)) # Adjust figure size as needed
-ax.axis('tight')
-ax.axis('off')
-table = ax.table(cellText=df.values, colLabels=df.columns, cellLoc='center', loc='center')
-
-# Format the table's appearance
-table.auto_set_font_size(False)
-table.set_fontsize(10)
-table.scale(1.5, 1.5)  # Adjust scaling of the table
-
-# Display the table
+# Display the plot
+plt.grid(True)
+plt.tight_layout()
 plt.show()
 
 
-#%%
-print(f'shape(y): {np.shape(y_matrices)}')
+end_test = time.time()
+test_duration = end_test-start_test
+
+# DISPLAY
+print(f'\n\n TEST RESULTS : \n')
+print(f'Time Taken for 1 SMB Run: {test_duration/60} min')
+print(f'Model_Acc: {Model_Acc}')
+print(f'Expected_Acc: {Expected_Acc}')
+
+
+print(f'm_in: {m_in} g')
+print(f'm_out: {m_out} g ')
+print(f'Raffinate_Recovery: {Raffinate_Recovery} ')
+print(f'Extract_Recovery:  {Extract_Recovery}')
+print(f'Raffinate_Purity: {Raffinate_Purity} ')
+print(f'Extract_Purity: {Extract_Purity}')
+print(f'Mass_Balance_Error_Percent: {Mass_Balance_Error_Percent}%')
 
 #%%
 
+# ----- MAIN ROUTINE
+if __name__ == "__main__":
+    # ------- OPTIMIZATION VARIABLES
+    # Do you want to maximize or minimize the objective function?
+    job_max_or_min = 'maximize'
 
-# ANIMATION
-###########################################################################################
+    # - - - - -
+    Q_fixed_feed = 4 # L/h # minimum (25%) flowrate on pump 6 (smallest pump)
+    Q_fixed_feed = Q_fixed_feed/3.6 # L/h --> cm^3/s
+    # - - - - -
+    t_reff = 10 # min
+    # - - - - -
+    Q_max = 12 # L/h
+    Q_min = 1 # L/h
 
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
 
-def animate_smb_concentration_profiles(y, t, labels, colors, nx_per_col, cols_per_zone, L_col,
-                                       t_index, parameter_sets, filename="smb_profiles.mp4"):
-    """
-    Create an animated visualization of SMB liquid-phase concentration profiles across zones.
+    Q_max = Q_max/3.6 # L/h --> cm^3/s
+    Q_min = Q_min/3.6 # L/h --> cm^3/s
+    # - - - - -
+    m_max = 1.5
+    m_min = 0.27
+    # - - - - -
+    sampling_budget = 1 #
+    optimization_budget = 40 # 40
+    constraint_threshold = [0.995, 0.995] # [Glu, Fru]
+    # - - - - -
 
-    Parameters:
-    - y: (n_components, nx_total, time_points) concentration data
-    - t: time vector (in seconds)
-    - labels: list of component names
-    - colors: list of colors per component
-    - nx_per_col: number of spatial points per column
-    - cols_per_zone: list with number of columns per zone
-    - L_col: length of each column (m)
-    - t_index: time (s) for 1 indexing shift
-    - parameter_sets: list of dicts per component
-    - filename: output video file name
-    """
-    n_components, nx_total, nt = y.shape
-    n_zones = len(cols_per_zone)
-    n_cols_total = sum(cols_per_zone)
-    L_total = n_cols_total * L_col
+    # - - - - -
+    m_diff_max = Q_max/(V_col*(1-e))
+    m_diff_min = Q_min/(V_col*(1-e))
+    m_fixed_feed = Q_fixed_feed/(V_col*(1-e))
+    # - - - - -
+    PF_weight = 10 # Weight applied to the probability of feasibility
+    # - - - - -
+    
+    bounds = [  
+    (0.6, m_max), # m1
+    (0.1, 0.7), # m2
+    (0.4, m_max), # m3
+    (0.05, m_max*0.5), # m4
+    (0.2, 1) # t_index/t_reff (normalized)
+    ]
 
-    # Determine frame indices for animation (≤ 90s total shown if t > 120s)
-    if t[-1] > 120:
-        t_segment = 30  # seconds
-        frames_per_segment = int(t_segment / (t[1] - t[0]))
-        first_idx = np.arange(0, frames_per_segment)
-        middle_idx = np.arange(nt // 2 - frames_per_segment // 2, nt // 2 + frames_per_segment // 2)
-        last_idx = np.arange(nt - frames_per_segment, nt)
-        selected_frames = np.concatenate([first_idx, middle_idx, last_idx])
-    else:
-        selected_frames = np.arange(nt)
 
-    # Calculate column junction positions
-    col_boundaries = [i * nx_per_col for i in range(n_cols_total + 1)]
-    x_full = np.linspace(0, L_total, nx_total)
-
-    # Initial port positions (index in spatial array), assuming inlet at col 0 (zone 3)
-    stream_order = ["Feed", "Extract", "Raffinate", "Desorbent"]
-    stream_colors = ["red", "blue", "orange", "purple"]
-    stream_zone = [2, 1, 3, 0]  # zone indices: Feed at zone 3 (index 2), etc.
-
-    # Compute starting port positions in terms of column number
-    start_ports = np.cumsum([0] + cols_per_zone[:-1])  # column index per zone start
-
-    # Pre-compute port positions over time (indexed every t_index)
-    port_positions = {stream: [] for stream in stream_order}
-    for time_val in t:
-        idx_shift = int(time_val // t_index)
-        for i, stream in enumerate(stream_order):
-            base_col = start_ports[stream_zone[i]]
-            pos = (base_col + idx_shift) % n_cols_total
-            port_positions[stream].append(pos * nx_per_col * L_col)  # convert to length
-
-    # Set up figure and axes (4 stacked panels)
-    fig, axes = plt.subplots(n_zones, 1, figsize=(8, 10), sharex=True)
-    lines = [[] for _ in range(n_zones)]
-
-    for zone_id, ax in enumerate(axes):
-        ax.set_xlim(0, L_total)
-        ax.set_ylim(0, np.max(y))
-        ax.set_ylabel("C (g/L)")
-        ax.set_title(f"Zone {zone_id + 1}")
-
-        # Vertical black lines for column boundaries
-        col_start = sum(cols_per_zone[:zone_id]) * nx_per_col * L_col
-        for i in range(cols_per_zone[zone_id] + 1):
-            ax.axvline(x=col_start + i * L_col, color='black', linewidth=0.5)
-
-        # Plot initialization for each component
-        for comp_idx in range(n_components):
-            # Spatial slice for this zone
-            start = sum(cols_per_zone[:zone_id]) * nx_per_col
-            end = start + cols_per_zone[zone_id] * nx_per_col
-            x = x_full[start:end]
-            line, = ax.plot(x, y[comp_idx, start:end, 0], color=colors[comp_idx], label=labels[comp_idx])
-            lines[zone_id].append(line)
-
-    # Add time and legend box
-    time_text = axes[0].text(0.95, 0.9, '', transform=axes[0].transAxes,
-                             ha='right', va='top', fontsize=10, bbox=dict(facecolor='white', alpha=0.7))
-    axes[-1].set_xlabel("Column Length (m)")
-    axes[0].legend(loc='upper left', bbox_to_anchor=(1, 1))
-
-    # Initialize stream vertical lines
-    stream_lines = [axes[0].axvline(0, color=color, linestyle='--', linewidth=1.5) for color in stream_colors]
-
-    # Update function
-    def update(frame_idx):
-        t_hr = t[frame_idx] / 3600  # convert to hours
-        time_text.set_text(f"Time: {t_hr:.2f} h")
-
-        for zone_id, ax in enumerate(axes):
-            start = sum(cols_per_zone[:zone_id]) * nx_per_col
-            end = start + cols_per_zone[zone_id] * nx_per_col
-            for comp_idx in range(n_components):
-                lines[zone_id][comp_idx].set_ydata(y[comp_idx, start:end, frame_idx])
-
-        # Update stream lines (positioned in top axis only)
-        for i, stream in enumerate(stream_order):
-            x_pos = port_positions[stream][frame_idx]
-            stream_lines[i].set_xdata(x_pos)
-
-        return [l for sublist in lines for l in sublist] + stream_lines + [time_text]
-
-    # Create animation
-    ani = animation.FuncAnimation(fig, update, frames=selected_frames, interval=100, blit=True)
-
-    # Save animation
-    writer = animation.FFMpegWriter(fps=15, bitrate=1800)
-    ani.save(filename, writer=writer)
-    plt.close()
-    return filename
-
-# Run it with the simulated data
-sample_data_bundle = {
-    "y": y_matrices,
-    "t": t,
-    "labels": Names,
-    "colors": colors,
-    "nx_per_col": nx_per_col,
-    "cols_per_zone": zone_config,
-    "L_col": L,
-    "t_index": t_index_min,
-    "parameter_sets": parameter_sets
-}
-
-def plot_all_columns_single_axes(y_matrices, t,indxing_period, time_index,
-                                  nx_per_col, L_col, zone_config, 
-                                  labels=None, colors=None,
-                                  title="Concentration Across Entire Column"):
-    """
-    Plot all columns together on one continuous axis for each component at a given time index.
-
-    Parameters:
-    - y_matrices: array of shape (n_components, nx_total, n_timepoints)
-    - time_index: int, index along the time axis
-    - nx_per_col: int, spatial points per column
-    - L_col: float, physical length of each column
-    - labels: list of component names (optional)
-    - colors: list of line colors per component (optional)
-    - title: overall figure title
-    """
-
-    n_components, nx_total, n_timepoints = y_matrices.shape
-
-    n_columns = np.sum(zone_config)
-    nx_total = nx_per_col*n_columns # just for the liquid phase
-
-    total_length = L_col * n_columns # cm
-    x = np.linspace(0, total_length, nx_total)
-    # Rotate so that Z3 is first
-    zone_config_rot = np.roll(zone_config, -2)  # => [Z3, Z4, Z1, Z2]
-
-    # Labels accordingly
-    zone_labels = ['Z3', 'Z4', 'Z1', 'Z2']
-
-    plt.figure(figsize=(10, 6))
-    for i in range(n_components):
-        y_vals = y_matrices[i][ 0:nx_total, time_index]
-        label = labels[i] if labels else f"Comp {i+1}"
-        color = colors[i] if colors else None
-        plt.plot(x, y_vals, label=label, color=color)
-    x_plot = 0
-    for i, x_zone in enumerate(zone_config_rot):
-        x_plot += x_zone
-        plt.axvline(x=x_plot*L, color='k', linestyle='--', linewidth=2)
-        plt.text(x_plot*L, plt.ylim()[1]*0.995, zone_labels[i], ha='right', va='top',
-                fontsize=8, color='k')
-    for i in range(0,n_columns+1):
-        x_plot = i*L
-        plt.axvline(x=x_plot, color='grey', linestyle='--', linewidth=1)
-
-    plt.title(f"{title} (Time Index {time_index}) (Time Stamp: {t[time_index]/60} min)\nIndxing_period: {indxing_period} min")
-    plt.xlabel("Position along full unit (cm)")
-    plt.ylabel("Concentration (g/L)")
-    plt.grid(True)
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
-
+    initial_guess = 0 # min
+    print(f'\n\n OPTIMIZATION INPUTS: \n')
+    print(f'Column Volume: {V_col} cm^3 | {V_col/1000} L')
+    print(f'Column CSA: {A_col} cm^2')
+    print(f'Column Length: {L} cm')
+    print(f'Column Diameter: {d_col} cm')
+    print(f'Optimization Budget: {optimization_budget}')
+    print(f'Sampling Budget: {sampling_budget}')
+    print(f"bounds:\nm1: ({bounds[0][0]}, {bounds[0][1]})\nm2: ({bounds[1][0]}, {bounds[1][1]})\nm3: ({bounds[2][0]}, {bounds[2][1]})\nm4: ({bounds[3][0]}, {bounds[3][1]})\nt_index: ({bounds[4][0]*t_reff}, {bounds[4][1]*t_reff}) min")
+        
+#%%
+    # generate iniital samples
+    all_initial_inputs, all_initial_outputs = generate_initial_data(sampling_budget)
+    print(f'all_initial_inputs\n{ all_initial_inputs}')
+    print(f'all_initial_outputs\n{ all_initial_outputs}')
 
 #%%
-# animate_smb_concentration_profiles(**sample_data_bundle)
-plot_all_columns_single_axes(
-    y_matrices=y_matrices,
-    t = t,
-    indxing_period = t_index_min,
-    # time_index= int(np.round(np.shape(y_matrices)[2]*0.01)),
-    time_index= 100, # 27, 31, 35. 70, 90
-    nx_per_col=nx_per_col,
-    L_col = L,
-    zone_config = zone_config,
-    labels=['A', 'B'],
-    colors=['green', 'orange']
-)
+    # OPTIMIZATION
+    population_all, f1_vals, f2_vals, c1_vals, c2_vals, all_inputs  = constrained_BO(optimization_budget, bounds, initial_guess, all_initial_inputs, all_initial_outputs, job_max_or_min, constraint_threshold, 0.001)
+
+#%%
+    # ----------- SAVE
+    # Convert NumPy array to list
+    
+    # Description
+    
+    Description = [f"Description example: Optimizting the Borate HCl system for the sythetic solution on PCR.Ca. {optimization_budget} iterations, with no isotherom data. We placed a upper flowrate constraint of {Q_max} L/h. This is with the sub-zoning for bor-hcl"]
+    
+    
+    # Inputs:
+    all_inputs_list = all_inputs.tolist()
+    # Outputs:
+    data_dict = {
+        "Description": Description,
+        "f1_vals": f1_vals.tolist(),
+        "f2_vals": f2_vals.tolist(),
+        "c1_vals": c1_vals.tolist(),
+        "c2_vals": c2_vals.tolist(),
+    }
 
 
 
+    # SAVE all_inputs to JSON:
+    save_name_inputs = "PCR-borhcl-type1_40iter_norm_config_all_inputs.json"        # (1) "PCR-borhcl-type1_40iter_norm_config_all_inputs.json", (2) "PCR-borhcl-type1_40iter_subzone_config_all_inputs.json"
+    save_name_outputs = "PCR-borhcl-type1_40iter_norm_config_all_outputs.json"      # (1) "PCR-borhcl-type1_40iter_norm_config_all_outputs.json", (2) "PCR-borhcl-type1_40iter_subzone_config_all_outputs.json"
+    
+    with open(save_name_inputs, "w") as f:  
+        json.dump(all_inputs_list, f, indent=4)
 
-# %%
-
+    # SAVE recoveries_and_purities to JSON:
+    with open(save_name_outputs, "w") as f:
+        json.dump(data_dict, f, indent=4)
 
 
 # %%

@@ -25,8 +25,11 @@ import warnings
 import time
 
 # Import the custom SMB model
+# from SMB_func_bh import SMB
+
+#%%
 def SMB(SMB_inputs):
-    iso_type, Names, color, num_comp, nx_per_col, e, D_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_params_all, kav_params_all = SMB_inputs[0:]
+    iso_type, Names, color, num_comp, nx_per_col, e, D_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_params_all, kav_params_all ,subzone_set, t_simulation_end = SMB_inputs[0:]
 
     ###################### (CALCUALTED) SECONDARY INPUTS #########################
 
@@ -48,7 +51,6 @@ def SMB(SMB_inputs):
     Z4 = zone_config[3]
 
 
-
     # Time Specs:
     ################################################################
 
@@ -58,16 +60,30 @@ def SMB(SMB_inputs):
     # - Cyclic Steady state typically happens only after 10 cycles (ref: https://doi.org/10.1205/026387603765444500)
     # - The system is not currently designed to account for periods of no external flow
 
-    n_1_cycle = t_index * Ncol_num  # s How long a single cycle takes
+    if n_num_cycles != None and t_simulation_end == None:
+        
+        
+        n_1_cycle = t_index * Ncol_num  # s How long a single cycle takes
 
-    total_cycle_time = n_1_cycle*n_num_cycles # s
+        total_cycle_time = n_1_cycle*n_num_cycles # s
 
-    tend = total_cycle_time # s # Final time point in ODE solver
+        tend = total_cycle_time # s # Final time point in ODE solver
 
+
+    elif n_num_cycles == None and t_simulation_end != None: # we specified tend instead
+        
+        
+        n_1_cycle = t_index * Ncol_num # s
+
+        total_cycle_time = t_simulation_end * 60 * 60  # hrs => s
+
+        n_num_cycles = np.round(total_cycle_time/n_1_cycle)
+
+        tend = t_simulation_end* 60 * 60 
+    
+    
     tend_min = tend/60
-
     t_span = (0, tend) # +dt)  # from t=0 to t=n
-
     num_of_injections = int(np.round(tend/t_index)) # number of switching periods
 
     # 't_start_inject_all' is a vecoter containing the times when port swithes occur for each port
@@ -97,8 +113,81 @@ def SMB(SMB_inputs):
     #         result.extend([i] * n)
     #     return result
 
-    # 3.
-    # Func to divide the column into nodes
+        # 3.
+
+
+    def get_zone(status_unit):
+        """
+        Retrieves the zone number from the status_unit string.
+        '0' → zone 0
+        '4.1.0' or '4.2.N3.1.M3' → zone 4
+        """
+        try:
+            return int(status_unit.strip().split('.')[0])
+        except (IndexError, ValueError):
+            raise ValueError(f"Invalid status_unit format: '{status_unit}' — cannot retrieve zone.")
+
+    def get_type(status_unit):
+        """
+        Retrieves the type identifier from the status_unit string.
+        '0' → assumed type 1
+        '4.1.0' or '4.2.N3.1.M3' → type from 2nd segment
+        """
+        try:
+            segments = status_unit.strip().split('.')
+            return int(segments[1]) if len(segments) > 1 else 1
+        except ValueError:
+            raise ValueError(f"Invalid status_unit format: '{status_unit}' — cannot retrieve type.")
+
+    def get_rank(status_unit):
+        """
+        Retrieves the rank of the column within its zone.
+        - '0' → rank 0
+        - '4.1.0' → rank 0
+        - '4.2.N3.1.M3' → rank 1
+        """
+        try:
+            segments = status_unit.strip().split('.')
+            if segments == ['0']:
+                return 0
+            # Last number before 'M' (if exists) is rank
+            for seg in reversed(segments):
+                if seg.startswith('M'):
+                    continue
+                if seg.startswith('N'):
+                    continue
+                return int(seg)
+            raise ValueError("Could not determine rank.")
+        except (IndexError, ValueError):
+            raise ValueError(f"Invalid status_unit format: '{status_unit}' — cannot retrieve rank.")
+
+    def get_N_subzone(status_unit):
+        """
+        Retrieves the number of columns in the upstream sub-zone from the 'N' segment.
+        Raises helpful error if not found (likely to be type 1).
+        """
+        try:
+            for seg in status_unit.strip().split('.'):
+                if seg.startswith('N'):
+                    return int(seg[1:])
+            raise ValueError("No 'N' segment found — likely type 1 or not receiving from sub-zone.")
+        except ValueError as ve:
+            raise ValueError(f"Invalid status_unit format: '{status_unit}' — {str(ve)}")
+
+    def get_M_subzone(status_unit):
+        """
+        Retrieves the number of columns in the current sub-zone from the 'M' segment.
+        Raises helpful error if not found (likely a single-column zone).
+        """
+        try:
+            for seg in status_unit.strip().split('.'):
+                if seg.startswith('M'):
+                    return int(seg[1:])
+            raise ValueError("No 'M' segment found — likely not part of a multi-column sub-zone.")
+        except ValueError as ve:
+            raise ValueError(f"Invalid status_unit format: '{status_unit}' — {str(ve)}")
+
+# Func to divide the column into nodes
     
     def cusotom_isotherm_func(cusotom_isotherm_params, c):
         """
@@ -142,26 +231,6 @@ def SMB(SMB_inputs):
 
         return q_star_1 # [qA, ...]
 
-    # Mass Transfer (MT) Models:
-
-    def mass_transfer(kav_params, q_star, q ): # already for specific comp
-        # kav_params: [kA, kB]
-
-        # 1. Single Parameter Model
-        # Unpack Parameters
-        kav =  kav_params
-        # MT = kav * Bm/(5 + Bm) * (q_star - q)
-        MT = kav * (q_star - q)
-
-        # 2. Two Parameter Model
-        # Unpack Parameters
-        # kav1 =  kav_params[0]
-        # kav2 =  kav_params[1]
-    
-        # MT = kav1* (q_star - q) + kav2* (q_star - q)**2
-
-        return MT
-
     def cusotom_CUP_isotherm_func(cusotom_isotherm_params_all, c, IDX, comp_idx):
         """
         Returns  solid concentration, q_star vector for given comp_idx
@@ -189,58 +258,35 @@ def SMB(SMB_inputs):
         # # Unpack respective parameters
         K1 = cusotom_isotherm_params_all[comp_idx][0] # 1st (and only) parameter of HA or HB
         # print(f'H = {K1}')
-        q_star_lin = K1*c_i[comp_idx]
+        q_star_1 = K1*c_i[comp_idx]
 
 
-        #------------------- Two Parameter Models
-        # K1 = cusotom_isotherm_params[comp_idx][0] 
-        # K2 = cusotom_isotherm_params[comp_idx][1] 
-
-        # 1. Freundlich
-        # a = K1
-        # b = K2
-        # #-------------------------------
-        # q_star_fred = b*c_i[comp_idx]**(1/a)
-        # #-------------------------------
-
-        # 2. Langmuir
-        # Qmax = K1
-        # b = K2
-        # # #-------------------------------
-        # q_star_lang1 = Qmax*b*c_i[comp_idx]/(1 + b*c_i[comp_idx])
-        # # #-------------------------------
-
-        # 3. Coupled Langmuir Model
-        # cusotom_isotherm_params = [[QmaxA, bA], [QmaxB, bB]]
-
-        # The parameter in the numerator is dynamic, depends on comp_idx i.e. which component we are looking at:
-        # Qmax_i =  cusotom_isotherm_params[comp_idx][0]
-        # b_i =  cusotom_isotherm_params[comp_idx][1]
-        
-        # # Fix the sum of parameters in the demoninator:
-        # b1 = cusotom_isotherm_params[0][1] # 1st (and only) parameter of HA 
-        # b2 = cusotom_isotherm_params[1][1] # 1st (and only) parameter of HB
-        
-        # q_star_lang2 = Qmax_i*b_i*c_i[comp_idx]/(1+ b1*c_i[0] + b2*c_i[1])
-
-
-
-        #------------------- 3. Combined Models
+        #------------------- 2. Coupled Langmuir Models
         # The parameter in the numerator is dynamic, depends on comp_idx:
-        # K_lin =  cusotom_isotherm_params[comp_idx][0]
-        # K_Q = cusotom_isotherm_params[comp_idx][1]
+        # K =  cusotom_isotherm_params_all[comp_idx][0]
         
         # # Fix the sum of parameters in the demoninator:
-        # K1 = cusotom_isotherm_params[0][0] # 1st (and only) parameter of HA 
-        # K2 = cusotom_isotherm_params[1][0] # 1st (and only) parameter of HB
+        # K1 = cusotom_isotherm_params_all[0][0] # 1st (and only) parameter of HA 
+        # K2 = cusotom_isotherm_params_all[1][0] # 1st (and only) parameter of HB
+        
+        # q_star_2 = K*c_i[comp_idx]/(1+ K1*c_i[0] + K2*c_i[1])
+
+        #------------------- 3. Combined Coupled Models
+        # The parameter in the numerator is dynamic, depends on comp_idx:
+        # K_lin =  cusotom_isotherm_params_all[comp_idx][0]
+        
+        # # Fix the sum of parameters in the demoninator:
+        # K1 = cusotom_isotherm_params_all[0][0] # 1st (and only) parameter of HA 
+        # K2 = cusotom_isotherm_params_all[1][0] # 1st (and only) parameter of HB
         
         # c_sum = K1 + K2
         # linear_part = K_lin*c_i[comp_idx]
-        # langmuir_part = K_Q*c_i[comp_idx]/(1+ K1*c_i[0] + K2*c_i[1])
+        # langmuir_part = K*c_i[comp_idx]/(1+ K1*c_i[0] + K2*c_i[1])
 
-        # q_star_combined =  linear_part + langmuir_part
+        # q_star_3 =  linear_part + langmuir_part
 
-        return q_star_lin # [qA, ...]
+
+        return q_star_1 # [qA, ...]
 
     # DOES NOT INCLUDE THE C0 NODE (BY DEFAULT)
     def set_x(L, Ncol_num,nx_col,dx):
@@ -356,7 +402,9 @@ def SMB(SMB_inputs):
 
         for i in range(len(Qint_roll)):
             X_add = np.ones(Zconfig_roll[i])*Qint_roll[i]
+
             # print('X_add:\n', X_add)
+
 
             X = np.append(X, X_add)
         # X = np.concatenate(X)
@@ -424,20 +472,22 @@ def SMB(SMB_inputs):
     # nx_BC --> Number of mixing points b/n nodes
     x, dx, nx_col, nx, nx_BC = set_x(L=L_total, Ncol_num = Ncol_num, nx_col = nx_per_col, dx = None)
     start = [i*nx_col for i in range(0,Ncol_num)] # Locations of the BC indecies
-    u_col_at_t0 = initial_u_col(zone_config, Q_internal)
-    Q_col_all = build_matrix_from_vector(u_col_at_t0, t_schedule)
+    Q_col_at_t0 = initial_u_col(zone_config, Q_internal)
+    Q_col_all = build_matrix_from_vector(Q_col_at_t0, t_schedule)
+
+    Bay_matrix = build_matrix_from_vector(np.arange(1,Ncol_num+1), t_schedule)
 
 
-    # DISPLAYING INPUT INFORMATION:
+    # # DISPLAYING INPUT INFORMATION:
     # print('---------------------------------------------------')
     # print('Number of Components:', num_comp)
     # print('---------------------------------------------------')
     # print('\nTime Specs:\n')
     # print('---------------------------------------------------')
-    # print('Number of Cycles:', n_num_cycles)
-    # print('Time Per Cycle:', n_1_cycle/60, "min")
-    # print('Simulation Time:', tend_min, 'min')
-    # print('Index Time:', t_index, 's OR', t_index/60, 'min' )
+    print('Number of Cycles:', n_num_cycles)
+    print('Time Per Cycle:', n_1_cycle/60, "min")
+    print('Simulation Time:', tend_min/60, 'hrs')
+    print('Index Time:', t_index, 's OR', t_index/60, 'min' )
     # print('Number of Port Switches:', num_of_injections)
     # print('Injections happen at t(s) = :', t_schedule, 'seconds')
     # print('---------------------------------------------------')
@@ -448,6 +498,7 @@ def SMB(SMB_inputs):
     # print('Column Length:', L, 'cm')
     # print('Column Diameter:', d_col, 'cm')
     # print('Column Volume:', V_col, 'cm^3')
+
     # print("alpha:", alpha, '(alpha = A_in / A_col)')
     # print("Nodes per Column:",nx_col)
     # print("Boundary Nodes locations,x[i], i =", start)
@@ -463,12 +514,36 @@ def SMB(SMB_inputs):
     #     print(f"Concentration Schedule:\nShape:\n {Names[i]}:\n",np.shape(Cj_pulse_all[i]),'\n', Cj_pulse_all[i], "\n")
     # print("Injection Flowrate Schedule:\nShape:",np.shape(Q_pulse_all),'\n', Q_pulse_all, "\n")
     # print("Respective Column Flowrate Schedule:\nShape:",np.shape(Q_col_all),'\n', Q_col_all, "\n")
+    # print("Bay Schedule:\nShape:",np.shape(Bay_matrix),'\n', Bay_matrix, "\n")
 
 
     ###########################################################################################
 
     ###########################################################################################
 
+    # Mass Transfer (MT) Models:
+
+    def mass_transfer(kav_params, q_star, q ): # already for specific comp
+        # kav_params: [kA, kB]
+
+        # 1. Single Parameter Model
+        # Unpack Parameters
+        kav =  kav_params
+        # MT = kav * Bm/(5 + Bm) * (q_star - q)
+        MT = kav * (q_star - q)
+
+        # 2. Two Parameter Model
+        # Unpack Parameters
+        # kav1 =  kav_params[0]
+        # kav2 =  kav_params[1]
+    
+        # MT = kav1* (q_star - q) + kav2* (q_star - q)**2
+
+        return MT
+
+    # MT PARAMETERS
+    ###########################################################################################
+    # print('np.shape(parameter_sets[:]["kh"]):', np.shape(parameter_sets[3]))
     
     # print('kav_params:', kav_params)
     # print('----------------------------------------------------------------')
@@ -480,8 +555,69 @@ def SMB(SMB_inputs):
     # Form the remaining schedule matrices that are to be searched by the funcs
 
     # Column velocity schedule:
-    u_superficial = -Q_col_all/A_col
-    u_col_all = u_superficial/e # interstitial
+    # 1. Veclocity Scheudle if there were no subzones
+    # u_col_all = -Q_col_all/A_col/e
+    # print(f'u_col_all: {np.shape(u_col_all)}')
+    # print(f'u_col_all: {u_col_all}')
+
+    # 2. Veclocity Scheudle if there were subzones
+    def get_u_col_at_t0_adj(u_col_at_t0, subzone_set):
+        """
+        Adjusts the linear velocities of columns based on subzone configurations.
+        
+        If a column is located in a bay that is part of a subzone's downstream bays 
+        (i.e., subzone[1]), then its velocity is divided by the number of such bays 
+        to reflect the shared flow among them.
+
+        Parameters:
+            u_col_at_t0 (ndarray): 1D array of linear velocities for each bay at time t0.
+            subzone_set (list): List of subzones. Each subzone is a pair of lists: [upstream_bays, downstream_bays].
+
+        Returns:
+            u_col_adj_at_t0 (ndarray): Adjusted linear velocity array.
+        """
+        u_col_adj_at_t0 = np.copy(u_col_at_t0)
+
+        for i in range(len(u_col_at_t0)):
+            bay = i + 1  # Bay numbers start from 1
+            adjusted = False
+
+            for subzone in subzone_set:
+                downstream_bays = subzone[1]
+
+                if bay in downstream_bays:
+                    divid_by = len(downstream_bays)
+                    u_col_adj_at_t0[i] = u_col_at_t0[i] / divid_by
+                    adjusted = True
+                    # print(f"Bay {bay}: {u_col_at_t0[i]} divided by {divid_by} -> {u_col_adj_at_t0[i]}")
+                    break  # Stop after finding the first matching subzone
+
+            if not adjusted:
+                u_col_adj_at_t0[i] = u_col_at_t0[i]
+                # print(f"Bay {bay}: not in subzone, remains {u_col_at_t0[i]}")
+
+        return u_col_adj_at_t0
+
+    
+
+    u_col_at_t0 = initial_u_col(zone_config, -Q_internal/A_col/e)
+    Q_col_at_t0 = initial_u_col(zone_config, Q_internal)
+
+
+    u_col_at_t0_new = get_u_col_at_t0_adj(u_col_at_t0, subzone_set)
+    Q_col_at_t0_new = get_u_col_at_t0_adj(Q_col_at_t0, subzone_set)
+
+    # print(f'u_col_at_t0:{u_col_at_t0}')
+    # print(f'u_col_at_t0_new:{u_col_at_t0_new}\n\n')
+
+    u_col_all = build_matrix_from_vector(u_col_at_t0_new, t_schedule)
+    Q_col_all = build_matrix_from_vector(Q_col_at_t0_new, t_schedule)
+
+
+    # print(f'u_col_all_adj: {u_col_all_adj}')
+    # print(f'u_col_all: {u_col_all}')
+
+
 
     # Column Dispersion schedule:
     # Different matrices for each comp, because diff Pe's for each comp
@@ -519,9 +655,11 @@ def SMB(SMB_inputs):
             coef_0[i,:] = ( D_col_all[j][i,:]/dx**2 ) - ( u_col_all[i,:]/dx ) # coefficeint of i-1
             coef_1[i,:] = ( u_col_all[i,:]/dx ) - (2*D_col_all[j][i,:]/(dx**2))# coefficeint of i
             coef_2[i,:] = (D_col_all[j][i,:]/(dx**2))    # coefficeint of i+1
+
         coef_0_all.append(coef_0)
         coef_1_all.append(coef_1)
         coef_2_all.append(coef_2)
+
     # print(f'coef_0_all: {np.shape(coef_0_all)}')
     # All shedules:
     # For each shceudle, rows => col idx, columns => Time idx
@@ -540,9 +678,57 @@ def SMB(SMB_inputs):
     # print('Q_col_all:\n',Q_col_all)
     # print('A_col:\n',A_col)
     # print('u_col_all:\n',u_col_all)
+    def get_column_idx_for_bae(t, bay, t_schedule, Bay_matrix):
+        """
+        Returns the column ID (i.e. row index of Bay_matrix) where 'bae' is located at time 't'.
+
+        Parameters:
+        - t : float
+            Current time
+        - bae : int
+            Bay number (1-based)
+        - t_schedule : list of float
+            Time slice boundaries; length should be one more than number of time steps
+        - Bay_matrix : 2D array-like
+            Shape: (n_columns, n_time_slices)
+            Rows = column IDs (0-based)
+            Columns = time slices
+            Entries = bay numbers (1-based)
+
+        Returns:
+        - column_idx : int
+            The column ID (row index) where the bay is found at time t.
+            Returns None if not found.
+        """
+        import numpy as np
+        # Bay_matrix = np.array(Bay_matrix)
+
+        # Find time slice index
+        time_idx = None
+        for j in range(len(t_schedule) - 1):
+            if t_schedule[j] <= t < t_schedule[j+1]:
+                time_idx = j
+                # print(f'j: {j}')
+
+                break
+        else:
+            if t >= t_schedule[-1]:
+                time_idx = len(t_schedule) - 1
+
+        if time_idx is not None:
+            # Scan the time_idx column across all rows
+            for row_idx in range(Bay_matrix.shape[0]):
+                if Bay_matrix[row_idx, time_idx] == bay:
+                    # print(f'row_idx: {row_idx}')
+                    return row_idx  # This is the column ID
+
+        return None
 
 
-    def coeff_matrix_builder_UNC(t, Q_col_all, Q_pulse_all, dx, start, alpha, c, nx_col, comp_idx): # note that c_length must include nx_BC
+
+
+
+    def coeff_matrix_builder_UNC(t, Q_col_all, Q_pulse_all, dx, start, alpha, c, nx_col, comp_idx, Bay_matrix, subzone_set): # note that c_length must include nx_BC
 
         # Define the functions that call the appropriate schedule matrices:
         # Because all scheudels are of the same from, only one function is required
@@ -560,7 +746,7 @@ def SMB(SMB_inputs):
             # Where the 1st (0th) row and col are for c1
             # get_C(t, coef_0_all, k, comp_idx)
             # small_col_coeff[0,0], small_col_coeff[0,1] = get_X(t,coef_1,col_idx), get_X(t,coef_2,col_idx)
-            small_col_coeff[0,0], small_col_coeff[0,1] = get_C(t,coef_1_all,col_idx, comp_idx), get_C(t,coef_2_all,col_idx, comp_idx)
+            small_col_coeff[0,0], small_col_coeff[0,1] = get_C(t, coef_1_all,col_idx, comp_idx), get_C(t,coef_2_all,col_idx, comp_idx)
             # for c2:
             # small_col_coeff[1,0], small_col_coeff[1,1], small_col_coeff[1,2] = get_X(t,coef_0,col_idx), get_X(t,coef_1,col_idx), get_X(t,coef_2,col_idx)
             small_col_coeff[1,0], small_col_coeff[1,1], small_col_coeff[1,2] = get_C(t,coef_0_all,col_idx, comp_idx), get_C(t, coef_1_all, col_idx, comp_idx), get_C(t, coef_2_all,col_idx, comp_idx)
@@ -589,9 +775,10 @@ def SMB(SMB_inputs):
         # print('np.shape(larger_coeff_matrix)\n',np.shape(larger_coeff_matrix))
 
         # vector_add: vector that applies the boundary conditions to each boundary node
-        def vector_add(nx, c, start, comp_idx):
+        def vector_add(nx, c, start, comp_idx, Bay_matrix, subzone_set):
             vec_add = np.zeros(nx)
             c_BC = np.zeros(Ncol_num)
+            # print(f'start: {start}')
             # Indeceis for the boundary nodes are stored in "start"
             # Each boundary node is affected by the form:
             # c_BC = V1 * C_IN - V2 * c[i] + V3 * c[i+1]
@@ -604,56 +791,190 @@ def SMB(SMB_inputs):
             # C_IN is the weighted conc exiting the port facing the column entrance.
             # alpha , bata and gamma depend on the column vecolity and are thus time dependant
             # Instead of forming schedules for alpha , bata and gamma, we calculate them in-line
+            # for i in range(len(start)):
 
-            for i in range(len(start)):
-                #  start[i] => the node at the entrance to the ith col
-                # So start[3] is the node representing the 1st node in col 3
-
-                Q_1 = get_X(t, Q_col_all, i-1) # Vol_flow from previous column (which for column 0, is the last column in the chain)
-                Q_2 = get_X(t, Q_pulse_all, i) # Vol_flow injected IN port i
-
-                Q_out_port = get_X(t, Q_col_all, i) # Vol_flow OUT of port 0 (Also could have used Q_1 + Q_2)
+            for i, strt in enumerate(start):
+                bay = get_X(t, Bay_matrix, i)
+                found_subzone = False
+                # print(f'time: {t/60} min')
+                # print(f'col: {i}')
+                # print(f'bay: {bay}\n\n')
 
 
-                W1 = Q_1/Q_out_port # Weighted flowrate to column i
-                W2 = Q_2/Q_out_port # Weighted flowrate to column i
+                for sz, subzone in enumerate(subzone_set):
+                    if bay in subzone[1]:
+                        found_subzone = True
+                        feed_col_bays = subzone[0]
 
-                # Calcualte Weighted Concentration:
+                        # example for single bay case
+                        if len(feed_col_bays) == 1:
+                            # print(f'better to come in here!')
+                            # print(f'time: {t/60} min')
+                            # print(f'feed_col_bays[0]: {feed_col_bays[0]}')
+                            col_idx_feed = get_column_idx_for_bae(t, feed_col_bays[0], t_schedule, Bay_matrix)
+                            # print(f'col_idx_feed: {col_idx_feed}\n\n')
+                            # print(f'time: {t/60} min')
+                            # print(f'bay: {bay}')
+                            # print(f'col_idx_feed: {col_idx_feed}\n\n')
 
-                c_injection = get_C(t, Cj_pulse_all, i, comp_idx)
 
-                if Q_2 > 0: # Concentration in the next column is only affected for injection flows IN
-                    C_IN = W1 * c[i*nx_col-1] + W2 * c_injection
-                else:
-                    # C_IN = c[i*nx_col-1] # no change in conc during product collection
-                    C_IN = c[start[i]-1] # no change in conc during product collection
+                            Q_1 = get_X(t, Q_col_all, col_idx_feed)
+                            c_1 = c[((col_idx_feed + 1) * nx_per_col) - 1]
+
+                            Q_inj = get_X(t, Q_pulse_all, (col_idx_feed + 1)%Ncol_num)
+                            c_inj = get_C(t, Cj_pulse_all, (col_idx_feed + 1)%Ncol_num, comp_idx)
+
+                            Q_previous = [Q_1, Q_inj]
+                            c_sum = [c_1, c_inj]
+
+                            
+                            Q_sum = sum(Q_previous)
+
+                            if Q_inj > 0:
+                                c_sum = [(q / Q_sum) * c for q, c in zip(Q_previous, c_sum)]
+                                C_IN = sum(c_sum)
+                            else:
+                                C_IN = c_1
+                            
+                           
+
+                            u = get_X(t, u_col_all, i)
+                            
+                            # n_current_sub_zone = int(len(subzone[1]))
+
+                        
+                            # print(f'time: {t/60} min')
+                            # print(f'coming from: col: {col_idx_feed} in bay: {feed_col_bays[0]}')
+                            # print(f'going to: col: {i} in bay: {bay}')
+                            # print(f'Q_previous: {Q_previous} col {col_idx_feed} [flowrate, desorbent_flow]')
+                            # print(f'c_sum: {c_sum}\n\n')
+                            # print(f'------------------')
+                            # print(f'n_current_sub_zone: {len(subzone[1])}')
+                            # print(f'Q before split: {Q_sum} cm3/s')
+                            # print(f'C_IN: {C_IN}')
+                            # print(f'Q (in col {i}) after split: {-1*u*A_col*0.56} cm3/s\n\n')
+
+                        elif len(feed_col_bays) > 1:  # if that subzone has multiple feed bays
+                            # print(f'please dont come in here!')
+                            c_sum = []
+                            Q_previous = []
+                            # print(f'feed_col_bays: {feed_col_bays}')
+                            for fb, feed_bay in enumerate(feed_col_bays):  # for each feed bay
+                                #What is the number (ID) of the feed column of interest?:
+                                col_idx_feed = get_column_idx_for_bae(t, feed_bay, t_schedule, Bay_matrix)  # get the column index using bae
+                                # Use the column label to get the flowrate of the col
+                                # print(f'time: {t/60} min')
+                                # print(f'bay:{bay}')
+                                # print(f'col_idx_feed: {col_idx_feed}\n\n')
+                                Q_1 = get_X(t, Q_col_all, col_idx_feed)
+                                # Again use the col_idx_feed; to get the concentration out of that column
+                                c_1 = c[(col_idx_feed + 1) * nx_per_col - 1]
+
+                                # Store this information
+                                Q_previous.append(Q_1)
+                                c_sum.append(c_1)
+
+                                # Is there any flow event (F,R,X,D) happening after the 3 columns in the preceding feed bay
+                                # if so, that information will be in the schedule matrix at the row corresponding to
+                                # the col that is (one) position ahead of the last in the feed_bay set
+
+                                if fb == len(feed_col_bays)-1:
+                                    col_idx_ahead = (col_idx_feed + 1) % Ncol_num 
+                                    # print(f'inj schedule from: {col_idx_ahead}')
+                                    Q_inj = get_X(t, Q_pulse_all, col_idx_ahead)
+                                    c_inj = get_C(t, Cj_pulse_all, col_idx_ahead, comp_idx)
+                                    
+                                    # Store
+                                    if Q_inj > 0:
+                                        Q_previous.append(Q_inj)
+                                        c_sum.append(c_inj)
+
+                            # print(f'time: {t/60} min')
+                            # print(f'coming from: col: {col_idx_feed} in bay:{feed_bay}')
+                            # print(f'going to: col: {i} in bay: {bay}')
+                            # print(f'Q_previous: {Q_previous} [col {col_idx_feed} flowrate, desorbent]')
+                            # print(f'c_sum: {c_sum} [conc out upstream cols, conc from #flow_event]')
+                            # print(f'--------------------')
+
+                            # print(f'Q_previous: {Q_previous}')
+
+                            Q_sum = np.sum(Q_previous)
+
+                             
+                            weights = Q_previous / Q_sum
+                            c_add_them_up = weights * c_sum
+                            # print(f'Q_sum: {Q_sum} cm3/s')
+                            # print(f'weights: {weights}')
+                            # print(f'c_sum: {c_sum}, [perv cols, cinj]')   
+                            # print(f'c_add_them_up: {c_add_them_up}')
+                            # print(f'--------------------\n\n')
+
+                            C_IN = np.sum(c_add_them_up)
+                            
+
+
+                            n_current_sub_zone = len(subzone[1])
+
+                            u = get_X(t, u_col_all, i)
+
+                            # print(f'Q before manifold: {Q_sum} cm3/s')
+                            # print(f'Q (in col {i}) after manifold: {-1*u*A_col*0.56} cm3/s\n\n')
+
+                        break  # done once subzone match is found
+
+                if found_subzone ==  False:
+      
+                    Q_1 = get_X(t, Q_col_all, i-1)
+                    Q_2 = get_X(t, Q_pulse_all, i)
+                    W1 = Q_1 / (Q_1 + Q_2)
+                    W2 = Q_2 / (Q_1 + Q_2)
+
+                    u = get_X(t, u_col_all, i)
+                    c_injection = get_C(t, Cj_pulse_all, i, comp_idx)
+
+
+                    if Q_2 > 0:
+                        C_IN = W1 * c[strt - 1] + W2 * c_injection
+                    else:
+                        C_IN = c[strt - 1]
+
+                    # print(f'time: {t/60} min')
+                    # print(f'From column: {i-1} in bay: {get_X(t, Bay_matrix, i-1)}')
+                    # print(f'To column: {i}, in bay {bay}')
+                    # print(f'[{Q_1}, {Q_2}]: [col {i} flowrate, feed/raff]\n\n') # get the column index using bae
+
 
                 # Calcualte alpha, bata and gamma:
-                # Da = get_X(t, D_col_all, i)
+                
                 Da = get_C(t, D_col_all, i, comp_idx)
-                u =  get_X(t, u_col_all, i)
                 beta = 1 / alpha
                 gamma = 1 - 3 * Da / (2 * u * dx)
 
                 ##
-                R1 = ((beta * alpha) / gamma)
+                # R1 = ((beta * alpha) / gamma)
+                R1 = ((beta *alpha) / gamma)
                 R2 = ((2 * Da / (u * dx)) / gamma)
                 R3 = ((Da / (2 * u * dx)) / gamma)
                 ##
 
                 # Calcualte the BC effects:
-                j = start[i]
-                c_BC[i] = R1 * C_IN - R2 * c[j] + R3 * c[j+1] # the boundary concentration for that node
-
+                
+                c_BC[i] = R1 * C_IN - R2 * c[strt] + R3 * c[strt+1] # the boundary concentration for that node
+                
             # print('c_BC:\n', c_BC)
 
             for k in range(len(c_BC)):
                 # vec_add[start[k]]  = get_X(t,coef_0,k)*c_BC[k]
+                # print(vec_add)
                 vec_add[start[k]]  = get_C(t, coef_0_all, k, comp_idx)*c_BC[k]
+                # print(f'vec_add: {vec_add}')
 
             return vec_add
             # print('np.shape(vect_add)\n',np.shape(vec_add(nx, c, start)))
-        return component_coeff_matrix, vector_add(nx, c, start, comp_idx)
+
+        return component_coeff_matrix, vector_add(nx, c, start, comp_idx, Bay_matrix, subzone_set)
+
+
     
     def matrix_builder(M):
         """
@@ -682,165 +1003,6 @@ def SMB(SMB_inputs):
 
         return M0
 
-    def coeff_matrix_builder_CUP(t, Q_col_all, Q_pulse_all, dx, start_CUP, alpha, c, nx_col, IDX): # note that c_length must include nx_BC
-
-        # Define the functions that call the appropriate schedule matrices:
-
-        # Because all scheudels are of the same from, only one function is required
-        # Calling volumetric flows:
-        get_X = lambda t, X_schedule, col_idx: next((X_schedule[col_idx][j] for j in range(len(X_schedule[col_idx])) if t_start_inject_all[col_idx][j] <= t < t_start_inject_all[col_idx][j] + t_index), 1/100000000)
-        get_C = lambda t, C_schedule, col_idx, comp_idx: next((C_schedule[comp_idx][col_idx][j] for j in range(len(C_schedule[comp_idx][col_idx])) if t_start_inject_all[col_idx][j] <= t < t_start_inject_all[col_idx][j] + t_index), 1/100000000)
-
-
-        # 1. From coefficent "small" matrix for movement of single comp through single col
-        # 2. Form  "large" coefficent matrix for movement through one all cols
-        # 3. The large  coefficent matrix for each comp will then be combined into Final Matrix
-
-        # 1.
-        def small_col_matrix(nx_col, col_idx, comp_idx):
-
-        # Initialize small_col_coeff ('small' = for 1 col)
-            small_col_coeff = np.zeros((int(nx_col),int(nx_col))) # (5,5)
-
-            # Where the 1st (0th) row and col are for c1
-            # get_C(t, coef_0_all, k, comp_idx)
-            # small_col_coeff[0,0], small_col_coeff[0,1] = get_X(t,coef_1,col_idx), get_X(t,coef_2,col_idx)
-            small_col_coeff[0,0], small_col_coeff[0,1] = get_C(t,coef_1_all, col_idx, comp_idx), get_C(t,coef_2_all,col_idx, comp_idx)
-            # for c2:
-            # small_col_coeff[1,0], small_col_coeff[1,1], small_col_coeff[1,2] = get_X(t,coef_0,col_idx), get_X(t,coef_1,col_idx), get_X(t,coef_2,col_idx)
-            small_col_coeff[1,0], small_col_coeff[1,1], small_col_coeff[1,2] = get_C(t,coef_0_all,col_idx, comp_idx), get_C(t, coef_1_all, col_idx, comp_idx), get_C(t, coef_2_all,col_idx, comp_idx)
-
-            for i in range(2,nx_col): # from (3rd) row i=2 onwards
-                # np.roll the row entries from the previous row, for all the next rows
-                new_row = np.roll(small_col_coeff[i-1,:],1)
-                small_col_coeff[i:] = new_row
-
-            small_col_coeff[-1,0] = 0
-            small_col_coeff[-1,-1] = small_col_coeff[-1,-1] +  get_C(t,coef_2_all,col_idx, comp_idx) # coef_1 + coef_2 account for rolling boundary
-            
-            return small_col_coeff
-
-        # 2. Func to Build Large Matrix
-
-
-
-
-            # vector_add: vector that applies the boundary conditions to each boundary node
-        def vector_add(nx, c, start):
-            vec_add = np.zeros(nx*num_comp)
-            c_BC = np.zeros(nx*num_comp)
-
-            # Indeceis for the boundary nodes are stored in "start"
-            # Each boundary node is affected by the form:
-            # c_BC = V1 * C_IN - V2 * c[i] + V3 * c[i+1]
-
-            # R1 = ((beta * alpha) / gamma)
-            # R2 = ((2 * Da / (u * dx)) / gamma)
-            # R3 = ((Da / (2 * u * dx)) / gamma)
-
-            # Where:
-            # C_IN is the weighted conc exiting the port facing the column entrance.
-            # alpha , bata and gamma depend on the column vecolity and are thus time dependant
-            # Instead of forming schedules for alpha , bata and gamma, we calculate them in-line
-
-            for i in range(len(start)):
-                #k = i%len(start) # Recounts columns for B
-                Q_1 = get_X(t, Q_col_all, i-1) # Vol_flow from previous column (which for column 0, is the last column in the chain)
-                Q_2 = get_X(t, Q_pulse_all, i) # Vol_flow injected IN port i
-
-                Q_out_port = get_X(t, Q_col_all, i) # Vol_flow OUT of port 0 (Also could have used Q_1 + Q_2)
-
-
-                W1 = Q_1/Q_out_port # Weighted flowrate to column i
-                W2 = Q_2/Q_out_port # Weighted flowrate to column i
-
-                # Calcualte Weighted Concentration:
-                # Identifiers:
-                A = IDX[0]
-                B = IDX[1]
-
-                # C_IN_A = W1 * c[A + i*nx_col-1] + W2 * get_X(t, C_pulse_all_A, i) # c[-1] conc out the last col
-                # C_IN_B = W1 * c[B + i*nx_col-1] + W2 * get_X(t, C_pulse_all_B, i) # c[-1] conc out the last col
-
-                C_IN_A = W1 * c[A + i*nx_col-1] + W2 * get_X(t, Cj_pulse_all[0], i) # c[-1] conc out the last col
-                C_IN_B = W1 * c[B + i*nx_col-1] + W2 * get_X(t, Cj_pulse_all[1], i) # c[-1] conc out the last col
-
-
-                # All componenets expirence same liquid veclocity...
-                u =  get_X(t, u_col_all, i)
-                # print(f"u: {np.shape(u)}")
-                # print(f'u: {u}')
-                
-                # All components have respective dispersions....
-                # Calcualte alpha, bata and gamma:
-                Da_A = get_C(t, D_col_all, i, comp_idx=0)
-                beta_A = 1 / alpha
-                gamma_A = 1 - 3 * Da_A / (2 * u * dx)
-                ##
-                R1_A = ((beta_A * alpha) / gamma_A)
-                R2_A = ((2 * Da_A / (u * dx)) / gamma_A)
-                R3_A = ((Da_A / (2 * u * dx)) / gamma_A)
-                # print(f"R1: {np.shape(R1)}")
-                # print(f"R3: {np.shape(R3)}")
-
-                # Calcualte alpha, bata and gamma:
-                Da_B = get_C(t, D_col_all, i, comp_idx=1)
-                beta_B = 1 / alpha
-                gamma_B = 1 - 3 * Da_B / (2 * u * dx)
-                ##
-                R1_B = ((beta_B * alpha) / gamma_B)
-                R2_B = ((2 * Da_B / (u * dx)) / gamma_B)
-                R3_B = ((Da_B / (2 * u * dx)) / gamma_B)
-                # print(f"R1: {np.shape(R1)}")
-                # print(f"R3: {np.shape(R3)}")
-
-                ##
-
-                # Calcualte the BC effects:
-                j = start[i]
-                # -------------------------
-                c_BC[i] = R1_A * C_IN_A - R2_A * c[j] + R3_A * c[j+1] # the boundary concentration for that node
-                c_BC[B + i] = R1_B * C_IN_B - R2_B * c[B+j] + R3_B * c[B+j+1]
-            # print('c_BC:\n', c_BC)
-            # print('c_BC.shape:\n', c_BC.shape)
-
-            for k in range(len(start)):
-                vec_add[start[k]]  = get_X(t,coef_0_all[0],k) * c_BC[k]
-                vec_add[B + start[k]]  = get_X(t,coef_0_all[1],k) * c_BC[B+ k]
-
-            return vec_add
-        
-        # --------- Setting up the Variables
-
-        # 3. Generate and Store the Large Matrices
-        # Storage Space:
-        # NOTE: Assuming all components have the same Dispersion coefficients,
-        # all components will have the same large_col_matrix
-        # Add the cols
-        # Inital final matrix:
-        #  nx -> all the nodes in the system
-        component_coeff_matrix_A = np.zeros((nx,nx)) 
-        component_coeff_matrix_B = np.zeros((nx,nx))
-        
-
-        for col_idx in range(Ncol_num): # for each column
-            srt = col_idx*nx_col
-            end = (col_idx+1)*nx_col
-
-            component_coeff_matrix_A[srt:end, srt:end] = small_col_matrix(nx_col,col_idx, comp_idx=0)
-            component_coeff_matrix_B[srt:end, srt:end] = small_col_matrix(nx_col,col_idx, comp_idx=1)
-
-        component_coeff_matrix_all = [component_coeff_matrix_A, component_coeff_matrix_B]
-        # print('np.shape(larger_coeff_matrix)\n',np.shape(larger_coeff_matrix))
-
-
-
-
-        # ---------------------- Evaluate
-        final_matrix = matrix_builder(component_coeff_matrix_all)
-        final_vector = vector_add(nx, c, start_CUP)
-
-        return final_matrix, final_vector
 
     # ###########################################################################################
 
@@ -873,7 +1035,7 @@ def SMB(SMB_inputs):
         MT = mass_transfer(kav_params_all[comp_idx], isotherm, q)
         #print('MT:\n', MT)
 
-        coeff_matrix, vec_add = coeff_matrix_builder_UNC(t, Q_col_all, Q_pulse_all, dx, start, alpha, c, nx_col, comp_idx)
+        coeff_matrix, vec_add = coeff_matrix_builder_UNC(t, Q_col_all, Q_pulse_all, dx, start, alpha, c, nx_col, comp_idx, Bay_matrix, subzone_set)
         # print('coeff_matrix:\n',coeff_matrix)
         # print('vec_add:\n',vec_add)
         dc_dt = coeff_matrix @ c + vec_add - F * MT
@@ -882,6 +1044,7 @@ def SMB(SMB_inputs):
         return np.concatenate([dc_dt, dq_dt])
 
     # ##################################################################################
+
 
     def mod2(t, v):
 
@@ -906,8 +1069,8 @@ def SMB(SMB_inputs):
         # coeff_matrix, vec_add = coeff_matrix_builder_CUP(t, Q_col_all, Q_pulse_all, dx, start, alpha, c, nx_col, IDX)
         # print('coeff_matrix:\n',coeff_matrix)
         # print('vec_add:\n',vec_add)
-        coeff_matrix_A, vec_add_A = coeff_matrix_builder_UNC(t, Q_col_all, Q_pulse_all, dx, start, alpha, c[0:nx], nx_col, 0)
-        coeff_matrix_B, vec_add_B = coeff_matrix_builder_UNC(t, Q_col_all, Q_pulse_all, dx, start, alpha, c[nx:2*nx], nx_col, 1)
+        coeff_matrix_A, vec_add_A = coeff_matrix_builder_UNC(t, Q_col_all, Q_pulse_all, dx, start, alpha, c[0:nx], nx_col, 0, Bay_matrix, subzone_set)
+        coeff_matrix_B, vec_add_B = coeff_matrix_builder_UNC(t, Q_col_all, Q_pulse_all, dx, start, alpha, c[nx:2*nx], nx_col, 1, Bay_matrix, subzone_set)
 
         coeff_matrix  = matrix_builder([coeff_matrix_A, coeff_matrix_B])
         vec_add = np.concatenate([vec_add_A, vec_add_B])
@@ -1238,7 +1401,10 @@ def SMB(SMB_inputs):
         t_idx_all_Q = []
 
         P_mprofile = []
-        P_cprofile = []
+        P_cprofile = []        
+        P_mprofile_smooth = []
+        P_cprofile_smooth = []
+
         P_vflow = [[] for _ in range(num_comp)]
 
 
@@ -1266,15 +1432,16 @@ def SMB(SMB_inputs):
                 # Search the ODE matrix
                 C_R1_add = np.array(get_X_row( y_odes[i][:nx,:], row_start_matrix-1, jump_matrix, t_idx_all_Q[i])) # exclude q
                 C_R2_add = np.array(get_X_row( y_odes[i][:nx,:], row_start_matrix, jump_matrix, t_idx_all_Q[i]))
-                # Search the Flowrate Schedule
-                P_vflows_1_add = np.array(get_X_row(Q_all_flows[i], row_start_schedule-1, jump_schedule, t_idx_all_Q[i]))
-                P_vflows_2_add = np.array(get_X_row(Q_all_flows[i], row_start_schedule, jump_schedule, t_idx_all_Q[i]))
+                # # Search the Flowrate Schedule
+                # P_vflows_1_add = np.array(get_X_row(Q_all_flows[i], row_start_schedule-1, jump_schedule, t_idx_all_Q[i]))
+                # P_vflows_2_add = np.array(get_X_row(Q_all_flows[i], row_start_schedule, jump_schedule, t_idx_all_Q[i]))
 
             elif iso_type == 'CUP':
+
                 C_R1_add = np.array(get_X_row( y_odes[i][:nx,:], row_start_matrix-1, jump_matrix, t_idx_all)) # exclude q
                 C_R2_add = np.array(get_X_row( y_odes[i][:nx,:], row_start_matrix, jump_matrix, t_idx_all))
-                P_vflows_1_add = np.array(get_X_row(Q_all_flows, row_start_schedule-1, jump_schedule, t_idx_all_Q))
-                P_vflows_2_add = np.array(get_X_row(Q_all_flows, row_start_schedule, jump_schedule, t_idx_all_Q))
+                # P_vflows_1_add = np.array(get_X_row(Q_all_flows, row_start_schedule-1, jump_schedule, t_idx_all_Q))
+                # P_vflows_2_add = np.array(get_X_row(Q_all_flows, row_start_schedule, jump_schedule, t_idx_all_Q))
 
 
             # Raffinate Massflow Curves
@@ -1285,7 +1452,7 @@ def SMB(SMB_inputs):
             # print('np.shape(P_vflows_1_add):\n', np.shape(P_vflows_1_add))
 
             # Assuming only conc change accross port when (i) adding feed or (ii) desorbent
-            C_R2_add = C_R1_add
+            C_R1_add = C_R2_add # ??
             # P_mflows_1_add = C_R1_add * P_vflows_1_add  # (g/cm^3 * cm^3/s)  =>  g/s
             # P_mflows_2_add = C_R2_add * P_vflows_2_add  # g/s
 
@@ -1301,16 +1468,24 @@ def SMB(SMB_inputs):
 
 
             # Flow profiles:
-            # Concentration
-            P_cprofile.append(C_R1_add) # g/s
-            # Mass g/s
-            P_mprofile.append(P_mflows_1_add ) #- P_mflows_2_add) # g/s
+
             # Volumetric cm^3/s
             P_vflow[i] = P_vflows_1_add #- P_vflows_2_add # cm^3
 
             # Integrate
+            # Define rolling mean function
+            def rolling_mean(y, window_size):
+                return np.convolve(y, np.ones(window_size)/window_size, mode='same')
+
+            # Apply rolling mean before integration
+            window_size = 25  # Try 5, 7, 9 — experiment depending on how spiky the data is
+
+            P_mflows_1_add_smooth = rolling_mean(P_mflows_1_add, window_size)
+            C_R1_add_smooth =  rolling_mean(C_R1_add, window_size)
+            # P_mflows_2_add_smooth = rolling_mean(P_mflows_2_add, window_size)
+
             if iso_type == 'UNC':
-                m_P_add_1 = integrate.simpson(P_mflows_1_add, x=t_odes[i]) # g
+                m_P_add_1 = integrate.simpson(P_mflows_1, x=t_odes[i]) # g
                 # m_P_add_2 = integrate.simpson(P_mflows_2_add, x=t_odes[i]) # g
 
             if iso_type == 'CUP':
@@ -1320,11 +1495,18 @@ def SMB(SMB_inputs):
 
 
             # Storage
+            # Concentration
+            P_cprofile.append(C_R1_add) # g/s
+            P_cprofile_smooth.append(C_R1_add_smooth) # g/s
+            # Mass g/s
+            P_mprofile.append(P_mflows_1_add) #- P_mflows_2_add) # g/s
+            P_mprofile_smooth.append(P_mflows_1_add_smooth) #- P_mflows_2_add) # g/s
+
             C_P1.append(C_R1_add)  # Concentration Profiles
             C_P2.append(C_R2_add)
 
             P_vflows_1.append(P_vflows_1_add)
-            P_vflows_2.append(P_vflows_2_add)
+            # P_vflows_2.append(P_vflows_2_add)
 
             P_mflows_1.append(P_mflows_1_add)
             # P_mflows_2.append(P_mflows_2_add)
@@ -1436,7 +1618,7 @@ def SMB(SMB_inputs):
     Model_Acc = model_acc(y_matrices, V_col_total, e, num_comp)
 
     # ------------------------------------------
-    Error = Model_Acc - Expected_Acc
+    Error = abs(Model_Acc) - abs(Expected_Acc)
 
     Error_percent = (sum(Error)/sum(Expected_Acc))*100
     # ------------------------------------------
@@ -1638,6 +1820,7 @@ def fixed_m1_and_m4_lhq_sample_mj(m1, m4, m_min, m_max, n_samples, n_m2_div, dif
     # Initialize the array to store the samples
     samples = np.zeros((n_samples*n_m2_div, 5))
     samples[:,0] = np.ones(n_samples*n_m2_div)*m_max
+    
     samples[:,-2] = np.ones(n_samples*n_m2_div)*2
     # print(f'samples: {samples}')
     nn = int(np.round(n_samples/2))
@@ -1658,7 +1841,7 @@ def fixed_m1_and_m4_lhq_sample_mj(m1, m4, m_min, m_max, n_samples, n_m2_div, dif
         samples[i, 1] = m2
 
         if i == 0:
-          m2 = 3.34
+          m2 = 0.8
           m3 = m2 + 0.1
           samples[i, 1] = m2
           samples[i, 2] = m3  # apex of trianlge
@@ -1666,13 +1849,14 @@ def fixed_m1_and_m4_lhq_sample_mj(m1, m4, m_min, m_max, n_samples, n_m2_div, dif
           m3 = np.random.uniform(m2, m_max)
 
         samples[i, 2] = m3
-        samples[i,-1] = 0.3
+        samples[i, -2] = m2 - 0.3
+        samples[i,-1] = 0.6
     return samples
 
 
 # ---------- Objective Function
 
-def mj_to_Qj(mj):
+def mj_to_Qj(mj, t_index_min):
   '''
   Converts flowrate ratios to internal flowrates - flowrates within columns
   '''
@@ -1705,7 +1889,7 @@ def obj_con(X):
 
       print(f'[m1, m2, m3, m4]: [{m1}, {m2}, {m3}, {m4}], t_index: {t_index_min}')
 
-      Q_I, Q_II, Q_III, Q_IV = mj_to_Qj(m1), mj_to_Qj(m2), mj_to_Qj(m3), mj_to_Qj(m4)
+      Q_I, Q_II, Q_III, Q_IV = mj_to_Qj(m1, t_index_min), mj_to_Qj(m2, t_index_min), mj_to_Qj(m3, t_index_min), mj_to_Qj(m4, t_index_min)
       Q_internal = np.array([Q_I, Q_II, Q_III, Q_IV]) # cm^3/s
       Qfeed = Q_III - Q_II
       Qraffinate = Q_III - Q_IV
@@ -1755,7 +1939,7 @@ def obj_con(X):
           m1, m2, m3, m4, t_index_min = float(X[i,0]), float(X[i,1]), float(X[i,2]), float(X[i,3]), float(X[i,4])*t_reff
 
           print(f'[m1, m2, m3, m4]: [{m1}, {m2}, {m3}, {m4}], t_index: {t_index_min}')
-          Q_I, Q_II, Q_III, Q_IV = mj_to_Qj(m1), mj_to_Qj(m2), mj_to_Qj(m3), mj_to_Qj(m4)
+          Q_I, Q_II, Q_III, Q_IV = mj_to_Qj(m1, t_index_min), mj_to_Qj(m2, t_index_min), mj_to_Qj(m3, t_index_min), mj_to_Qj(m4, t_index_min) 
           Q_internal = np.array([Q_I, Q_II, Q_III, Q_IV]) # cm^3/s
           # Calculate and display external flowrates too
           Qfeed = Q_III - Q_II
@@ -2322,7 +2506,7 @@ def constrained_BO(optimization_budget, bounds, initial_guess, all_initial_input
         c1_vals  = np.vstack([c1_vals.reshape(-1,1), c_new[0]])
         c2_vals  = np.vstack([c2_vals.reshape(-1,1), c_new[1]])
 
-        print(f"Gen {gen+1} Status:\n | Sampled Inputs:{x_new[:-1]}, {x_new[-1]*t_reff} [m1, m2, m3, m4, t_index]|\n Outputs: f1: {f_new[0]*100}%, f2: {f_new[1]*100} % | GPur, FPur: {c_new[0]*100}%, {c_new[1]*100}%")
+        print(f"Gen {gen+1} Status:\n | Sampled Inputs:{x_new[:-1]}, {x_new[-1]*t_reff} [m1, m2, m3, m4, t_index]|\n Outputs: G_f1: {f_new[0]*100} %, F_f2: {f_new[1]*100} % | GPur, FPur: {c_new[0]*100}%, {c_new[1]*100}%")
 
     return population_all, f1_vals, f2_vals, c1_vals , c2_vals , all_inputs
 
@@ -2341,19 +2525,62 @@ def constrained_BO(optimization_budget, bounds, initial_guess, all_initial_input
 Names = ["Borate", "HCl"]#, 'C', 'D']#, "C"]#, "D", "E", "F"]
 color = ["red", "green"]#, "purple", "brown"]#, "b"]#, "r", "purple", "brown"]
 num_comp = len(Names) # Number of components
-e = 0.40         # bed voidage
+e = 0.56        # bed voidage
 Bm = 300
 
 # Column Dimensions
 
 # How many columns in each Zone?
 
-Z1, Z2, Z3, Z4 = 1,3,3,1 # *3 for smb config
+Z1, Z2, Z3, Z4 = 6,6,6,6 # *3 for smb config
 zone_config = np.array([Z1, Z2, Z3, Z4])
 nnn = Z1 + Z2 + Z3 + Z4
+# sub_zone information - EASIER TO FILL IN IF YOU DRAW THE SYSTEM
+# -----------------------------------------------------
+# sub_zone_j = [[feed_bays], [reciveinig_bays]]
+# -----------------------------------------------------
+# feed_bay = the bay(s) that feed the set of reciveing bays in "reciveinig_bays" e.g. [2] or [2,3,4] 
+# reciveinig_bays = the set of bayes that recieve material from the feed bay
 
-L = 70 # cm # Length of one column
-d_col = 8.66 # cm # column internal diameter
+"""
+sub-zones are counted from the feed onwards i.e. sub_zone_1 is the first subzone "seen" by the feed stream. 
+Bays are counted in the same way, starting from 1 rather than 0
+"""
+# Borate-HCL
+sub_zone_1 = [[22, 23, 24], [1]] # ---> in subzone 1, there are 2 columns stationed at bay 3 and 4. Bay 3 and 4 recieve feed from bay 1"""
+
+sub_zone_2 = [[3], [4,5,6]] 
+sub_zone_3 = [[4,5,6], [7]] 
+
+sub_zone_4 = [[9], [10, 11, 12]] 
+sub_zone_5 = [[10,11,12], [13]]
+
+sub_zone_6 = [[15],[16, 17, 18]]
+sub_zone_7 = [[16, 17, 18],[19]]
+
+sub_zone_8 = [[21],[22, 23, 24]]
+
+# # PACK:
+subzone_set = [sub_zone_1,sub_zone_2,sub_zone_3,sub_zone_4,sub_zone_5,sub_zone_6, sub_zone_7, sub_zone_8]
+# subzone_set = []
+
+# Glucose Fructose
+# sub_zone_1 = [[3], [4,5,6]] # ---> in subzone 1, there are 2 columns stationed at bay 3 and 4. Bay 3 and 4 recieve feed from bay 1"""
+# sub_zone_2 = [[4,5,6], [7,8,9]] 
+
+# sub_zone_3 = [[7,8,9], [10,11,12]] 
+# sub_zone_4 = [[10,11,12], [13]]
+
+# sub_zone_5 = [[15],[16, 17, 18]]
+# sub_zone_6 = [[16, 17, 18],[19, 20, 21]]
+# sub_zone_7 = [[19, 20, 21], [22, 23, 24]]
+# sub_zone_8 = [[22, 23, 24], [1]]
+
+# # PACK:
+# subzone_set = [sub_zone_1,sub_zone_2,sub_zone_3,sub_zone_4,sub_zone_5,sub_zone_6,sub_zone_7,sub_zone_8]
+
+L = 60 # cm # Length of one column
+d_col = 5 # cm # column internal diameter
 
 # Calculate the radius
 r_col = d_col / 2
@@ -2362,13 +2589,14 @@ A_col = np.pi * (r_col ** 2) # cm^2
 V_col = A_col*L # cm^3
 # Dimensions of the tubing and from each column:
 # Assuming the pipe diameter is 20% of the column diameter:
-d_in = 0.2 * d_col # cm
+d_in = 1 # cm
 nx_per_col = 15
 
 
 ################ Time Specs #################################################################################
-t_index_min = 6 # min # Index time # How long the pulse holds before swtiching
-n_num_cycles = 12    # Number of Cycles you want the SMB to run for
+t_index_min = 5      # min    # Index time # How long the pulse holds before swtiching
+n_num_cycles = None   # Number of Cycles you want the SMB to run for
+t_simulation_end = 12 # hrs
 ###############  FLOWRATES   #################################################################################
 
 # Jochen et al:
@@ -2379,8 +2607,8 @@ conv_fac = 0.1 # x10-7 m^3/s => cm^3/s
 # Q_internal = np.array([Q_I, Q_II, Q_III, Q_IV])
 
 # Other flowrates:
-Q_I, Q_II, Q_III, Q_IV = 70,  60.3, 69, 53 # L/h
-Q_internal = np.array([Q_I, Q_II, Q_III, Q_IV]) # L/h => cm^3/s
+Q_I, Q_II, Q_III, Q_IV = 11.8, 8.8, 10.6, 8.31 # L/h
+Q_internal = np.array([Q_I, Q_II, Q_III, Q_IV])/3.6 # L/h => cm^3/s
 
 
 
@@ -2411,63 +2639,37 @@ iso_type = "CUP"
 # Uncomment as necessary:
 
 
-parameter_sets = [
-                    {"C_feed": 0.001752},    # Borate g/cm^3
-                    {"C_feed": 0.009726}] #, # HCl g/cm^3
-
+parameter_sets = [  # Adjusted COncentrations (g/cm^3)
+                    {"C_feed": 0.003190078*1.4},   
+                    {"C_feed": 0.012222*0.8}] 
 # # UBK Linear Isotherm
-Da_all = np.array([3.892e-6, 2.99187705e-6]) 
-kav_params_all = np.array([[1.07122526], [1.98350338]])
-cusotom_isotherm_params_all = np.array([[2.40846686], [1.55994115]]) # [ [H_borate], [H_hcl] ]
-
+# Da_all = np.array([1.83e-15, 5.6-15]) 
+# kav_params_all = np.array([[0.395], [0.151]])
+# cusotom_isotherm_params_all = np.array([[3.63], [2.40]]) # [ [H_borate], [H_hcl] ]
 
 # # PCR Linear Isotherm
-# Da_all = np.array([5.77e-7, 2.3812e-6]) 
-# kav_params_all = np.array([[0.54026], [2.171826]])
-# cusotom_isotherm_params_all = np.array([[3.6124333], [2.4640415]]) # [ [H_borate], [H_hcl] ]
-
-# # UBK Coupled Langmuir Isotherm
-# Da_all = np.array([8.4800855e-6, 2.65331183e-6]) 
-# kav_params_all = np.array([[1.8647], [1.683276]])
-# cusotom_isotherm_params_all = np.array([[2.489017, 1.7129145], [1.51775429, 1.3031422]]) # [ [H_borate], [H_hcl] ]
-
-# PCR Coupled Langmuir Isotherm
-# Da_all = np.array([5.5746e-6, 9.9e-6]) 
-# kav_params_all = np.array([[0.59849], [2.291]])
-# cusotom_isotherm_params_all = np.array([[2.768037, 2.61624570], [2.42315394, 1.88643671]]) # [ [H_borate], [H_hcl] ]
-
+# Da_all = np.array([5.77e-17, 2.3812e-16]) 
+# kav_params_all = np.array([[0.215], [0.132]])
+# cusotom_isotherm_params_all = np.array([[3.93], [3.23]]) # [ [H_borate], [H_hcl] ]
 
 # ----------- ILLOVO FEED STREAM
-
-# parameter_sets = [
-#                     {"C_feed": 0.001752},    # Borate g/cm^3
-#                     {"C_feed": 0.009726}] #, # HCl g/cm^3
-
-# # UBK Linear Isotherm
-# Da_all = np.array([3.892e-6, 2.99187705e-6]) 
-# kav_params_all = np.array([[1.07122526], [1.98350338]])
-# cusotom_isotherm_params_all = np.array([[2.40846686], [1.55994115]]) # [ [H_borate], [H_hcl] ]
+# # UBK 
+Da_all = np.array([1.83e-15, 5.6-15]) 
+kav_params_all = np.array([[0.173], [0.151]])
+cusotom_isotherm_params_all = np.array([[4.13], [2.3]]) # [ [H_borate], [H_hcl] ]
 
 
-# # PCR Linear Isotherm
-# Da_all = np.array([5.77e-7, 2.3812e-6]) 
-# kav_params_all = np.array([[0.54026], [2.171826]])
-# cusotom_isotherm_params_all = np.array([[3.6124333], [2.4640415]]) # [ [H_borate], [H_hcl] ]
+# PCR 
+# Da_all = np.array([5.77e-17, 2.3812e-16]) 
+# kav_params_all = np.array([[0.170], [0.154]])
+# cusotom_isotherm_params_all = np.array([[2.13], [2.3]]) # [ [H_borate], [H_hcl] ]
 
 
-
-
-# Sub et al = np.array([[0.27], [0.53]])
-
-# # Langmuir, [Q_max, b]
-# cusotom_isotherm_params_all = np.array([[2.51181596, 1.95381598], [3.55314612, 1.65186647]])
-
-# Linear + Langmuir, [H, Q_max, b]
-# cusotom_isotherm_params_all = np.array([[1, 2.70420148, 1.82568197], [1, 3.4635919, 1.13858329]])
 
 #%%
 # STORE/INITALIZE SMB VAIRABLES
-SMB_inputs = [iso_type, Names, color, num_comp, nx_per_col, e, Da_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_params_all, kav_params_all]
+SMB_inputs = [iso_type, Names, color, num_comp, nx_per_col, e, Da_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_params_all, kav_params_all, subzone_set, t_simulation_end]
+# SMB_inputs = [iso_type, Names, color, num_comp, nx_per_col, e, Da_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_params_all, subzone_set]
 
 # ---------- SAMPLE RUN IF NECESSARY
 start_test = time.time()
@@ -2539,18 +2741,18 @@ if __name__ == "__main__":
     # - - - - -
     t_reff = 10 # min
     # - - - - -
-    Q_max = 40 # L/h
+    Q_max = 12 # L/h
     Q_min = 1 # L/h
 
 
     Q_max = Q_max/3.6 # L/h --> cm^3/s
     Q_min = Q_min/3.6 # L/h --> cm^3/s
     # - - - - -
-    m_max = 4
+    m_max = 1.5
     m_min = 0.27
     # - - - - -
     sampling_budget = 1 #
-    optimization_budget = 60
+    optimization_budget = 100 #100
     constraint_threshold = [0.995, 0.995] # [Glu, Fru]
     # - - - - -
 
@@ -2563,10 +2765,10 @@ if __name__ == "__main__":
     # - - - - -
     
     bounds = [  
-    (1.1, m_max), # m1
-    (1, m_max), # m2
-    (1.1, m_max), # m3
-    (1, 1.5), # m4
+    (0.6, m_max), # m1
+    (0.1, 0.7), # m2
+    (0.4, m_max), # m3
+    (0.05, m_max*0.5), # m4
     (0.2, 1) # t_index/t_reff (normalized)
     ]
 
@@ -2594,10 +2796,17 @@ if __name__ == "__main__":
 #%%
     # ----------- SAVE
     # Convert NumPy array to list
+    
+    # Description
+    
+    Description = [f"Description example: Optimizting the Borate HCl system for the sythetic solution on PCR.Ca. {optimization_budget} iterations, with no isotherom data. We placed a upper flowrate constraint of {Q_max} L/h. This is with the sub-zoning for bor-hcl"]
+    
+    
     # Inputs:
     all_inputs_list = all_inputs.tolist()
     # Outputs:
     data_dict = {
+        "Description": Description,
         "f1_vals": f1_vals.tolist(),
         "f2_vals": f2_vals.tolist(),
         "c1_vals": c1_vals.tolist(),
@@ -2607,326 +2816,16 @@ if __name__ == "__main__":
 
 
     # SAVE all_inputs to JSON:
-    with open("UBK-borhcl-lin-type1_60iter_all_inputs.json", "w") as f:
+    save_name_inputs = "ILLOVO_UBK-borhcl-type1_40iter_norm_config_all_inputs.json" # (1) "ILLOVO_UBK-borhcl-type1_40iter_norm_config_all_inputs.json", (2) "ILLOVO_UBK-borhcl-type1_40iter_subzone_config_all_inputs.json"
+    save_name_outputs = "ILLOVO_UBK-borhcl-type1_40iter_norm_config_all_outputs.json" # (1) "ILLOVO_UBK-borhcl-type1_40iter_norm_config_all_outputs.json", (2) "ILLOVO_UBK-borhcl-type1_40iter_subzone_config_all_outputs.json"
+    
+    with open(save_name_inputs, "w") as f:  
         json.dump(all_inputs_list, f, indent=4)
 
     # SAVE recoveries_and_purities to JSON:
-    with open("UBK-borhcl-lin-type1_60iter_all_outputs.json", "w") as f:
+    with open(save_name_outputs, "w") as f:
         json.dump(data_dict, f, indent=4)
 
 
 
-#         # -------- VISULAIZATIONS
-#     def load_inputs_outputs(inputs_path, outputs_path):
-#         """
-#         Loads all_inputs and output values (f1, f2, c1, c2) from saved JSON files and reconstructs them as numpy arrays.
-        
-#         Args:
-#             inputs_path (str): Path to 'all_inputs.json'.
-#             outputs_path (str): Path to 'all_outputs.json'.
-
-#         Returns:
-#             all_inputs (np.ndarray): Loaded inputs array.
-#             f1_vals (np.ndarray): Glucose recovery values.
-#             f2_vals (np.ndarray): Fructose recovery values.
-#             c1_vals (np.ndarray): Glucose purity values.
-#             c2_vals (np.ndarray): Fructose purity values.
-#         """
-#         # Load inputs
-#         with open(inputs_path, "r") as f:
-#             all_inputs_list = json.load(f)
-#         all_inputs = np.array(all_inputs_list)
-
-#         # Load outputs
-#         with open(outputs_path, "r") as f:
-#             data_dict = json.load(f)
-#         f1_vals = np.array(data_dict["f1_vals"])
-#         f2_vals = np.array(data_dict["f2_vals"])
-#         c1_vals = np.array(data_dict["c1_vals"])
-#         c2_vals = np.array(data_dict["c2_vals"])
-
-#         return all_inputs, f1_vals, f2_vals, c1_vals, c2_vals
-
-
-#     #%%
-
-#     #------------------------------------------------------- 1. Table
-
-#     def create_output_optimization_table(f1_vals, f2_vals, c1_vals, c2_vals, sampling_budget):
-#         # Create a data table with recoveries first
-#         data = np.column_stack((f1_vals*100, f2_vals*100, c1_vals*100, c2_vals*100))
-#         columns = ['Recovery F1 (%)', 'Recovery F2 (%)', 'Purity C1 (%)', 'Purity C2 (%)']
-#         rows = [f'Iter {i+1}' for i in range(len(c1_vals))]
-
-#         # Identify "star" entries (where f1_vals, f2_vals > 70 and c1_vals, c2_vals > 90)
-#         star_indices = np.where((f1_vals*100 > 50) & (f2_vals*100 > 50) & (c1_vals*100 > 80) & (c2_vals*100 > 80))[0]
-
-#         # Create figure
-#         fig, ax = plt.subplots(figsize=(8, len(c1_vals) * 0.4))
-#         ax.set_title("Optimization Iterations: Recovery & Purity Table", fontsize=12, fontweight='bold', pad=5)  # Reduced padding
-#         ax.axis('tight')
-#         ax.axis('off')
-
-#         # Create the table
-#         table = ax.table(cellText=data.round(2),
-#                         colLabels=columns,
-#                         rowLabels=rows,
-#                         cellLoc='center',
-#                         loc='center')
-
-#         # Adjust font size
-#         table.auto_set_font_size(False)
-#         table.set_fontsize(10)
-#         table.auto_set_column_width(col=list(range(len(columns))))
-
-#         # Apply colors
-#         for i in range(len(c1_vals)):
-#             for j in range(len(columns)):
-#                 cell = table[(i+1, j)]  # (row, column) -> +1 because row labels shift index
-#                 if i < sampling_budget:
-#                     cell.set_facecolor('lightgray')  # Grey out first 20 rows
-#                 if i in star_indices:
-#                     cell.set_facecolor('yellow')  # Highlight star entries in yellow
-
-#         # Save the figure as an image
-#         image_filename = "output_optimization_table.png"
-#         fig.savefig(image_filename, dpi=300, bbox_inches='tight')
-#         plt.show()
-
-#         return image_filename
-
-
-
-#     def calculate_flowrates(input_array, V_col, e):
-#         # Initialize the external flowrate array with the same shape as input_array
-#         internal_flowrate = np.zeros_like(input_array[:,:-1])
-#         external_flowrate = np.zeros_like(input_array)
-        
-#         # Reshape the last column to be a 2D array for broadcasting
-#         input_last_col = input_array[:, -1]
-        
-#         for i, t_index in enumerate(input_last_col):
-#             # Calculate the flow rates using the provided formula
-#             # Fill each row in external_flowrate:
-#             print(f't_index: {t_index}')
-#             internal_flowrate[i, :] = (input_array[i, :-1] * V_col * (1 - e) + V_col * e) / (t_index * 60)  # cm^3/s
-        
-
-#         internal_flowrate = internal_flowrate*3.6 # cm^3/s => L/h
-#         print(f'internal_flowrate: {internal_flowrate}')
-#         # Calculate Internal FLowtates:
-#         Qfeed = internal_flowrate[:,2] - internal_flowrate[:,1] # Q_III - Q_II 
-#         Qraffinate = internal_flowrate[:,2] - internal_flowrate[:,3] # Q_III - Q_IV 
-#         Qdesorbent = internal_flowrate[:,0] - internal_flowrate[:,3] # Q_I - Q_IV 
-#         Qextract = internal_flowrate[:,0] - internal_flowrate[:,1] # Q_I - Q_II
-
-#         external_flowrate[:,0] = Qfeed
-#         external_flowrate[:,1] = Qraffinate
-#         external_flowrate[:,2] = Qdesorbent
-#         external_flowrate[:,3] = Qextract
-#         external_flowrate[:,4] = input_last_col
-
-#         return internal_flowrate, external_flowrate
-
-#     def create_input_optimization_table(input_array, V_col, e, sampling_budget, f1_vals, f2_vals, c1_vals, c2_vals):
-#         # Calculate flow rates
-#         internal_flowrate, external_flowrate = calculate_flowrates(input_array, V_col, e)
-#         flowrates = external_flowrate
-#         # Create a data table with flow rates
-#         data = external_flowrate
-#         columns = ['Feed (L/h)', 'Raffinate (L/h)', 'Desorbent (L/h)', 'Extract(L/h)', 'Index Time (min)']
-#         rows = [f'Iter {i+1}' for i in range(len(input_array))]
-
-#         # Identify "star" entries (example condition: flowrate > threshold)
-#         star_indices = np.where((f1_vals*100 > 50) & (f2_vals*100 > 50) & (c1_vals*100 > 80) & (c2_vals*100 > 80))[0]
-#         # Create figure
-#         fig, ax = plt.subplots(figsize=(8, len(input_array) * 0.4))
-#         ax.set_title("Optimization Iterations: Flowrate Table", fontsize=12, fontweight='bold', pad=5)  # Reduced padding
-#         ax.axis('tight')
-#         ax.axis('off')
-
-#         # Create the table
-#         table = ax.table(cellText=data.round(3),
-#                         colLabels=columns,
-#                         rowLabels=rows,
-#                         cellLoc='center',
-#                         loc='center')
-
-#         # Adjust font size
-#         table.auto_set_font_size(False)
-#         table.set_fontsize(5)
-#         table.auto_set_column_width(col=list(range(len(columns))))
-
-#         # Apply colors
-#         for i in range(len(input_array)):
-#             for j in range(len(columns)):
-#                 cell = table[(i+1, j)]  # (row, column) -> +1 because row labels shift index
-#                 if i < sampling_budget:
-#                     cell.set_facecolor('lightgray')  # Grey out first sampling_budget rows
-#                 if i in star_indices:
-#                     cell.set_facecolor('yellow')  # Highlight star entries in yellow
-
-#         # Save the figure as an image
-#         image_filename = "input_optimization_table.png"
-#         fig.savefig(image_filename, dpi=300, bbox_inches='tight')
-#         plt.show()
-
-#         return image_filename
-
-
-
-
-
-#     #------------------------------------------------------- 2. Recovery Pareto
-
-#     def create_recovery_pareto_plot(f1_vals, f2_vals, zone_config, sampling_budget, optimization_budget):
-#         # Convert to percentages
-#         f1_vals_plot = f1_vals * 100
-#         f2_vals_plot = f2_vals * 100
-
-#         # Function to find Pareto front
-#         def find_pareto_front(f1, f2):
-#             pareto_mask = np.ones(len(f1), dtype=bool)  # Start with all points assumed Pareto-optimal
-
-#             for i in range(len(f1)):
-#                 if pareto_mask[i]:  # Check only if not already removed
-#                     pareto_mask[i] = not np.any((f1 >= f1[i]) & (f2 >= f2[i]) & ((f1 > f1[i]) | (f2 > f2[i])))
-
-#             return pareto_mask
-
-#         # Identify Pareto-optimal points
-#         pareto_mask = find_pareto_front(f1_vals_plot, f2_vals_plot)
-
-#         plt.figure(figsize=(10, 6))
-
-#         # Plot non-Pareto points in blue
-#         plt.scatter(f1_vals_plot[~pareto_mask], f2_vals_plot[~pareto_mask], c='blue', marker='o', label='Optimization Iterations')
-#         # Plot Pareto-optimal points in red
-#         plt.scatter(f1_vals_plot[pareto_mask], f2_vals_plot[pareto_mask], c='red', marker='o', label='Pareto Frontier')
-
-#         # Plot initial samples in grey
-#         # plt.scatter(f1_initial, f2_initial, c='grey', marker='o', label='Initial Samples')
-
-#         # Labels and formatting
-#         plt.title(f'Pareto Curve of Recoveries of Glu in Raff vs Fru in Ext\n Config: {zone_config} \nInitial Samples: {sampling_budget}, Opt Iterations: {optimization_budget}')
-#         plt.xlabel('Glucose Recovery in Raffinate (%)')
-#         plt.ylabel('Fructose Recovery in Extract (%)')
-#         plt.xlim(0, 100)
-#         plt.ylim(0, 100)
-#         plt.grid(True)
-#         plt.legend()
-
-#         # Save the figure as an image
-#         image_filename = "recovery_pareto.png"
-#         plt.savefig(image_filename, dpi=300, bbox_inches='tight')
-#         plt.show()
-
-#         return image_filename
-
-
-#     #------------------------------------------------------- 2. Purity Pareto
-
-#     def create_purity_pareto_plot(c1_vals, c2_vals, zone_config, sampling_budget, optimization_budget):
-#         # Convert to percentages
-#         c1_vals_plot = c1_vals * 100
-#         c2_vals_plot = c2_vals * 100
-
-#         # Function to find Pareto front
-#         def find_pareto_front(c1, c2):
-#             pareto_mask = np.ones(len(c1), dtype=bool)  # Start with all points assumed Pareto-optimal
-
-#             for i in range(len(c1)):
-#                 if pareto_mask[i]:  # Check only if not already removed
-#                     pareto_mask[i] = not np.any((c1 >= c1[i]) & (c2 >= c2[i]) & ((c1 > c1[i]) | (c2 > c2[i])))
-
-#             return pareto_mask
-
-#         # Identify Pareto-optimal points
-#         pareto_mask = find_pareto_front(c1_vals_plot, c2_vals_plot)
-
-#         plt.figure(figsize=(10, 6))
-
-#         # Plot non-Pareto points in blue
-#         plt.scatter(c1_vals_plot[~pareto_mask], c2_vals_plot[~pareto_mask], c='blue', marker='o', label='Optimization Iterations')
-#         # Plot Pareto-optimal points in red
-#         plt.scatter(c1_vals_plot[pareto_mask], c2_vals_plot[pareto_mask], c='red', marker='o', label='Pareto Frontier')
-
-#         # Plot initial samples in grey
-#         # plt.scatter(c1_initial, c2_initial, c='grey', marker='o', label='Initial Samples')
-
-#         # Labels and formatting
-#         plt.title(f'Pareto Curve of Purities of Glu in Raff vs Fru in Ext\n Config: {zone_config} \nInitial Samples: {sampling_budget}, Opt Iterations: {optimization_budget}')
-#         plt.xlabel('Glucose Purity in Raffinate (%)')
-#         plt.ylabel('Fructose Purity in Extract (%)')
-#         plt.xlim(0, 100)
-#         plt.ylim(0, 100)
-#         plt.grid(True)
-#         plt.legend()
-
-#         # Save the figure as an image
-#         image_filename = "purity_pareto.png"
-#         plt.savefig(image_filename, dpi=300, bbox_inches='tight')
-#         plt.show()
-
-#         return image_filename
-
-
-
-#     #------------------------------------------------------- 4. Pareto Outputs Trace
-#     def find_pareto_front(f1, f2):
-#         pareto_mask = np.ones(len(f1), dtype=bool)  # Start with all points assumed Pareto-optimal
-
-#         for i in range(len(f1)):
-#             if pareto_mask[i]:  # Check only if not already removed
-#                 pareto_mask[i] = not np.any((f1 >= f1[i]) & (f2 >= f2[i]) & ((f1 > f1[i]) | (f2 > f2[i])))
-
-#         return pareto_mask
-
-#     def plot_inputs_vs_iterations(input_array, f1_vals, f2_vals):
-#             input_names = ['Feed (L/h)', 'Raffinate (L/h)', 'Desorbent (L/h)', 'Extract (L/h)', 'Index Time (min)']
-#             # Convert to percentages
-#             f1_vals_plot = f1_vals * 100
-#             f2_vals_plot = f2_vals * 100
-
-#             # Identify Pareto-optimal points
-#             pareto_mask = find_pareto_front(f1_vals_plot, f2_vals_plot)
-
-#             # Filter input_array for Pareto-optimal points
-#             pareto_inputs = input_array[pareto_mask]
-
-#             # Plot inputs vs iterations for Pareto-optimal points
-#             iterations = np.arange(1, len(pareto_inputs) + 1)
-
-#             fig, ax1 = plt.subplots(figsize=(12, 8))
-
-#             # Plot all inputs except the last one
-#             for i in range(pareto_inputs.shape[1] - 1):
-#                 ax1.plot(iterations, pareto_inputs[:, i], marker='o', label=f'{input_names[i]}')
-
-#             ax1.set_xlabel('Iteration')
-#             ax1.set_ylabel('Flowrates (L/h)')
-#             ax1.grid(True)
-#             ax1.legend(loc='upper left')
-
-#             # Create a second y-axis for the indexing time
-#             ax2 = ax1.twinx()
-#             ax2.plot(iterations, pareto_inputs[:, -1], marker='o', color='grey', linestyle = "--", label=f'Input {input_names[-1]}')
-#             ax2.set_ylabel('Index Time (min)')
-#             ax2.legend(loc='upper right')
-
-#             plt.title('Operating Conditions at Pareto-Optimal Operating Points\nInputs=[Flowrates, Indexing Time]')
-#             plt.show()
-
-#     #%%
-#     # Run the Functions and Visualise
-#     # --- Paretos
-#     rec_pareto_image_filename = create_recovery_pareto_plot(f1_vals, f2_vals, zone_config, sampling_budget, optimization_budget)
-#     pur_pareto_image_filename = create_purity_pareto_plot(c1_vals, c2_vals, zone_config, sampling_budget, optimization_budget)
-#     plot_inputs_vs_iterations(all_inputs, f1_vals, f2_vals)
-
-#     # ---- Tables
-#     opt_table_for_outputs_image_filename = create_output_optimization_table(f1_vals, f2_vals, c1_vals, c2_vals, sampling_budget)
-#     opt_table_for_inputs_image_filename = create_input_optimization_table(all_inputs, V_col, e, sampling_budget, f1_vals, f2_vals, c1_vals, c2_vals)
-
-
-# # %%
+# %%
