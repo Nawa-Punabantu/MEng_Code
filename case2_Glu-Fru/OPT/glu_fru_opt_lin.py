@@ -321,7 +321,7 @@ def SMB(SMB_inputs):
             QD = set_Q_ext[2]
             QX = set_Q_ext[3]
 
-            Q_I = Q_rec  # m^3/s
+            Q_I = Q_rec  # cm^3/s
             Q_III = (QX + QF) + Q_I
             Q_IV = (QD - QX) + Q_I  # Fixed Q_II to Q_I as the variable was not defined yet
             Q_II = (QR - QX) + Q_IV
@@ -492,8 +492,8 @@ def SMB(SMB_inputs):
     print('---------------------------------------------------')
     print('\nFlowrate Specs:\n')
     print('---------------------------------------------------')
-    print("External Flowrates =", Q_external, '[F,R,D,X] ml/min')
-    print("Ineternal Flowrates =", Q_internal, 'ml/min')
+    print("External Flowrates =", Q_external*3.6, '[F,R,D,X] L/h')
+    print("Ineternal Flowrates =", Q_internal*3.6, 'L/h')
     print('---------------------------------------------------')
     print('\nPort Schedules:')
     for i in range(num_comp):
@@ -2562,8 +2562,11 @@ sub_zone_6 = [[16, 17, 18],[19, 20, 21]]
 sub_zone_7 = [[19, 20, 21], [22, 23, 24]]
 sub_zone_8 = [[22, 23, 24], [1]]
 
+
 # PACK:
 subzone_set = [sub_zone_1,sub_zone_2,sub_zone_3,sub_zone_4,sub_zone_5,sub_zone_6,sub_zone_7,sub_zone_8]
+subzone_set = []
+
 
 L = 65 # cm # Length of one column
 d_col = 5 # cm # column internal diameter
@@ -2592,6 +2595,8 @@ conv_fac = 0.1 # x10-7 m^3/s => cm^3/s
 # Q_internal = np.array([Q_I, Q_II, Q_III, Q_IV])
 
 # Other flowrates:
+Q_I, Q_II, Q_III, Q_IV = 11, 8.96, 9.96, 7.96 # L/h
+
 Q_I, Q_II, Q_III, Q_IV = 11, 8.96, 9.96, 7.96 # L/h
 Q_internal = np.array([Q_I, Q_II, Q_III, Q_IV])/3.6 # L/h => cm^3/s
 

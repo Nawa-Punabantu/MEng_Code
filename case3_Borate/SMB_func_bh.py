@@ -36,7 +36,7 @@ import time
 
 
 def SMB(SMB_inputs):
-    iso_type, Names, color, num_comp, nx_per_col, e, D_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_params_all, kav_params_all ,subzone_set = SMB_inputs[0:]
+    iso_type, Names, color, num_comp, nx_per_col, e, D_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_params_all, kav_params_all ,subzone_set, t_simulation_end = SMB_inputs[0:]
 
     ###################### (CALCUALTED) SECONDARY INPUTS #########################
 
@@ -58,7 +58,7 @@ def SMB(SMB_inputs):
     Z4 = zone_config[3]
 
 
-    # Time Specs:
+       # Time Specs:
     ################################################################
 
     t_index = t_index_min*60 # s #
@@ -67,16 +67,30 @@ def SMB(SMB_inputs):
     # - Cyclic Steady state typically happens only after 10 cycles (ref: https://doi.org/10.1205/026387603765444500)
     # - The system is not currently designed to account for periods of no external flow
 
-    n_1_cycle = t_index * Ncol_num  # s How long a single cycle takes
+    if n_num_cycles != None and t_simulation_end == None:
+        
+        
+        n_1_cycle = t_index * Ncol_num  # s How long a single cycle takes
 
-    total_cycle_time = n_1_cycle*n_num_cycles # s
+        total_cycle_time = n_1_cycle*n_num_cycles # s
 
-    tend = total_cycle_time # s # Final time point in ODE solver
+        tend = total_cycle_time # s # Final time point in ODE solver
 
+
+    elif n_num_cycles == None and t_simulation_end != None: # we specified tend instead
+        
+        
+        n_1_cycle = t_index * Ncol_num # s
+
+        total_cycle_time = t_simulation_end * 60 * 60  # hrs => s
+
+        n_num_cycles = np.round(total_cycle_time/n_1_cycle)
+
+        tend = t_simulation_end* 60 * 60 
+    
+    
     tend_min = tend/60
-
     t_span = (0, tend) # +dt)  # from t=0 to t=n
-
     num_of_injections = int(np.round(tend/t_index)) # number of switching periods
 
     # 't_start_inject_all' is a vecoter containing the times when port swithes occur for each port
@@ -479,7 +493,7 @@ def SMB(SMB_inputs):
     print('---------------------------------------------------')
     print('Number of Cycles:', n_num_cycles)
     print('Time Per Cycle:', n_1_cycle/60, "min")
-    print('Simulation Time:', tend_min, 'min')
+    print('Simulation Time:', tend_min/60, 'hrs')
     print('Index Time:', t_index, 's OR', t_index/60, 'min' )
     print('Number of Port Switches:', num_of_injections)
     print('Injections happen at t(s) = :', t_schedule, 'seconds')
@@ -499,15 +513,15 @@ def SMB(SMB_inputs):
     print('---------------------------------------------------')
     print('\nFlowrate Specs:\n')
     print('---------------------------------------------------')
-    print("External Flowrates =", Q_external, '[F,R,D,X] ml/min')
-    print("Ineternal Flowrates =", Q_internal, 'ml/min')
+    print("External Flowrates =", Q_external*3.6, '[F,R,D,X] L/h')
+    print("Ineternal Flowrates =", Q_internal*3.6, 'L/h')
     print('---------------------------------------------------')
-    print('\nPort Schedules:')
-    for i in range(num_comp):
-        print(f"Concentration Schedule:\nShape:\n {Names[i]}:\n",np.shape(Cj_pulse_all[i]),'\n', Cj_pulse_all[i], "\n")
-    print("Injection Flowrate Schedule:\nShape:",np.shape(Q_pulse_all),'\n', Q_pulse_all, "\n")
-    print("Respective Column Flowrate Schedule:\nShape:",np.shape(Q_col_all),'\n', Q_col_all, "\n")
-    print("Bay Schedule:\nShape:",np.shape(Bay_matrix),'\n', Bay_matrix, "\n")
+    # print('\nPort Schedules:')
+    # for i in range(num_comp):
+    #     print(f"Concentration Schedule:\nShape:\n {Names[i]}:\n",np.shape(Cj_pulse_all[i]),'\n', Cj_pulse_all[i], "\n")
+    # print("Injection Flowrate Schedule:\nShape:",np.shape(Q_pulse_all),'\n', Q_pulse_all, "\n")
+    # print("Respective Column Flowrate Schedule:\nShape:",np.shape(Q_col_all),'\n', Q_col_all, "\n")
+    # print("Bay Schedule:\nShape:",np.shape(Bay_matrix),'\n', Bay_matrix, "\n")
 
 
     ###########################################################################################
@@ -826,6 +840,9 @@ def SMB(SMB_inputs):
                             if Q_inj > 0:
                                 c_sum = [(q / Q_sum) * c for q, c in zip(Q_previous, c_sum)]
                                 C_IN = sum(c_sum)
+                                # if c_inj == 0:
+                                #     # pass
+                                #     print(f'deosrbent bay: {bay}')
                             else:
                                 C_IN = c_1
                             
@@ -852,6 +869,7 @@ def SMB(SMB_inputs):
                             c_sum = []
                             Q_previous = []
                             # print(f'feed_col_bays: {feed_col_bays}')
+
                             for fb, feed_bay in enumerate(feed_col_bays):  # for each feed bay
                                 #What is the number (ID) of the feed column of interest?:
                                 col_idx_feed = get_column_idx_for_bae(t, feed_bay, t_schedule, Bay_matrix)  # get the column index using bae
@@ -874,13 +892,16 @@ def SMB(SMB_inputs):
                                 if fb == len(feed_col_bays)-1:
                                     col_idx_ahead = (col_idx_feed + 1) % Ncol_num 
                                     # print(f'inj schedule from: {col_idx_ahead}')
-                                    Q_inj = get_X(t, Q_pulse_all, col_idx_ahead)
+                                    Q_inj = get_X(t, Q_pulse_all,  col_idx_ahead)
                                     c_inj = get_C(t, Cj_pulse_all, col_idx_ahead, comp_idx)
                                     
                                     # Store
                                     if Q_inj > 0:
                                         Q_previous.append(Q_inj)
                                         c_sum.append(c_inj)
+                                        if c_inj == 0:
+                                            pass
+                                            # print(f'deosrbent bay: {bay}')
 
                             # print(f'time: {t/60} min')
                             # print(f'coming from: col: {col_idx_feed} in bay:{feed_bay}')
@@ -1735,6 +1756,82 @@ import plotly.graph_objects as go
 ###########################################
 # IMPORTING MY OWN FUNCTIONS
 ###########################################
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+def see_prod_curves_with_data(t_odes, Y, t_index, exp_data_raff=None, exp_data_ext=None, show_exp=True):
+    # Y = [C_feed, C_raff, C_ext]
+    # exp_data_raff/ext = dict of {i: (t_exp, C_exp)}, for component i
+
+    fig, ax = plt.subplots(1, 3, figsize=(25, 5), constrained_layout=True)
+
+    t_odes_hr = t_odes / 3600  # convert to hours
+
+    for i in range(num_comp):
+        label_base = f"{Names[i]}" #,{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}"
+
+        # Determine clipping bounds
+        t_min = 0
+        t_max = np.inf
+        if show_exp:
+            t_exp_vals = []
+            if exp_data_raff and i in exp_data_raff:
+                t_exp_vals.extend(exp_data_raff[i][0])
+            if exp_data_ext and i in exp_data_ext:
+                t_exp_vals.extend(exp_data_ext[i][0])
+            if t_exp_vals:
+                t_min = min(t_exp_vals)
+                t_max = max(t_exp_vals)
+
+        # Manual clipping using index-based slicing (not masks)
+        if iso_type == "UNC":
+            t_i = t_odes[i]
+            start_idx = np.searchsorted(t_i, t_min, side='left')
+            end_idx   = np.searchsorted(t_i, t_max, side='right')
+            t_plot = t_i[start_idx:end_idx] / 3600
+
+            ax[0].plot(t_plot, Y[0][i][start_idx:end_idx], color=colors[i], label=label_base)
+            ax[1].plot(t_plot, Y[1][i][start_idx:end_idx], color=colors[i], label=label_base)
+            ax[2].plot(t_plot, Y[2][i][start_idx:end_idx], color=colors[i], label=label_base)
+
+        elif iso_type == "CUP":
+            start_idx = np.searchsorted(t_odes, t_min, side='left')
+            end_idx   = np.searchsorted(t_odes, t_max, side='right')
+            t_plot = t_odes[start_idx:end_idx] / 3600
+
+            ax[0].plot(t_plot, Y[0][i][start_idx:end_idx], color=colors[i], label=label_base)
+            ax[1].plot(t_plot, Y[1][i][start_idx:end_idx], color=colors[i], label=label_base)
+            ax[2].plot(t_plot, Y[2][i][start_idx:end_idx], color=colors[i], label=label_base)
+
+        # Plot experimental data
+        if show_exp:
+            if exp_data_raff and i in exp_data_raff:
+                t_exp_r, C_exp_r = exp_data_raff[i]
+                ax[1].scatter(t_exp_r / 3600, C_exp_r, color=colors[i], marker='x', s=40 # label=f"Exp Raff"
+                             , label=f"Exp", alpha=0.6)
+            if exp_data_ext and i in exp_data_ext:
+                t_exp_e, C_exp_e = exp_data_ext[i]
+                ax[2].scatter(t_exp_e / 3600, C_exp_e, color=colors[i], marker='o', s=40, # label=f"Exp Ext",
+                               label=f"Exp",alpha=0.6)
+
+    # Titles and labels
+    ax[0].set_xlabel('Time, hrs')
+    ax[0].set_title(f'Feed Concentration Curves in (g/mL)\nConfig: {Z1}:{Z2}:{Z3}:{Z4}\nIndex Time: {t_index/60}min')
+
+    ax[1].set_xlabel('Time, hrs')
+    ax[1].set_title(f'Raffinate Elution Curves in (g/mL)\nConfig: {Z1}:{Z2}:{Z3}:{Z4}\nIndex Time: {t_index/60}min')
+
+    ax[2].set_xlabel('Time, hrs')
+    ax[2].set_title(f'Extract Elution Curves in (g/mL)\nConfig: {Z1}:{Z2}:{Z3}:{Z4}\nIndex Time: {t_index/60}min')
+
+    for a in ax:
+        a.legend()
+    # plt.tight_layout()
+    plt.show()
+
+
+
 def see_prod_curves(t_odes, Y, t_index) :
     # Y = C_feed, C_raff, C_ext
     # X = t_sets
@@ -1899,17 +1996,16 @@ iso_type = "CUP"
 
 ###################### PRIMARY INPUTS #########################
 # Define the names, colors, and parameter sets for 6 components
-Names = ["Glucose", "Fructose"]#, 'C', 'D']#, "C"]#, "D", "E", "F"]
+Names = ["Borate", "HCL"]#, 'C', 'D']#, "C"]#, "D", "E", "F"]
 colors = ["green", "orange"]    #, "purple", "brown"]#, "b"]#, "r", "purple", "brown"]
 num_comp = len(Names) # Number of components
-e = 0.4 # 0.56         # bed voidage
+e = 0.56 # 0.56         # bed voidage
 Bm = 300
 
 # Column Dimensions
 
 # How many columns in each Zone?
-
-Z1, Z2, Z3, Z4 = 1, 1, 1, 1 # *3 for smb config
+Z1, Z2, Z3, Z4 = 3, 3, 3, 3 # *3 for smb config
 zone_config = np.array([Z1, Z2, Z3, Z4])
 
 # sub_zone information - EASIER TO FILL IN IF YOU DRAW THE SYSTEM
@@ -1964,8 +2060,8 @@ subzone_set = [] # no subzoning
 
 
 
-L = 30 # cm # Length of one column
-d_col = 2.6 # cm # column internal diameter
+L = 65 # cm # Length of one column
+d_col = 5 # cm # column internal diameter
 
 # Calculate the radius
 r_col = d_col / 2
@@ -1975,13 +2071,14 @@ V_col = A_col*L # cm^3
 # Dimensions of the tubing and from each column:
 # Assuming the pipe diameter is 20% of the column diameter:
 d_in = 0.2 * d_col # cm
-nx_per_col = 15
+nx_per_col = 20
 
 
 ################ Time Specs #################################################################################
-t_index_min = 3.3 # min # Index time # How long the pulse holds before swtiching
-n_num_cycles = 2    # Number of Cycles you want the SMB to run for
-###############  FLOWRATES   #################################################################################
+t_index_min = 10 # min # Index time # How long the pulse holds before swtiching
+n_num_cycles = None   # Number of Cycles you want the SMB to run for
+t_simulation_end = 2 # HRS
+###############  FLOWRATES  #################################################################################
 
 # Jochen et al:
 Q_P, Q_Q, Q_R, Q_S = 5.21, 4, 5.67, 4.65 # x10-7 m^3/s
@@ -1991,6 +2088,7 @@ Q_P, Q_Q, Q_R, Q_S  = Q_P*conv_fac, Q_Q*conv_fac, Q_R*conv_fac, Q_S*conv_fac
 Q_I, Q_II, Q_III, Q_IV = Q_R,  Q_S, Q_P, Q_Q
 
 # Q_I, Q_II, Q_III, Q_IV = 2,1,2,1
+Q_I, Q_II, Q_III, Q_IV = 3.5/3.6, 1.46/3.6, 2.46/3.6, 0.46/3.6 # L/h
 
 Q_internal = np.array([Q_I, Q_II, Q_III, Q_IV])
 
@@ -2010,18 +2108,27 @@ Q_internal = np.array([Q_I, Q_II, Q_III, Q_IV])
 # - Concentrations: g/cm^3
 # - kfp: 1/s
 parameter_sets = [
-                    {"C_feed": 0.2222},    # Glucose SMB Launch
-                    {"C_feed": 0.2222}] #, # Fructose
+                    {"C_feed": 0.0314},    # Glucose SMB Launch
+                    {"C_feed": 0.0314}] #, # Fructose
 
-Da_all = np.array([6.218e-6, 6.38e-6 ]) 
+# kav_params_all = np.array([[0.467], [0.462]])
+# cusotom_isotherm_params_all = np.array([[2.71],[2.94]])
+Da_all = np.array([3.218e-6, 8.38e-6 ]) 
+
+
+# Da_all = np.array([1.83e-15, 5.6-15]) 
+kav_params_all = np.array([[0.395], [0.151]])
+cusotom_isotherm_params_all = np.array([[3.63], [2.40]]) # [ [H_borate], [H_hcl] ]
 
 # ISOTHERM PARAMETERS
 ####################################################################### ####################
 # Uncomment as necessary:
 
 # Linear, H
-kav_params_all = np.array([[0.0315], [0.0217]])
-cusotom_isotherm_params_all = np.array([[0.27], [0.53]]) # H_glu, H_fru 
+
+# Da_all = np.array([6.218e-6, 6.38e-6 ]) 
+# kav_params_all = np.array([[0.0315], [0.0217]])
+# cusotom_isotherm_params_all = np.array([[0.27], [0.53]]) # H_glu, H_fru 
 # Sub et al = np.array([[0.27], [0.53]])
 
 # # Langmuir, [Q_max, b]
@@ -2032,17 +2139,77 @@ cusotom_isotherm_params_all = np.array([[0.27], [0.53]]) # H_glu, H_fru
 
 
 # STORE/INITALIZE SMB VAIRABLES
-SMB_inputs = [iso_type, Names, colors, num_comp, nx_per_col, e, Da_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_params_all, kav_params_all, subzone_set]
+SMB_inputs = [iso_type, Names, colors, num_comp, nx_per_col, e, Da_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_params_all, kav_params_all, subzone_set, t_simulation_end]
 #%% ---------- SAMPLE RUN IF NECESSARY
 start_test = time.time()
 y_matrices, nx, t, t_sets, t_schedule, C_feed, m_in, m_out, raff_cprofile, ext_cprofile, raff_intgral_purity, raff_recov, ext_intgral_purity, ext_recov, raff_vflow, ext_vflow, Model_Acc, Expected_Acc, Error_percent = SMB(SMB_inputs)
 end_test = time.time()
 
 duration = end_test - start_test
-# print(f'Simulation Took: {duration/60} min')
-# print(f'ext_cprofile: {ext_cprofile}')
-# print(f'raff_cprofile: {raff_cprofile}')
+print(f'Simulation Took: {duration/60} min')
+print(f'ext_cprofile: {ext_cprofile}')
+print(f'raff_cprofile: {raff_cprofile}')
 #%% Plotting
+# import json
+# import numpy as np
+
+# def save_smb_results_to_json(filename, SMB_inputs):
+#     # Run the SMB simulation
+#     results = SMB(SMB_inputs)
+
+#     # Unpack the results
+#     (
+#         y_matrices, nx, t, t_sets, t_schedule, C_feed,
+#         m_in, m_out, raff_cprofile, ext_cprofile,
+#         raff_intgral_purity, raff_recov,
+#         ext_intgral_purity, ext_recov,
+#         raff_vflow, ext_vflow,
+#         Model_Acc, Expected_Acc, Error_percent
+#     ) = results
+
+#     # Helper function to convert any NumPy objects to Python-native types
+#     def to_serializable(obj):
+#         if isinstance(obj, np.ndarray):
+#             return obj.tolist()
+#         elif isinstance(obj, (np.int_, np.float_)):
+#             return obj.item()
+#         elif isinstance(obj, list):
+#             return [to_serializable(x) for x in obj]
+#         elif isinstance(obj, dict):
+#             return {k: to_serializable(v) for k, v in obj.items()}
+#         else:
+#             return obj
+
+    # Build dictionary for output
+#     output_data = {
+#         "y_matrices": to_serializable(y_matrices),
+#         "nx": nx,
+#         "t": to_serializable(t),
+#         "t_sets": to_serializable(t_sets),
+#         "t_schedule": to_serializable(t_schedule),
+#         "C_feed": to_serializable(C_feed),
+#         "m_in": to_serializable(m_in),
+#         "m_out": to_serializable(m_out),
+#         "raff_cprofile": to_serializable(raff_cprofile),
+#         "ext_cprofile": to_serializable(ext_cprofile),
+#         "raff_intgral_purity": to_serializable(raff_intgral_purity),
+#         "raff_recov": to_serializable(raff_recov),
+#         "ext_intgral_purity": to_serializable(ext_intgral_purity),
+#         "ext_recov": to_serializable(ext_recov),
+#         "raff_vflow": to_serializable(raff_vflow),
+#         "ext_vflow": to_serializable(ext_vflow),
+#         "Model_Acc": to_serializable(Model_Acc),
+#         "Expected_Acc": to_serializable(Expected_Acc),
+#         "Error_percent": to_serializable(Error_percent),
+#     }
+
+#     # Save to JSON
+#     with open(filename, "w") as f:
+#         json.dump(output_data, f, indent=4)
+
+#     print(f"SMB results saved to {filename}")
+
+# save_smb_results_to_json("smb_output.json", SMB_inputs)
 
 print(f'Simulation Took: {duration/60} min')
 # print(f'ext_cprofile: {ext_cprofile}')
@@ -2051,10 +2218,31 @@ print("-----------------------------------------------------------")
 Y = [C_feed, raff_cprofile, ext_cprofile, raff_vflow, ext_vflow]
 
 # Y = [C_feed, ext_vflow, raff_vflow ]
+
+# # g/L
+
+t_exp_raff = np.array([120, 140, 160, 180, 210, 240, 300, 320, 340, 360, 380, 400, 420, 440, 460, 470, 480, 490, 500, 520, 530 ])*60 # seconds
+t_exp_ext = np.array([80, 100, 120, 140, 160, 180, 210, 240, 300, 320, 340, 360, 380, 400, 420,440, 460, 470, 480, 490, 500, 520, 530 ])*60
+
+
+# 0 => Glu, 1 => Fru
+exp_data_raff = {
+    0: (t_exp_raff, np.array([0.56, 2.67, 6.69, 7.01, 3.94, 5.53, 5.74, 7.11, 7.01, 7.54, 9.44, 8.81, 10.18, 9.97, 9.55, 9.12, 10.07, 9.12, 9.12, 8.81, 8.38 ])/1000),  # (time in hrs, conc)
+    1: (t_exp_raff, np.array([2.94, 4.03, 3.81, 4.19, 8.76, 4.37, 4.46, 4.79, 5.59, 6.76, 6.76, 6.19, 6.72, 6.73, 6.55, 6.78, 6.43, 7.08, 6.68, 6.99, 9.82])/1000),
+}
+
+exp_data_ext = {
+    0: (t_exp_ext, np.array([ 2.57,5.21,6.16,6.69,10.92,6.69,12.93, 13.25, 11.45, 15.26, 11.77, 14.20, 13.78, 14.09, 12.72, 12.61, 10.07, 14.20,12.82, 15.05, 13.88, 14.52, 15.57])/1000),
+    1: (t_exp_ext, np.array([8.73,6.39, 7.34, 7.01, 6.58, 6.91, 2.97, 2.65, 6.75, 5.64, 8.43, 6.40, 8.02, 7.31, 7.98, 8.59, 9.13, 5.80, 9.38, 6.15, 8.22, 6.28, 6.43])/1000),
+}
+
 if iso_type == "UNC":
-    see_prod_curves(t_sets, Y, t_index_min*60)
+    # see_prod_curves(t_sets, Y, t_index_min*60)
+    see_prod_curves_with_data(t_sets, Y, t_index_min*60, exp_data_raff, exp_data_ext, show_exp=True)
 elif iso_type == "CUP":
-    see_prod_curves(t, Y, t_index_min*60)
+    # see_prod_curves(t, Y, t_index_min*60)
+    see_prod_curves_with_data(t, Y, t_index_min*60, exp_data_raff, exp_data_ext, show_exp=True)
+
 
 # Define the data for the table
 data = {
@@ -2296,7 +2484,7 @@ def plot_all_columns_single_axes(y_matrices, t,indxing_period, time_index,
     plt.title(f"{title} (Time Index {time_index}) (Time Stamp: {t[time_index]/60} min)\nIndxing_period: {indxing_period} min")
     plt.xlabel("Position along full unit (cm)")
     plt.ylabel("Concentration (g/L)")
-    plt.grid(True)
+    # plt.grid(True)
     plt.legend()
     plt.tight_layout()
     plt.show()
@@ -2309,7 +2497,7 @@ plot_all_columns_single_axes(
     t = t,
     indxing_period = t_index_min,
     # time_index= int(np.round(np.shape(y_matrices)[2]*0.01)),
-    time_index= 100, # 27, 31, 35. 70, 90
+    time_index= 700, # 27, 31, 35. 70, 90
     nx_per_col=nx_per_col,
     L_col = L,
     zone_config = zone_config,
