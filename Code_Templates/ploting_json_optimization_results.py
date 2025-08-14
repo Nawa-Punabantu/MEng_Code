@@ -548,14 +548,91 @@ def constraints_vs_iterations(c1_vals, c2_vals):
 
 
 
+import numpy as np
+import matplotlib.pyplot as plt
+
+def find_pareto_front(x, y):
+    """Return boolean mask of Pareto-optimal points."""
+    pareto_mask = np.ones(len(x), dtype=bool)
+    for i in range(len(x)):
+        if pareto_mask[i]:
+            pareto_mask[i] = not np.any((x >= x[i]) & (y >= y[i]) & ((x > x[i]) | (y > y[i])))
+    return pareto_mask
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+def find_pareto_front(x, y):
+    """Return boolean mask of Pareto-optimal points."""
+    pareto_mask = np.ones(len(x), dtype=bool)
+    for i in range(len(x)):
+        if pareto_mask[i]:
+            pareto_mask[i] = not np.any(
+                (x >= x[i]) & (y >= y[i]) &
+                ((x > x[i]) | (y > y[i]))
+            )
+    return pareto_mask
+
+def plot_raff_ext_pareto(c1_vals, c2_vals, r1_vals, r2_vals):
+    """
+    Plots Pareto frontiers for raffinate (top row) and extract (bottom row).
+    c1_vals, c2_vals, r1_vals, r2_vals are lists of length 2:
+      [ [raffinate data], [extract data] ]
+    """
+    fig, axs = plt.subplots(2, 2, figsize=(12, 10))
+    fig.suptitle("Pareto Optimality — Raffinate (Top) vs Extract (Bottom)", fontsize=16)
+
+    for row_idx, stream_name in enumerate(["Raffinate", "Extract"]):
+        # Convert to % arrays
+        c1 = np.array(c1_vals[row_idx]) * 100
+        c2 = np.array(c2_vals[row_idx]) * 100
+        r1 = np.array(r1_vals[row_idx]) * 100
+        r2 = np.array(r2_vals[row_idx]) * 100
+
+        # Pareto masks
+        pur_mask = find_pareto_front(c1, c2)
+        rec_mask = find_pareto_front(r1, r2)
+        both_mask = pur_mask & rec_mask
+
+        # --- Purity plot ---
+        ax_pur = axs[row_idx, 0]
+        ax_pur.scatter(c1[~pur_mask], c2[~pur_mask], color='lightgray', label="Non-Pareto")
+        ax_pur.scatter(c1[pur_mask], c2[pur_mask], color='red', label="Purity Frontier")
+        ax_pur.scatter(c1[rec_mask], c2[rec_mask], facecolors='none', edgecolors='blue', label="Recovery Optimal")
+        ax_pur.scatter(c1[both_mask], c2[both_mask], marker='*', color='gold', s=205, label="Both Optimal")
+        ax_pur.set_title(f"{stream_name} — Purity Frontier (recovery-optimal highlighted)")
+        ax_pur.set_xlabel("Comp1 Purity (%)")
+        ax_pur.set_ylabel("Comp2 Purity (%)")
+        ax_pur.grid(True)
+        ax_pur.set_xlim(0, 101)
+        ax_pur.set_ylim(0, 101)
+        ax_pur.legend()
+
+        # --- Recovery plot ---
+        ax_rec = axs[row_idx, 1]
+        ax_rec.scatter(r1[~rec_mask], r2[~rec_mask], color='lightgray', label="Non-Pareto")
+        ax_rec.scatter(r1[rec_mask], r2[rec_mask], color='blue', label="Recovery Frontier")
+        ax_rec.scatter(r1[pur_mask], r2[pur_mask], facecolors='none', edgecolors='red', label="Purity Optimal")
+        ax_rec.scatter(r1[both_mask], r2[both_mask], marker='*', color='gold', s=205, label="Both Optimal")
+        ax_rec.set_title(f"{stream_name} — Recovery Frontier (purity-optimal highlighted)")
+        ax_rec.set_xlabel("Comp1 Recovery (%)")
+        ax_rec.set_ylabel("Comp2 Recovery (%)")
+        ax_rec.grid(True)
+        ax_rec.set_xlim(0, 101)
+        ax_rec.set_ylim(0, 101)
+        ax_rec.legend()
+
+    plt.tight_layout(rect=[0, 0, 1, 0.96])
+    plt.show()
+
 
 
 # %%
 #%% Define in the Inputs
 # Input the location if the saved jsons
 # Make sure the path include the folder AND the file names!
-inputs_path = r"C:\Users\28820169\ILLOVO_PCR-borhcl-type1_40iter_norm_config_all_inputs.json"
-outputs_path = r"C:\Users\28820169\ILLOVO_PCR-borhcl-type1_40iter_norm_config_all_outputs.json"
+inputs_path = r"C:\Users\28820169\SIMS_20_iter_all_inputs.json"
+outputs_path = r"C:\Users\28820169\SIMS_20_iter_all_outputs.json"
 
 # for comparing
 inputs_path_20 = r"C:\Users\28820169\Downloads\BO Papers\Regression_Analysis\SIMS_20_iter_all_inputs.json"
@@ -574,9 +651,45 @@ outputs_path_20 = r"C:\Users\28820169\Downloads\BO Papers\Regression_Analysis\SI
 
 # # Load the file and the data
 all_inputs, f1_vals, f2_vals, c1_vals, c2_vals = load_inputs_outputs(inputs_path, outputs_path)
+
+
+import numpy as np
+
+np.random.seed(42)  # for reproducibility
+
+
+# GET dummy Data
+# Number of points
+n_points = 50
+
+# Raffinate purity (comp1, comp2) — random but correlated
+c1_raff = np.clip(np.random.normal(0.7, 0.15, n_points), 0, 1)
+c2_raff = np.clip(1 - c1_raff + np.random.normal(0, 0.1, n_points), 0, 1)
+
+# Extract purity (comp1, comp2) — different distribution
+c1_ext = np.clip(np.random.normal(0.6, 0.2, n_points), 0, 1)
+c2_ext = np.clip(1 - c1_ext + np.random.normal(0, 0.12, n_points), 0, 1)
+
+# Raffinate recovery (comp1, comp2) — another distribution
+r1_raff = np.clip(np.random.normal(0.75, 0.1, n_points), 0, 1)
+r2_raff = np.clip(1 - r1_raff + np.random.normal(0, 0.08, n_points), 0, 1)
+
+# Extract recovery (comp1, comp2)
+r1_ext = np.clip(np.random.normal(0.65, 0.12, n_points), 0, 1)
+r2_ext = np.clip(1 - r1_ext + np.random.normal(0, 0.1, n_points), 0, 1)
+
+# Pack into nested lists as expected by the plotting function
+c1_vals = [c1_raff, c1_ext]
+c2_vals = [c2_raff, c2_ext]
+f1_vals = [r1_raff, r1_ext]
+f2_vals = [r2_raff, r2_ext]
+
+
+
+
 # From some varianles:
 sampling_budget = 1 # always
-optimization_budget=f1_vals.shape[0]-sampling_budget
+optimization_budget=np.shape(f1_vals)[0]-sampling_budget
 zone_config = np.array([3,3,3,3])
 d_col = 2.6  # cm
 L = 30 # cm
@@ -586,13 +699,21 @@ e = 0.4  # porosity
 
 # Run the Functions and Visualise
 # --- Paretos
-rec_pareto_image_filename = create_recovery_pareto_plot(f1_vals, f2_vals, zone_config, sampling_budget, optimization_budget)
-pur_pareto_image_filename = create_purity_pareto_plot(c1_vals, c2_vals, zone_config, sampling_budget, optimization_budget)
+# rec_pareto_image_filename = create_recovery_pareto_plot(f1_vals, f2_vals, zone_config, sampling_budget, optimization_budget)
+# pur_pareto_image_filename = create_purity_pareto_plot(c1_vals, c2_vals, zone_config, sampling_budget, optimization_budget)
 comp_1_name = "Fructose"
 comp_2_name = "Glucose"
-create_purity_vs_rec_pareto_plot(f1_vals, f2_vals, c1_vals, c2_vals, zone_config, sampling_budget, optimization_budget, comp_1_name)
-# create_purity_vs_rec_pareto_plot(f1_vals, f2_vals, c1_vals, c2_vals, zone_config, sampling_budget, optimization_budget, comp_2_name)
-plot_outputs_vs_iterations(f1_vals, f2_vals, c1_vals, c2_vals)
+
+plot_raff_ext_pareto(c1_vals, c2_vals, f1_vals, f2_vals)
+
+# plot_dual_pareto(
+#     ext_pur_comp1, ext_pur_comp2,
+#     ext_rec_comp1, ext_rec_comp2,
+#     title_prefix="Extract"
+# )
+# create_purity_vs_rec_pareto_plot(f1_vals, f2_vals, c1_vals, c2_vals, zone_config, sampling_budget, optimization_budget, comp_1_name)
+# # create_purity_vs_rec_pareto_plot(f1_vals, f2_vals, c1_vals, c2_vals, zone_config, sampling_budget, optimization_budget, comp_2_name)
+# plot_outputs_vs_iterations(f1_vals, f2_vals, c1_vals, c2_vals)
 # compare_recovery_pareto_plot(f1_vals_50, f2_vals_50, f1_vals_100, f2_vals_100, c1_vals_50, c2_vals_50, c1_vals_100, c2_vals_100) # "rec" "pur"
 # # --- Constraints
 # constraints_vs_iterations(c1_vals, c2_vals)

@@ -33,7 +33,7 @@ def opt_func(batch, SMB):
     SMB_inputs = batch[1]
     
     # UNPACK RESPECTIVE INPUTS
-    Description, save_name_inputs, save_name_outputs, job_max_or_min, t_reff, Q_max, Q_min, m_max, m_min, sampling_budget, optimization_budget, constraint_threshold, PF_weight, bounds = opt_inputs[0:]
+    Description, save_name_inputs, save_name_outputs, job_max_or_min, t_reff, Q_max, Q_min, m_max, m_min, sampling_budget, optimization_budget, constraint_threshold, PF_weight, bounds, triangle_guess = opt_inputs[0:]
     iso_type, Names, color, num_comp, nx_per_col, e, Da_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_params_all, kav_params_all, subzone_set, t_simulation_end = SMB_inputs[0:]
 
 
@@ -223,7 +223,7 @@ def opt_func(batch, SMB):
             Pur = np.zeros(2)
             Rec = np.zeros(2)
             # Unpack and convert to float and np.arrays from torch.tensors:
-            m1, m2, m3, m4, t_index_min = float(X[0]), float(X[1]), float(X[2]), float(X[3]), float(X[4])*t_reff
+            m1, m2, m3, m4, t_index_min = float(X[0]), float(X[1]), float(X[2]), float(X[3]), float(X[4])
 
             print(f'[m1, m2, m3, m4]: [{m1}, {m2}, {m3}, {m4}], t_index: {t_index_min}')
 
@@ -274,7 +274,7 @@ def opt_func(batch, SMB):
             for i in range(len(X[:,0])):
 
                 # Unpack and convert to float and np.arrays from torch.tensors:
-                m1, m2, m3, m4, t_index_min = float(X[i,0]), float(X[i,1]), float(X[i,2]), float(X[i,3]), float(X[i,4])*t_reff
+                m1, m2, m3, m4, t_index_min = float(X[i,0]), float(X[i,1]), float(X[i,2]), float(X[i,3]), float(X[i,4])
 
                 print(f'[m1, m2, m3, m4]: [{m1}, {m2}, {m3}, {m4}], t_index: {t_index_min}')
                 Q_I, Q_II, Q_III, Q_IV = mj_to_Qj(m1, t_index_min), mj_to_Qj(m2, t_index_min), mj_to_Qj(m3, t_index_min), mj_to_Qj(m4, t_index_min) 
@@ -450,7 +450,7 @@ def opt_func(batch, SMB):
 
 
     # ------ Generate Initial Data
-    def generate_initial_data(sampling_budget):
+    def generate_initial_data(triangle_guess, sampling_budget=1):
 
         # generate training data
         # print(f'Getting {sampling_budget} Samples')
@@ -461,11 +461,18 @@ def opt_func(batch, SMB):
         # print(f'Done Getting {sampling_budget} Samples')
 
         # print(f'Solving Over {sampling_budget} Samples')
-        Rec, Pur, mjs = obj_con(train_all)
-        # print(f'Rec: {Rec}, Pur: {Pur}')
-        # print(f'Done Getting {sampling_budget} Samples')
-        all_outputs = np.hstack((Rec, Pur))
-        return train_all, all_outputs
+        if len(triangle_guess) == True:
+            Rec, Pur, mjs = obj_con(triangle_guess)
+            # print(f'Rec: {Rec}, Pur: {Pur}')
+            # print(f'Done Getting {sampling_budget} Samples')
+            all_outputs = np.hstack((Rec, Pur))
+            return triangle_guess, all_outputs
+        else:
+            Rec, Pur, mjs = obj_con(train_all)
+            # print(f'Rec: {Rec}, Pur: {Pur}')
+            # print(f'Done Getting {sampling_budget} Samples')
+            all_outputs = np.hstack((Rec, Pur))
+            return train_all, all_outputs
 
     # ------------------ BO FUNTIONS
     # --- Surrogate model creation ---
@@ -862,7 +869,8 @@ def opt_func(batch, SMB):
                     x_new[0:4] = [m1, m2, m3, m4]
             
             
-            # print(f"x_new: {x_new}")
+            # print(f"x_new: {x_new}") *t_reff
+            x_new[-1] = x_new[-1]*t_reff
             f_new, c_new, mj_and_t_new = obj_con(x_new)
 
 
@@ -963,7 +971,7 @@ def opt_func(batch, SMB):
             
     #%%
         # generate iniital samples
-        all_initial_inputs, all_initial_outputs = generate_initial_data(sampling_budget)
+        all_initial_inputs, all_initial_outputs = generate_initial_data(triangle_guess, sampling_budget)
         print(f'all_initial_inputs\n{ all_initial_inputs}')
         print(f'all_initial_outputs\n{ all_initial_outputs}')
 
@@ -1008,7 +1016,7 @@ def opt_func(batch, SMB):
 
 # call the respective input files
 
-from opt_help_func import opt_batches 
+from opt_input_data_file import opt_batches 
 
 for b_idx, batch in enumerate(opt_batches):
     
