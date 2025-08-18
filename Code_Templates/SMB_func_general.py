@@ -485,36 +485,36 @@ def SMB(SMB_inputs):
 
 
     # DISPLAYING INPUT INFORMATION:
-    print('---------------------------------------------------')
-    print('Number of Components:', num_comp)
-    print('---------------------------------------------------')
-    print('\nTime Specs:\n')
-    print('---------------------------------------------------')
-    print('Number of Cycles:', n_num_cycles)
-    print('Time Per Cycle:', n_1_cycle/60, "min")
-    print('Simulation Time:', tend_min/60, 'hrs')
-    print('Index Time:', t_index, 's OR', t_index/60, 'min' )
-    print('Number of Port Switches:', num_of_injections)
-    print('Injections happen at t(s) = :', t_schedule, 'seconds')
-    print('---------------------------------------------------')
-    print('\nColumn Specs:\n')
-    print('---------------------------------------------------')
-    print('Configuration:', zone_config, '[Z1,Z2,Z3,Z4]')
-    print(f"Number of Columns: {Ncol_num}")
-    print('Column Length:', L, 'cm')
-    print('Column Diameter:', d_col, 'cm')
-    print('Column Volume:', V_col, 'cm^3')
+    # print('---------------------------------------------------')
+    # print('Number of Components:', num_comp)
+    # print('---------------------------------------------------')
+    # print('\nTime Specs:\n')
+    # print('---------------------------------------------------')
+    # print('Number of Cycles:', n_num_cycles)
+    # print('Time Per Cycle:', n_1_cycle/60, "min")
+    # print('Simulation Time:', tend_min/60, 'hrs')
+    # print('Index Time:', t_index, 's OR', t_index/60, 'min' )
+    # print('Number of Port Switches:', num_of_injections)
+    # print('Injections happen at t(s) = :', t_schedule, 'seconds')
+    # print('---------------------------------------------------')
+    # print('\nColumn Specs:\n')
+    # print('---------------------------------------------------')
+    # print('Configuration:', zone_config, '[Z1,Z2,Z3,Z4]')
+    # print(f"Number of Columns: {Ncol_num}")
+    # print('Column Length:', L, 'cm')
+    # print('Column Diameter:', d_col, 'cm')
+    # print('Column Volume:', V_col, 'cm^3')
 
-    print("alpha:", alpha, '(alpha = A_in / A_col)')
-    print("Nodes per Column:",nx_col)
-    print("Boundary Nodes locations,x[i], i =", start)
-    print("Total Number of Nodes (nx):",nx)
-    print('---------------------------------------------------')
-    print('\nFlowrate Specs:\n')
-    print('---------------------------------------------------')
-    print("External Flowrates =", Q_external*3.6, '[F,R,D,X] L/h')
-    print("Ineternal Flowrates =", Q_internal*3.6, 'L/h')
-    print('---------------------------------------------------')
+    # print("alpha:", alpha, '(alpha = A_in / A_col)')
+    # print("Nodes per Column:",nx_col)
+    # print("Boundary Nodes locations,x[i], i =", start)
+    # print("Total Number of Nodes (nx):",nx)
+    # print('---------------------------------------------------')
+    # print('\nFlowrate Specs:\n')
+    # print('---------------------------------------------------')
+    # print("External Flowrates =", Q_external*3.6, '[F,R,D,X] L/h')
+    # print("Ineternal Flowrates =", Q_internal*3.6, 'L/h')
+    # print('---------------------------------------------------')
     # print('\nPort Schedules:')
     # for i in range(num_comp):
     #     print(f"Concentration Schedule:\nShape:\n {Names[i]}:\n",np.shape(Cj_pulse_all[i]),'\n', Cj_pulse_all[i], "\n")
@@ -595,12 +595,12 @@ def SMB(SMB_inputs):
                     divid_by = len(downstream_bays)
                     u_col_adj_at_t0[i] = u_col_at_t0[i] / divid_by
                     adjusted = True
-                    print(f"Bay {bay}: {u_col_at_t0[i]} divided by {divid_by} -> {u_col_adj_at_t0[i]}")
+                    # print(f"Bay {bay}: {u_col_at_t0[i]} divided by {divid_by} -> {u_col_adj_at_t0[i]}")
                     break  # Stop after finding the first matching subzone
 
             if not adjusted:
                 u_col_adj_at_t0[i] = u_col_at_t0[i]
-                print(f"Bay {bay}: not in subzone, remains {u_col_at_t0[i]}")
+                # print(f"Bay {bay}: not in subzone, remains {u_col_at_t0[i]}")
 
         return u_col_adj_at_t0
 
@@ -613,8 +613,8 @@ def SMB(SMB_inputs):
     u_col_at_t0_new = get_u_col_at_t0_adj(u_col_at_t0, subzone_set)
     Q_col_at_t0_new = get_u_col_at_t0_adj(Q_col_at_t0, subzone_set)
 
-    print(f'u_col_at_t0:{u_col_at_t0}')
-    print(f'u_col_at_t0_new:{u_col_at_t0_new}\n\n')
+    # print(f'u_col_at_t0:{u_col_at_t0}')
+    # print(f'u_col_at_t0_new:{u_col_at_t0_new}\n\n')
 
     u_col_all = build_matrix_from_vector(u_col_at_t0_new, t_schedule)
     Q_col_all = build_matrix_from_vector(Q_col_at_t0_new, t_schedule)
@@ -1427,9 +1427,9 @@ def SMB(SMB_inputs):
 
         elif iso_type == 'CUP':
             Q_all_flows, t_idx_all_Q = get_all_values(Q_col_all, t_odes, t_schedule, 'Column Flowrates')
-            print('Q_all_flows:\n', Q_all_flows)
-            print('Q_all_flows:\n', np.shape(Q_all_flows))
-            print(f't_idx_all_Q: {np.shape(t_idx_all_Q)}')
+            # print('Q_all_flows:\n', Q_all_flows)
+            # print('Q_all_flows:\n', np.shape(Q_all_flows))
+            # print(f't_idx_all_Q: {np.shape(t_idx_all_Q)}')
 
 
         for i in range(num_comp):# for each component
@@ -1631,45 +1631,67 @@ def SMB(SMB_inputs):
 
     # Calculate KEY PERORMANCE PARAMETERS:
     #######################################################
-    # 1. Purity
-    # 2. Recovery
+    # 1. Inegral Purity
+    # 2. Inegral Recovery
+    # 3. Output Recovery
     # 3. Productivity
 
 
     # 1. Purity
     #######################################################
     # 1.1 Instantanoues:
-    # raff_in_purity = raff_mprofile/sum(raff_mprofile)
-    # ext_insant_purity = ext_mprofile/sum(ext_mprofile)
+    raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+    ext_inst_purity = ext_mprofile/sum(ext_mprofile)
 
     # 1.2 Integral:
     raff_intgral_purity = m_out_raff/sum(m_out_raff)
     ext_intgral_purity = m_out_ext/sum(m_out_ext)
 
     # Final Attained Purity in the Stream
-    raff_stream_final_purity = np.zeros(num_comp)
-    ext_stream_final_purity = np.zeros(num_comp)
+    # raff_stream_final_purity = np.zeros(num_comp)
+    # ext_stream_final_purity = np.zeros(num_comp)
 
-    for i in range(num_comp):
-        raff_stream_final_purity[i] = raff_cprofile[i][-1]
-        ext_stream_final_purity[i] = ext_cprofile[i][-1]
+    # for i in range(num_comp):
+    #     raff_stream_final_purity[i] = raff_cprofile[i][-1]
+    #     ext_stream_final_purity[i] = ext_cprofile[i][-1]
 
-
+    
 
     # 2. Recovery
     #######################################################
-    # 2.1 Instantanoues:
+    # 2.1 Instantanoues Feed Recovery:
+    print(f'raff_cprofile shape:{np.shape(raff_cprofile)}')
+    print(f'C_feed shape:{np.shape(C_feed)}, ')
 
-    # raff_in_recovery = raff_mprofile/sum(C_feed*QF)
-    # ext_insant_recovery = ext_mprofile/sum(C_feed*QF)
+    raff_inst_recovery= np.zeros_like(raff_cprofile)
+    ext_inst_recovery = np.zeros_like(ext_cprofile)
 
-    # 2.2 Integral:
+
+    # 2.1 Instantanoues Output Recovery:
+    raff_inst_output_recovery = np.zeros_like(ext_cprofile)
+    ext_inst_output_recovery = np.zeros_like(raff_cprofile)
+
+    # Populate
+    for i in range(num_comp):
+        raff_inst_recovery[i] = raff_mprofile[i]/sum(np.array(C_feed[i])*QF)
+        ext_inst_recovery[i] = ext_mprofile[i]/sum(np.array(C_feed[i])*QF)
+        raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+        ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+
+    # 2.2 Integral Recovery:
     raff_recov = m_out_raff/m_in
     ext_recov = m_out_ext/m_in
 
+    # Output recovery => recovery relative to only the flow out the extract and raffiante
+    raff_output_recov = np.zeros(num_comp)
+    ext_output_recov = np.zeros(num_comp)
+
+    for i in range(num_comp):
+        raff_output_recov[i] = m_out_raff[i]/(m_out_raff[i] + m_out_ext[i])
+        ext_output_recov[i] = m_out_ext[i]/(m_out_raff[i] + m_out_ext[i])
+
     # 3. Productivity
     #######################################################
-
 
 
 
@@ -1720,8 +1742,10 @@ def SMB(SMB_inputs):
 
     # # Display the DataFrame
     # print(df)
-
-    return y_matrices, nx, t, t_sets, t_schedule, C_feed, m_in, m_out, raff_cprofile, ext_cprofile, raff_intgral_purity, raff_recov, ext_intgral_purity, ext_recov, raff_vflow, ext_vflow, Model_Acc, Expected_Acc, Error_percent
+    results = [y_matrices, nx, t, t_sets, t_schedule, C_feed, m_in, m_out, raff_cprofile, ext_cprofile, raff_intgral_purity, raff_recov, ext_intgral_purity, ext_recov, raff_vflow, ext_vflow, Model_Acc, Expected_Acc, Error_percent, 
+                raff_inst_purity, ext_inst_purity, raff_inst_output_recovery, ext_inst_output_recovery, raff_output_recov, ext_output_recov
+                 ]
+    return results
 
 
 
@@ -1748,6 +1772,7 @@ def SMB(SMB_inputs):
 # ###########################################
 # # IMPORTING MY OWN FUNCTIONS
 # ###########################################
+
 # def see_prod_curves(t_odes, Y, t_index) :
 #     # Y = C_feed, C_raff, C_ext
 #     # X = t_sets
@@ -1758,7 +1783,7 @@ def SMB(SMB_inputs):
 #     # 1 - Raffinate Profile
 #     # 2 - Extract Profile
 #     t_odes  = t_odes/60/60
-#     # Concentration Plots
+#     # # Concentration Plots
 #     for i in range(num_comp): # for each component
 #         if iso_type == "UNC":
 #             ax[0].plot(t_odes[i], Y[0][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
@@ -1769,6 +1794,28 @@ def SMB(SMB_inputs):
 #             ax[0].plot(t_odes, Y[0][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
 #             ax[1].plot(t_odes, Y[1][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
 #             ax[2].plot(t_odes, Y[2][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
+#     # Loop over components
+#     # smooth=True
+#     # window= 350
+#     # poly=1
+#     # color_smooth = ['green', 'orange']
+#     # # colors = ['grey', 'grey']
+#     # for i in range(num_comp):
+#     #     for j, label in enumerate(["Feed", "Raffinate", "Extract"]):
+#     #         yj = Y[j][i]
+
+#     #         if smooth:
+#     #             # Raw in gray
+#     #             ax[j].plot(t_odes, yj, color='grey', alpha=0.4)
+#     #             # Smoothed in component color
+#     #             yj_s = savgol_filter(yj, window, poly, mode="nearest")
+#     #             ax[j].plot(t_odes, yj_s, color=colors[i],
+#     #                        label=f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
+#     #             # ax[j].plot(t_odes, yj, color=colors[i],
+#     #             #            label=f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
+#     #         else:
+#     #             ax[j].plot(t_odes, yj, color=colors[i],
+#     #                        label=f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
         
 #     # Add Accessories
 #     ax[0].set_xlabel('Time, hrs')
@@ -1815,6 +1862,72 @@ def SMB(SMB_inputs):
 
 #     plt.show()
 
+
+# import numpy as np
+# import matplotlib.pyplot as plt
+# from scipy.signal import savgol_filter
+# import numpy as np
+# import matplotlib.pyplot as plt
+# from scipy.signal import savgol_filter
+
+# from scipy.signal import savgol_filter
+
+# from scipy.signal import savgol_filter
+# import numpy as np
+
+# # def hybrid_smooth(y, window=200, poly=2, alpha=0.3):
+# #     y = np.asarray(y)
+    
+# #     # Determine axis to smooth along (time axis)
+# #     axis = 0 if y.ndim == 1 else 0
+# #     n_points = y.shape[axis]
+
+# #     # Ensure valid window length
+# #     window_len = min(window, n_points // 2 * 2 - 1)  # largest odd <= n_points
+# #     if window_len <= poly:
+# #         window_len = poly + 1 if (poly + 1) % 2 == 1 else poly + 2
+
+# #     # Apply Savitzky-Golay filter along axis
+# #     y_smooth = savgol_filter(y, window_length=window_len, polyorder=poly, axis=axis)
+    
+# #     # Hybrid smoothing: blend original with smoothed
+# #     return alpha * y + (1 - alpha) * y_smooth
+
+
+
+# # def see_prod_curves(t_data, Y, smooth=True, window=200, poly=2, alpha=0.3):
+# #     import matplotlib.pyplot as plt
+# #     from scipy.signal import savgol_filter
+# #     import numpy as np
+
+# #     C_feed, raff_cprofile, ext_cprofile, raff_vflow, ext_vflow = Y
+
+# #     fig, ax = plt.subplots(figsize=(10,6))
+
+# #     # Helper function for smoothing
+# #     def hybrid_smooth(y):
+# #         if smooth:
+# #             y_smooth = savgol_filter(y, window_length=min(window, len(y)//2*2-1), polyorder=poly)
+# #             # Blend smoothed with original
+# #             return alpha * y + (1 - alpha) * y_smooth
+# #         return y
+
+# #     # Apply smoothing
+# #     raff_c_smooth = hybrid_smooth(Y[1], window=201, poly=2, alpha=0.3)
+# #     ext_c_smooth  = hybrid_smooth(Y[2], window=201, poly=2, alpha=0.3)
+
+# #     # Plot
+# #     ax.plot(t_data, raff_c_smooth, label="Raffinate", color="blue")
+# #     ax.plot(t_data, ext_c_smooth,  label="Extract",   color="red")
+
+# #     ax.set_xlabel("Time")
+# #     ax.set_ylabel("Concentration")
+# #     ax.legend()
+# #     ax.set_title("SMB Raffinate & Extract Elution Curves")
+
+# #     plt.show()
+
+
 # def col_liquid_profile(t, y, Axis_title, c_in, Ncol_num, L_total):
 #     y_plot = np.copy(y)
 #     # # Removeing the BC nodes
@@ -1852,6 +1965,82 @@ def SMB(SMB_inputs):
 #         ax[1].set_xlabel('Column Length, m')
 #         ax[1].set_ylabel('($\mathregular{g/l}$)')
 #     plt.show()
+
+
+# import numpy as np
+# import matplotlib.pyplot as plt
+# from scipy.signal import savgol_filter   # for smooth mean
+
+# def col_liquid_profile(t, y, Axis_title, c_in, Ncol_num, L_total, smooth=True, window=11, poly=3):
+#     """
+#     Plot column concentration profiles with optional smoothing.
+
+#     Parameters
+#     ----------
+#     t : array
+#         Time points
+#     y : 2D array
+#         Concentration profiles [space, time]
+#     Axis_title : str
+#         Title for y-axis label
+#     c_in : float
+#         Inlet concentration
+#     Ncol_num : int
+#         Number of columns
+#     L_total : float
+#         Column length
+#     smooth : bool
+#         Whether to apply Savitzky-Golay smoothing
+#     window : int
+#         Window length for smoothing (must be odd)
+#     poly : int
+#         Polynomial order for smoothing
+#     """
+#     y_plot = np.copy(y)
+#     nx = y_plot.shape[0]  # number of spatial nodes
+
+#     x = np.linspace(0, L_total, nx)
+
+#     fig, ax = plt.subplots(1, 2, figsize=(25, 5))
+
+#     # --- Start vs End Snapshot ---
+#     y_start, y_end = y_plot[:, 0], y_plot[:, -1]
+
+#     if smooth:
+#         y_start_s = savgol_filter(y_start, window, poly)
+#         y_end_s   = savgol_filter(y_end, window, poly)
+#     else:
+#         y_start_s, y_end_s = y_start, y_end
+
+#     ax[0].plot(x, y_start, color="gray", alpha=0.4, label="t_start (raw)")
+#     ax[0].plot(x, y_start_s, "r-", label="t_start (smoothed)")
+#     ax[0].plot(x, y_end, color="gray", alpha=0.4, label="t_end (raw)")
+#     ax[0].plot(x, y_end_s, "b-", label="t_end (smoothed)")
+
+#     for col_idx in range(Ncol_num + 1):
+#         ax[0].axvline(x=col_idx, color='k', linestyle='-')
+#         ax[1].axvline(x=col_idx, color='k', linestyle='-')
+
+#     ax[0].set_xlabel('Column Length, m')
+#     ax[0].set_ylabel(Axis_title)
+#     ax[0].axhline(y=c_in, color='g', linestyle='--', linewidth=1, label="Inlet concentration")
+#     ax[0].legend()
+
+#     # --- Progressive Profiles ---
+#     for j in range(y_plot.shape[1]):
+#         yj = y_plot[:, j]
+#         if smooth:
+#             yj_s = savgol_filter(yj, window, poly)
+#             ax[1].plot(x, yj_s, alpha=0.8)
+#         else:
+#             ax[1].plot(x, yj, alpha=0.8)
+
+#     ax[1].set_xlabel('Column Length, m')
+#     ax[1].set_ylabel(Axis_title)
+#     ax[1].set_title("Progressive evolution (smoothed)" if smooth else "Progressive evolution")
+
+#     plt.show()
+
 
 
 # def col_solid_profile(t, y, Axis_title, Ncol_num, start, L_total):
@@ -1977,14 +2166,14 @@ def SMB(SMB_inputs):
 #     return Qj
 
 
-#%%
-# --------------- FUNCTION EVALUATION SECTION
+# # %%
+# # --------------- FUNCTION EVALUATION SECTION
 
-# SMB VARIABLES
-#######################################################
-# What tpye of isoherm is required?
-# Coupled: "CUP"
-# Uncoupled: "UNC"
+# # SMB VARIABLES
+# # ######################################################
+# # What tpye of isoherm is required?
+# # Coupled: "CUP"
+# # Uncoupled: "UNC"
 # iso_type = "CUP"
 
 # ###################### PRIMARY INPUTS #########################
@@ -1999,7 +2188,7 @@ def SMB(SMB_inputs):
 
 # # How many columns in each Zone?
 
-# Z1, Z2, Z3, Z4 = 6, 6, 6, 6 # *3 for smb config
+# Z1, Z2, Z3, Z4 = 1, 1, 1, 1 # *3 for smb config
 # zone_config = np.array([Z1, Z2, Z3, Z4])
 
 # # sub_zone information - EASIER TO FILL IN IF YOU DRAW THE SYSTEM
@@ -2029,7 +2218,7 @@ def SMB(SMB_inputs):
 
 
 # subzone_set = [sub_zone_1,sub_zone_2,sub_zone_3,sub_zone_4,sub_zone_5,sub_zone_6, sub_zone_7, sub_zone_8]
-
+# subzone_set = []
 # # # PACK:
 # # subzone_set = [sub_zone_1,sub_zone_2,sub_zone_3,sub_zone_4,sub_zone_5,sub_zone_6,sub_zone_7,sub_zone_8]
 
@@ -2074,15 +2263,15 @@ def SMB(SMB_inputs):
 # t_simulation_end = None # HRS
 # ###############  FLOWRATES  #################################################################################
 
-# # Jochen et al:
-# Q_P, Q_Q, Q_R, Q_S = 5.21, 4, 5.67, 4.65 # x10-7 m^3/s
-# conv_fac = 0.1 # x10-7 m^3/s => cm^3/s
-# Q_P, Q_Q, Q_R, Q_S  = Q_P*conv_fac, Q_Q*conv_fac, Q_R*conv_fac, Q_S*conv_fac
+# # # Jochen et al:
+# # Q_P, Q_Q, Q_R, Q_S = 5.21, 4, 5.67, 4.65 # x10-7 m^3/s
+# # conv_fac = 0.1 # x10-7 m^3/s => cm^3/s
+# # Q_P, Q_Q, Q_R, Q_S  = Q_P*conv_fac, Q_Q*conv_fac, Q_R*conv_fac, Q_S*conv_fac
 
-# Q_I, Q_II, Q_III, Q_IV = Q_R,  Q_S, Q_P, Q_Q
+# # Q_I, Q_II, Q_III, Q_IV = Q_R,  Q_S, Q_P, Q_Q
 
-# # Q_I, Q_II, Q_III, Q_IV = 2,1,2,1
-# Q_I, Q_II, Q_III, Q_IV = 11/3.6, 8.96/3.6, 9.96/3.6, 7.96/3.6 # L/h
+# # # Q_I, Q_II, Q_III, Q_IV = 2,1,2,1
+# # Q_I, Q_II, Q_III, Q_IV = 11/3.6, 8.96/3.6, 9.96/3.6, 7.96/3.6 # L/h
 
 
 
@@ -2141,7 +2330,10 @@ def SMB(SMB_inputs):
 # SMB_inputs = [iso_type, Names, colors, num_comp, nx_per_col, e, Da_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_params_all, kav_params_all, subzone_set, t_simulation_end]
 # #%% ---------- SAMPLE RUN IF NECESSARY
 # start_test = time.time()
-# y_matrices, nx, t, t_sets, t_schedule, C_feed, m_in, m_out, raff_cprofile, ext_cprofile, raff_intgral_purity, raff_recov, ext_intgral_purity, ext_recov, raff_vflow, ext_vflow, Model_Acc, Expected_Acc, Error_percent = SMB(SMB_inputs)
+# results = SMB(SMB_inputs)
+
+# y_matrices, nx, t, t_sets, t_schedule, C_feed, m_in, m_out, raff_cprofile, ext_cprofile, raff_intgral_purity, raff_recov, ext_intgral_purity, ext_recov, raff_vflow, ext_vflow, Model_Acc, Expected_Acc, Error_percent = results[0:19]
+# raff_inst_purity, ext_inst_purity, raff_inst_output_recovery, ext_inst_output_recovery, raff_output_recov, ext_output_recov = results[19:]
 # end_test = time.time()
 
 # duration = end_test - start_test
@@ -2154,9 +2346,9 @@ def SMB(SMB_inputs):
 # # print(f'ext_cprofile: {ext_cprofile}')
 # # print(f'raff_cprofile: {raff_cprofile}')
 # print("-----------------------------------------------------------")
-# Y = [C_feed, raff_cprofile, ext_cprofile, raff_vflow, ext_vflow]
+# Y1 = [C_feed, raff_cprofile, ext_cprofile, raff_vflow, ext_vflow]
+# Y2 = [C_feed, raff_inst_purity, ext_inst_purity, raff_inst_output_recovery, ext_inst_output_recovery]
 
-# # Y = [C_feed, ext_vflow, raff_vflow ]
 
 # # # g/L
 
@@ -2179,36 +2371,50 @@ def SMB(SMB_inputs):
 #     see_prod_curves(t_sets, Y, t_index_min*60)
 #     # see_prod_curves_with_data(t_sets, Y, t_index_min*60, exp_data_raff, exp_data_ext, show_exp=True)
 # elif iso_type == "CUP":
-#     see_prod_curves(t, Y, t_index_min*60)
+#     see_prod_curves(t, Y1, t_index_min*60)
+#     see_prod_curves(t, Y2, t_index_min*60)
 #     # see_prod_curves_with_data(t, Y, t_index_min*60, exp_data_raff, exp_data_ext, show_exp=True)
 
 
 # # Define the data for the table
+
+# sigfig = 3
 # data = {
 #     'Metric': [
 #         'Total Expected Acc (IN-OUT)', 
 #         'Total Model Acc (r+l)', 
 #         'Total Error Percent (relative to Exp_Acc)', 
-#         'Mass In',
-#         'Mass Out',
+
+#         # f'Mass In {Names}',
+#         # f'Mass Out {Names}',
         
-#         'Raffinate Purity [A, B,. . ]', 
-#         'Extract Purity [A, B,. . ]',
-#         'Raffinate Recovery[A, B,. . ]', 
-#         'Extract Recovery[A, B,. . ]'
-#     ],
+#         f'Raffinate Integral Purity {Names}', 
+#         f'Extract Integral Purity {Names}',
+
+#         f'Raffinate Integral OUTPUT Recovery {Names}', 
+#         f'Extract Integral OUTPUT Recovery {Names}',
+
+#         f'Raffinate Integral Feed Recovery {Names}', 
+#         f'Extract Integral Feed Recovery {Names}'
+#         ],
+
 #     'Value': [
-#         f'{sum(Expected_Acc)} g', 
-#         f'{sum(Model_Acc)} g', 
-#         f'{Error_percent} %',
+#         f'{np.round(sum(Expected_Acc), sigfig)} g', 
+#         f'{np.round(sum(Model_Acc), sigfig)} g', 
+#         f'{np.round(Error_percent, sigfig + 2)} %',
 
-#         f'{m_in} g',
-#         f'{m_out} g', 
+#         # f'{m_in} g',
+#         # f'{m_out} g', 
 
-#         f'{raff_intgral_purity} %', 
-#         f'{ext_intgral_purity} %', 
-#         f'{raff_recov} %', 
-#         f'{ext_recov} %'
+#         f'[{np.round(raff_intgral_purity[0], sigfig)*100}, {np.round(raff_intgral_purity[1], sigfig)*100}] %', 
+#         f'[{np.round(ext_intgral_purity[0],sigfig)*100}, {np.round(ext_intgral_purity[1], sigfig)*100}] %', 
+
+#         f'[{np.round(raff_output_recov[0],sigfig)*100}, {np.round(raff_output_recov[1],sigfig)*100}] %', 
+#         f'[{np.round(ext_output_recov[0],sigfig)*100}, {np.round(ext_output_recov[1],sigfig)*100}] %',
+
+#         f'[{np.round(raff_recov[0], sigfig)*100}, {np.round(raff_recov[1], sigfig)*100}] %', 
+#         f'[{np.round(ext_recov[0], sigfig)*100}, {np.round(ext_recov[1], sigfig)*100}] %'
+
 #     ]
 # }
 

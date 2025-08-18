@@ -15,7 +15,7 @@ import plotly.graph_objects as go
 ###########################################
 # IMPORTING MY OWN FUNCTIONS
 ###########################################
-from SMB_ode_func import SMB
+from SMB_func_general import SMB
 
 def calculate_mse(matrix1, matrix2):
     """
@@ -339,8 +339,8 @@ Q_internal = np.array([Q_I, Q_II, Q_III, Q_IV])
 
 
 parameter_sets = [
-    {"kh": 3.15/100, "H": 0.27, "C_feed": 1},  # Component A
-    {"kh": 2.217/100, "H": 0.53, "C_feed": 1}] #, # Component B
+                    {"kh": 3.15/100, "H": 0.27, "C_feed": 1},  # Component A
+                    {"kh": 2.217/100, "H": 0.53, "C_feed": 1}] #, # Component B
 
 # ISOTHERM PARAMETERS
 ###########################################################################################
@@ -364,19 +364,24 @@ zone_config_varry = [np.array([2,2,3,1])]
 ###########################################################################################
 
 ################ EXCUTING THE FUNCTIONS ####################################
-print('Solving Mesh Independence Study . . . ')
-mesh_sizes = [60, 60]
-y, error, mse = mesh_ind_study(mesh_sizes, SMB_inputs, 100)
-print("""
-Interprating the Log Error:
-Log Error = 0: The matrices are identical.
-Log Error < 0.5: The differences are relatively small.
-Log Error ≈ 0.5: The values differ by about 65% on average.
-Log Error > 0.5: The matrices have substantial differences, with values differing by more than 65%.\n\n\n""")
+# print('Solving Mesh Independence Study . . . ')
+# mesh_sizes = [60, 60]
+# y, error, mse = mesh_ind_study(mesh_sizes, SMB_inputs, 100)
+# print("""
+# Interprating the Log Error:
+# Log Error = 0: The matrices are identical.
+# Log Error < 0.5: The differences are relatively small.
+# Log Error ≈ 0.5: The values differ by about 65% on average.
+# Log Error > 0.5: The matrices have substantial differences, with values differing by more than 65%.\n\n\n""")
 
-# print('\n\n\n\nSolving Parametric Study #1. . . . . . ')
-# Output, x_variable, x_variable_name = point_value_parametric_study('n_num_cycles', 20, 100 , 10) # (Name of quantitiy, lower_bound, upper_bound + resolution, resolution)
-# plot_parametric_results(output= Output, x_values = x_variable, y_variable_name = 'Model_Acc', x_variable_name = x_variable_name, color=color)
+print('\n\n\n\nSolving Parametric Study #1. . . . . . ')
+quantity_name = 'e'
+min_val = 0.1
+max_val = 1
+dist_bn_points = 0.1
+
+Output, x_variable, x_variable_name = point_value_parametric_study(quantity_name, min_val, max_val , dist_bn_points) # (Name of quantitiy, lower_bound, upper_bound + resolution, resolution)
+plot_parametric_results(output= Output, x_values = x_variable, y_variable_name = 'Model_Acc', x_variable_name = x_variable_name, color=color)
 # plot_parametric_results(output= Output, x_values = x_variable, y_variable_name = 'Expected_Acc', x_variable_name = x_variable_name, color=color)
 # plot_parametric_results(output= Output, x_values = x_variable, y_variable_name = 'm_in', x_variable_name = x_variable_name, color=color)
 # plot_parametric_results(output= Output, x_values = x_variable, y_variable_name = 'm_out', x_variable_name = x_variable_name, color=color)

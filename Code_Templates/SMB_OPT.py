@@ -97,7 +97,6 @@ def opt_func(batch, SMB):
             # Store the sample in the array
             samples[i] = [m1, m2, m3, m4]
 
-
         return samples
 
     def fixed_feed_lhq_sample_mj(t_index_min, Q_fixed_feed, m_min, m_max, n_samples, diff=0.1):
@@ -153,6 +152,7 @@ def opt_func(batch, SMB):
         Final result is an np.array of size: (n_samples, 4)
 
         [1.78902051 1.10163238 1.75875405 0.20421105], 7.438074624877448
+
         """
         
         # Initialize the array to store the samples
@@ -325,134 +325,12 @@ def opt_func(batch, SMB):
 
         return  Rec, Pur, np.array([m1, m2, m3, m4, t_index_min])
 
-    # Fixed index time
-    def obj_con_fix_t(X):
-        """Feasibility weighted objective; zero if not feasible.
-
-            X = [m1, m2, m3, m4];
-            Objective: WAR = Weighted Average Recovery
-            Constraint: WAP = Weighted Average Purity
-
-            Use WAP to calculate the feasibility weights. Which
-            will scale teh EI output.
-
-        """
-        X = np.array(X)
-
-
-        # print(f'np.shape(x_new)[0]: {np.shape(X)}')
-        if X.ndim == 1:
-
-            Pur = np.zeros(2)
-            Rec = np.zeros(2)
-            # Unpack and convert to float and np.arrays from torch.tensors:
-            m1, m2, m3, m4 = float(X[0]), float(X[1]), float(X[2]), float(X[3])
-
-            print(f'[m1, m2, m3, m4]: [{m1}, {m2}, {m3}, {m4}], t_index: {t_index_min}')
-
-            Q_I, Q_II, Q_III, Q_IV = mj_to_Qj(m1), mj_to_Qj(m2), mj_to_Qj(m3), mj_to_Qj(m4)
-            Q_internal = np.array([Q_I, Q_II, Q_III, Q_IV]) # cm^3/s
-            Qfeed = Q_III - Q_II
-            Qraffinate = Q_III - Q_IV
-            Qdesorbent = Q_I - Q_IV
-            Qextract = Q_I - Q_II
-            Q_external = np.array([Qfeed, Qraffinate, Qdesorbent,Qextract])
-            print(f'Q_internal: {Q_internal} cm^s/s')
-            print(f'Q_internal: {Q_internal*3.6} L/h')
-
-            print(f'----------------------------------')
-            print(f'Q_external: {Q_external} cm^s/s')
-            print(f'Q_external: {Q_external*3.6} L/h')
-            # print(f'Q_internal type: {type(Q_internal)}')
-
-            SMB_inputs[12] = t_index_min  # Update t_index
-            SMB_inputs[14] = Q_internal # Update Q_internal
-
-            results = SMB(SMB_inputs)
-
-            # print(f'done solving sample {i+1}')
-
-            raff_purity = results[10]  # [Glu, Fru]
-            ext_purity = results[12]  # [Glu, Fru]
-
-            raff_recovery = results[11]  # [Glu, Fru]
-            ext_recovery = results[13]  # [Glu, Fru]
-
-            pur1 = raff_purity[0]
-            pur2 = ext_purity[1]
-
-            rec1 = raff_recovery[0]
-            rec2 = ext_recovery[1]
-
-            # Pack
-            # WAP[i] = WAP_add
-            # WAR[i] = WAR_add
-            Pur[:] = [pur1, pur2]
-            Rec[:] = [rec1, rec2]
-
-        elif X.ndim > 1:
-            Pur = np.zeros((len(X[:,0]), 2))
-            Rec = np.zeros((len(X[:,0]), 2))
-
-            for i in range(len(X[:,0])):
-
-                # Unpack and convert to float and np.arrays from torch.tensors:
-                m1, m2, m3, m4, t_index_min = float(X[i,0]), float(X[i,1]), float(X[i,2]), float(X[i,3]), float(X[i,4])*t_reff
-
-                print(f'[m1, m2, m3, m4]: [{m1}, {m2}, {m3}, {m4}], t_index: {t_index_min}')
-                Q_I, Q_II, Q_III, Q_IV = mj_to_Qj(m1), mj_to_Qj(m2), mj_to_Qj(m3), mj_to_Qj(m4)
-                Q_internal = np.array([Q_I, Q_II, Q_III, Q_IV]) # cm^3/s
-                # Calculate and display external flowrates too
-                Qfeed = Q_III - Q_II
-                Qraffinate = Q_III - Q_IV
-                Qdesorbent = Q_I - Q_IV
-                Qextract = Q_I - Q_II
-
-                Q_external = np.array([Qfeed, Qraffinate, Qdesorbent,Qextract])
-                print(f'Q_internal: {Q_internal} cm^s/s')
-                print(f'Q_internal: {Q_internal*3.6} L/h')
-
-                print(f'----------------------------------')
-                print(f'Q_external: {Q_external} cm^s/s')
-                print(f'Q_external: {Q_external*3.6} L/h')
-
-
-                # print(f'Q_internal type: {type(Q_internal)}')
-                # Update SMB_inputs:
-                SMB_inputs[12] = t_index_min  # Update t_index
-                SMB_inputs[14] = Q_internal # Update Q_internal
-
-                results = SMB(SMB_inputs)
-
-                # print(f'done solving sample {i+1}')
-
-                raff_purity = results[10]  # [Glu, Fru]
-                ext_purity = results[12]  # [Glu, Fru]
-
-                raff_recovery = results[11]  # [Glu, Fru]
-                ext_recovery = results[13]  # [Glu, Fru]
-
-                pur1 = raff_purity[0]
-                pur2 = ext_purity[1]
-
-                rec1 = raff_recovery[0]
-                rec2 = ext_recovery[1]
-
-                # Pack
-                # WAP[i] = WAP_add
-                # WAR[i] = WAR_add
-                Pur[i,:] = [pur1, pur2]
-                Rec[i,:] = [rec1, rec2]
-                print(f'Pur: {pur1}, {pur2}')
-                print(f'Rec: {rec1}, {rec2}\n\n')
-
-        return  Rec, Pur, np.array([m1, m2, m3, m4, t_index_min])
-
 
     # ------ Generate Initial Data
     def generate_initial_data(triangle_guess, sampling_budget=1):
 
         # generate training data
+        triangle_guess = np.array([triangle_guess]) # add additional layer
         # print(f'Getting {sampling_budget} Samples')
         # train_x = lhq_sample_mj(0.2, 1.7, n, diff=0.1)
         # train_x = fixed_feed_lhq_sample_mj(t_index_min, Q_fixed_feed, 0.2, 1.7, n, diff=0.1)
@@ -461,19 +339,15 @@ def opt_func(batch, SMB):
         # print(f'Done Getting {sampling_budget} Samples')
 
         # print(f'Solving Over {sampling_budget} Samples')
-        if len(triangle_guess) == True:
-            Rec, Pur, mjs = obj_con(triangle_guess)
-            # print(f'Rec: {Rec}, Pur: {Pur}')
-            # print(f'Done Getting {sampling_budget} Samples')
-            all_outputs = np.hstack((Rec, Pur))
-            return triangle_guess, all_outputs
-        else:
-            Rec, Pur, mjs = obj_con(train_all)
-            # print(f'Rec: {Rec}, Pur: {Pur}')
-            # print(f'Done Getting {sampling_budget} Samples')
-            all_outputs = np.hstack((Rec, Pur))
-            return train_all, all_outputs
+        # print(f'\n\ntriangle_guess: {triangle_guess}')
+        # print(f'train_all: {train_all}')
 
+        Rec, Pur, mjs = obj_con(triangle_guess)
+        # print(f'Rec: {Rec}, Pur: {Pur}')
+        # print(f'Done Getting {sampling_budget} Samples')
+        all_outputs = np.hstack((Rec, Pur))
+        return triangle_guess, all_outputs
+    
     # ------------------ BO FUNTIONS
     # --- Surrogate model creation ---
     def surrogate_model(X_train, y_train):
@@ -846,6 +720,8 @@ def opt_func(batch, SMB):
                 #     options={'maxiter': 100, 'disp': True})
 
                 x_candidate = result.x # [m1, m2, m3, m4, t_index_min]
+                # x_candidate = np.array([2, 2.2, 2, 4, 10])
+
 
                 if passes_manual_check(x_candidate):
                     x_new = x_candidate
@@ -858,10 +734,11 @@ def opt_func(batch, SMB):
                 if x_new is None:                    
                     print("Tweaking vector to satisfy pattern...")
                     x_new = x_candidate.copy()
+                    x_new = x_new.tolist()
                     m1, m2, m3, m4 = x_new[0:4]
 
                     # Adjust values to enforce pattern:
-                    if not (m1 > m2): m1 = m2 + abs(m2)*0.1 + 1e-6
+                    if not (m1 > m2): m1 = m2 + abs(m2)*0.3 + 1e-6
                     if not (m3 > m2): m3 = m2 + abs(m2)*0.1 + 1e-6
                     if not (m4 < m3): m4 = m3 - abs(m3)*0.1 - 1e-6
                     if not (m4 < m1): m4 = min(m4, m1 - abs(m1)*0.1 - 1e-6)
@@ -887,7 +764,7 @@ def opt_func(batch, SMB):
             c1_vals  = np.vstack([c1_vals.reshape(-1,1), c_new[0]])
             c2_vals  = np.vstack([c2_vals.reshape(-1,1), c_new[1]])
 
-            print(f"Gen {gen+1} Status:\n | Sampled Inputs:{x_new[:-1]}, {x_new[-1]*t_reff} [m1, m2, m3, m4, t_index]|\n Outputs: G_f1: {f_new[0]*100} %, F_f2: {f_new[1]*100} % | GPur, FPur: {c_new[0]*100}%, {c_new[1]*100}%")
+            print(f"\nGen {gen+1} Status:\n | Sampled Inputs:{x_new[:-1]}, {x_new[-1]*t_reff} min [m1, m2, m3, m4, t_index]|\n Outputs: G_f1: {f_new[0]*100} %, F_f2: {f_new[1]*100} % | GPur, FPur: {c_new[0]*100}%, {c_new[1]*100}%")
 
         return f1_vals, f2_vals, c1_vals , c2_vals , all_inputs
 
@@ -983,9 +860,30 @@ def opt_func(batch, SMB):
     #%%
         # ----------- SAVE
         # Convert NumPy array to list
-
+        print(f'size of inputs_all: {all_inputs}')
         # Inputs:
-        all_inputs_list = all_inputs.tolist()
+        all_inputs_dict = {
+            "Description": Description,
+            "m1":all_inputs[:,0].tolist(),
+            "m2":all_inputs[:,1].tolist(),
+            "m3":all_inputs[:,2].tolist(),
+            "m4":all_inputs[:,3].tolist(),
+            "t_index_min":all_inputs[:,4].tolist(),
+            
+            "Q1_(L/h)":((3.6*all_inputs[:,0]*V_col*(1-e) + V_col*e)/(t_index_min*60)).tolist(),
+            "Q2_(L/h)":((3.6*all_inputs[:,1]*V_col*(1-e) + V_col*e)/(t_index_min*60)).tolist(),
+            "Q3_(L/h)":((3.6*all_inputs[:,2]*V_col*(1-e) + V_col*e)/(t_index_min*60)).tolist(),
+            "Q4_(L/h)":((3.6*all_inputs[:,3]*V_col*(1-e) + V_col*e)/(t_index_min*60)).tolist(),
+
+            "V_col_(mL)":[V_col],
+            "L_col_(cm)": [L],
+            "A_col_(cm)": [A_col],
+            "d_col_(cm)": [d_col],
+            "config": zone_config.tolist(),
+            "e":[e]
+
+        }
+
         # Outputs:
         data_dict = {
             "Description": Description,
@@ -1000,13 +898,14 @@ def opt_func(batch, SMB):
         # SAVE all_inputs to JSON:
     
         with open(save_name_inputs, "w") as f:  
-            json.dump(all_inputs_list, f, indent=4)
+            json.dump(all_inputs_dict, f, indent=4)
 
         # SAVE recoveries_and_purities to JSON:
         with open(save_name_outputs, "w") as f:
             json.dump(data_dict, f, indent=4)
         
-        print(f'Saved Sucessfully')
+        print(f'OPTIMIZATION COMPLETE')
+        print(f'Saved Sucessfully :)')
 
 
     # %%

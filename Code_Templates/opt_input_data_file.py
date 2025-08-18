@@ -140,8 +140,8 @@ nx_per_col = 15
 
 ################ Time Specs #################################################################################
 t_index_min = 10      # min    # Index time # How long the pulse holds before swtiching
-n_num_cycles = 5 # Number of Cycles you want the SMB to run for
-t_simulation_end = None # hrs 20hrs
+n_num_cycles = None # Number of Cycles you want the SMB to run for
+t_simulation_end = 30 # hrs 20hrs
 ###############  FLOWRATES   #################################################################################
 
 # Jochen et al:
@@ -193,14 +193,14 @@ job_max_or_min = 'maximize'
 # - - - - -
 t_reff = 20 # min
 # - - - - -
-Q_max = 15 # L/h
+Q_max = 12 # L/h
 Q_min = 1 # L/h
 # - - - - -
 m_max = 4.5
 m_min = 1.5
 # - - - - -
 sampling_budget = 1 #
-optimization_budget = 20 #100
+optimization_budget = 50 #100
 constraint_threshold = [0.995, 0.995] # [Glu, Fru]
 # - - - - -
 PF_weight = 10 # Weight applied to the probability of feasibility
@@ -308,8 +308,8 @@ Q_internal = np.array([Q_I, Q_II, Q_III, Q_IV])
 
 # When saving the json:
 Description = [f"Description: Optimizting the Borate HCl system for the sythetic solution on PCR.Ca. {optimization_budget+1} iterations. We placed a upper flowrate constraint of {Q_max} L/h. This is with the sub-zoning arangement in config 2 in this case, we used CALCUALTED isotherm data for both components"]
-save_name_inputs = "SYNTH_PCR-borhcl_{optimization_budget+1}iter_norm_config_all_inputs.json" # (1) "ILLOVO_PCR_borhcl_{optimization_budget+1}iter_norm_config_all_inputs.json", (2) "ILLOVO_PCR-borhcl_{optimization_budget+1}iter_subzone_config_all_inputs.json"
-save_name_outputs = "SYNTH_PCR-borhcl_{optimization_budget+1}iter_norm_config_all_outputs.json" # (1) "ILLOVO_PCR-borhcl_{optimization_budget+1}iter_norm_config_all_outputs.json", (2) "ILLOVO_PCR-borhcl_{optimization_budget+1}iter_subzone_config_all_outputs.json"
+save_name_inputs = f"SYNTH_PCR-borhcl_{optimization_budget+1}iter_norm_config_all_inputs.json" # (1) "ILLOVO_PCR_borhcl_{optimization_budget+1}iter_norm_config_all_inputs.json", (2) "ILLOVO_PCR-borhcl_{optimization_budget+1}iter_subzone_config_all_inputs.json"
+save_name_outputs = f"SYNTH_PCR-borhcl_{optimization_budget+1}iter_norm_config_all_outputs.json" # (1) "ILLOVO_PCR-borhcl_{optimization_budget+1}iter_norm_config_all_outputs.json", (2) "ILLOVO_PCR-borhcl_{optimization_budget+1}iter_subzone_config_all_outputs.json"
    # PACK:
 opt_inputs_b3 = [Description, save_name_inputs, save_name_outputs, job_max_or_min, t_reff, Q_max, Q_min, m_max, m_min, sampling_budget, optimization_budget, constraint_threshold, PF_weight, bounds, triangle_guess]
 SMB_inputs_b3 = [iso_type, Names, color, num_comp, nx_per_col, e, Da_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_params_all, kav_params_all, subzone_set, t_simulation_end]
@@ -321,6 +321,9 @@ batch_3 = [opt_inputs_b3, SMB_inputs_b3]
 # BATCH 4: BORATE-HCL - ILLOVO SOLUTION - UBK
 # --------------------------------------------------------------------------
 subzone_set = config_2
+# subzone_set = []
+
+
 parameter_sets = [ {"C_feed": 0.003190078*1.4}, {"C_feed": 0.012222*0.8}] 
 Da_all = np.array([1.83e-5, 5.6-5]) 
 kav_params_all = np.array([[0.173], [0.151]])
@@ -336,8 +339,8 @@ Q_internal = np.array([Q_I, Q_II, Q_III, Q_IV])
 
 # When saving the json:
 Description = [f"Description example: Optimizting the Borate HCl system for the ILLOVO Wastewater solution on UBK. {optimization_budget+1} iterations. We placed a upper flowrate constraint of {Q_max} L/h. This is with the sub-zoning arangement in config 2 in this case, we used CALCUALTED isotherm data for both components"]
-save_name_inputs = "ILLOVO_UBK-borhcl_{optimization_budget+1}iter_norm_config_all_inputs.json" # (1) "ILLOVO_PCR_borhcl-type1_{optimization_budget+1}iter_norm_config_all_inputs.json", (2) "ILLOVO_PCR-borhcl_{optimization_budget+1}iter_subzone_config_all_inputs.json"
-save_name_outputs = "ILLOVO_UBK-borhcl_{optimization_budget+1}iter_norm_config_all_outputs.json" # (1) "ILLOVO_PCR-borhcl-type1_{optimization_budget+1}iter_norm_config_all_outputs.json", (2) "ILLOVO_PCR-borhcl_{optimization_budget+1}iter_subzone_config_all_outputs.json"
+save_name_inputs = f"ILLOVO_UBK-borhcl_{optimization_budget+1}iter_config_2_all_inputs.json" # (1) "ILLOVO_PCR_borhcl-type1_{optimization_budget+1}iter_norm_config_all_inputs.json", (2) "ILLOVO_PCR-borhcl_{optimization_budget+1}iter_subzone_config_all_inputs.json"
+save_name_outputs = f"ILLOVO_UBK-borhcl_{optimization_budget+1}iter_config_2_all_outputs.json" # (1) "ILLOVO_PCR-borhcl-type1_{optimization_budget+1}iter_norm_config_all_outputs.json", (2) "ILLOVO_PCR-borhcl_{optimization_budget+1}iter_subzone_config_all_outputs.json"
    # PACK:
 opt_inputs_b4 = [Description, save_name_inputs, save_name_outputs, job_max_or_min, t_reff, Q_max, Q_min, m_max, m_min, sampling_budget, optimization_budget, constraint_threshold, PF_weight, bounds, triangle_guess]
 SMB_inputs_b4 = [iso_type, Names, color, num_comp, nx_per_col, e, Da_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_params_all, kav_params_all, subzone_set, t_simulation_end]
@@ -355,7 +358,7 @@ subzone_set = config_2
 parameter_sets = [ {"C_feed": 0.003190078*1.4}, {"C_feed": 0.012222*0.8}] 
 # parameter_sets = [ {"C_feed": 0.003190078*1.4}, {"C_feed": 0.003190078*1.4}]  
 Da_all = np.array([5.77e-7, 2.3812e-7]) 
-kav_params_all = np.array([[0.170], [0.154]])
+kav_params_all = np.array([[0.0170], [0.0154]])
 cusotom_isotherm_params_all = np.array([[2.13], [2.35]]) # [ [H_borate], [H_hcl] ]
 
 ################### - Iniital Guess For optimization based in linear isotherm
@@ -366,9 +369,9 @@ Q_I, Q_II, Q_III, Q_IV = mj_to_Qj(m1, t_index_min), mj_to_Qj(m2, t_index_min), m
 Q_internal = np.array([Q_I, Q_II, Q_III, Q_IV])
 
 # When saving the json:
-Description = [f"Description example: Optimizting the Borate HCl system for the ILLOVO Wastewater solution on PCR.Ca. {optimization_budget} iterations, with no isotherom data. We placed a upper flowrate constraint of {Q_max} L/h. {t_simulation_end} hrs of operation. This is with the sub-zoning arangement in norm config in this case, we used CALCUALTED isotherm data for both components."]
-save_name_inputs = "ILLOVO_PCR-borhcl_{optimization_budget+1}iter_config2_all_inputs.json" # (1) "ILLOVO_PCR_borhcl_{optimization_budget+1}iter_norm_config_all_inputs.json", (2) "ILLOVO_PCR-borhcl_{optimization_budget+1}iter_subzone_config_all_inputs.json"
-save_name_outputs = "ILLOVO_PCR-borhcl_{optimization_budget+1}iter_config2_all_outputs.json" # (1) "ILLOVO_PCR-borhcl_{optimization_budget+1}iter_norm_config_all_outputs.json", (2) "ILLOVO_PCR-borhcl_{optimization_budget+1}iter_subzone_config_all_outputs.json"
+Description = [f"Description example: Optimizting the Borate HCl system for the ILLOVO Wastewater solution on PCR.Ca. {optimization_budget} iterations, with no isotherom data. We placed a upper flowrate constraint of {Q_max} L/h. {t_simulation_end} hrs of operation. This is with the sub-zoning arangement in config 2 in this case, we used CALCUALTED isotherm data for both components."]
+save_name_inputs = f"ILLOVO_PCR-borhcl_{optimization_budget+1}iter_config2_all_inputs.json" # (1) "ILLOVO_PCR_borhcl_{optimization_budget+1}iter_norm_config_all_inputs.json", (2) "ILLOVO_PCR-borhcl_{optimization_budget+1}iter_subzone_config_all_inputs.json"
+save_name_outputs = f"ILLOVO_PCR-borhcl_{optimization_budget+1}iter_config2_all_outputs.json" # (1) "ILLOVO_PCR-borhcl_{optimization_budget+1}iter_norm_config_all_outputs.json", (2) "ILLOVO_PCR-borhcl_{optimization_budget+1}iter_subzone_config_all_outputs.json"
    # PACK:
 opt_inputs_b5 = [Description, save_name_inputs, save_name_outputs, job_max_or_min, t_reff, Q_max, Q_min, m_max, m_min, sampling_budget, optimization_budget, constraint_threshold, PF_weight, bounds, triangle_guess]
 SMB_inputs_b5 = [iso_type, Names, color, num_comp, nx_per_col, e, Da_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_params_all, kav_params_all, subzone_set, t_simulation_end]
@@ -376,4 +379,4 @@ SMB_inputs_b5 = [iso_type, Names, color, num_comp, nx_per_col, e, Da_all, Bm, zo
 batch_5 = [opt_inputs_b5, SMB_inputs_b5] 
 
 
-opt_batches = [batch_5] # [batch_1, batch_2, batch_3, batch_4, batch_5]
+opt_batches = [batch_4] # [batch_1, batch_2, batch_3, batch_4, batch_5]
