@@ -626,6 +626,128 @@ def plot_raff_ext_pareto(c1_vals, c2_vals, r1_vals, r2_vals):
     plt.show()
 
 
+import numpy as np
+
+def generate_dummy_inputs(n, V_col, L, A_col, d_col, e, zone_config, Description="Dummy Optimization Run", bounds = [
+                                                                                                        (2.5, 5),   # m1
+                                                                                                        (1, 2),     # m2
+                                                                                                        (2.5, 5),   # m3
+                                                                                                        (1, 2),     # m4
+                                                                                                        (2, 10)    # t_index/t_ref
+                                                                                                    ]):
+    """
+    Generate dummy optimization data consistent with all_inputs_dict format.
+
+    Args:
+        n (int): Number of iterations (rows of all_inputs).
+        bounds (list of tuple): Bounds for each variable [(low, high), ...].
+        V_col (float): Column volume (mL).
+        L (float): Column length (cm).
+        A_col (float): Column area (cm²).
+        d_col (float): Column diameter (cm).
+        e (float): Voidage.
+        zone_config (list): Zone configuration.
+        Description (str): Description of the dataset.
+
+    Returns:
+        dict: all_inputs_dict with dummy data.
+    """
+    m = len(bounds)  # number of decision variables
+    all_inputs = np.zeros((n, m))
+
+    # Sample random values within the provided bounds
+    for j, (low, high) in enumerate(bounds):
+        all_inputs[:, j] = np.random.uniform(low, high, n)
+
+    # Extract t_index_min (last column)
+    t_index_min = all_inputs[:, 4]
+
+    # Build dictionary
+    all_inputs_dict = {
+        "Description": Description,
+        "m1": all_inputs[:, 0].tolist(),
+        "m2": all_inputs[:, 1].tolist(),
+        "m3": all_inputs[:, 2].tolist(),
+        "m4": all_inputs[:, 3].tolist(),
+        "t_index_min": t_index_min.tolist(),
+
+        "Q1_(L/h)": ((3.6 * all_inputs[:, 0] * V_col * (1 - e) + V_col * e) / (t_index_min * 60)).tolist(),
+        "Q2_(L/h)": ((3.6 * all_inputs[:, 1] * V_col * (1 - e) + V_col * e) / (t_index_min * 60)).tolist(),
+        "Q3_(L/h)": ((3.6 * all_inputs[:, 2] * V_col * (1 - e) + V_col * e) / (t_index_min * 60)).tolist(),
+        "Q4_(L/h)": ((3.6 * all_inputs[:, 3] * V_col * (1 - e) + V_col * e) / (t_index_min * 60)).tolist(),
+
+        "V_col_(mL)": [V_col],
+        "L_col_(cm)": [L],
+        "A_col_(cm)": [A_col],
+        "d_col_(cm)": [d_col],
+        "config": zone_config,
+        "e": [e]
+    }
+
+    return all_inputs_dict
+import numpy as np
+
+def parse_inputs_dict(all_inputs_dict, include_t_index_as="col"):
+    """
+    Parse optimization results dictionary into structured matrices and scalars.
+
+    Args:
+        all_inputs_dict (dict): Input dictionary from optimization run.
+        include_t_index_as (str): "row" or "col" - include t_index_min as extra row or column.
+
+    Returns:
+        dict with:
+            - "M_matrix": numpy array of m ratios (+ t_index_min)
+            - "Q_matrix": numpy array of Q values (+ t_index_min)
+            - "vectors": dict of vectors (lists)
+            - "scalars": dict of scalars (single values)
+    """
+    # Extract mj ratios
+    m1 = np.array(all_inputs_dict["m1"])
+    m2 = np.array(all_inputs_dict["m2"])
+    m3 = np.array(all_inputs_dict["m3"])
+    m4 = np.array(all_inputs_dict["m4"])
+    t_index_min = np.array(all_inputs_dict["t_index_min"])
+
+    # Extract Q values
+    Q1 = np.array(all_inputs_dict["Q1_(L/h)"])
+    Q2 = np.array(all_inputs_dict["Q2_(L/h)"])
+    Q3 = np.array(all_inputs_dict["Q3_(L/h)"])
+    Q4 = np.array(all_inputs_dict["Q4_(L/h)"])
+
+    # Stack into matrices
+    M_matrix = np.vstack([m1, m2, m3, m4]).T
+    Q_matrix = np.vstack([Q1, Q2, Q3, Q4]).T
+
+    if include_t_index_as == "col":
+        M_matrix = np.column_stack([M_matrix, t_index_min])
+        Q_matrix = np.column_stack([Q_matrix, t_index_min])
+    elif include_t_index_as == "row":
+        M_matrix = np.vstack([M_matrix, t_index_min])
+        Q_matrix = np.vstack([Q_matrix, t_index_min])
+    else:
+        raise ValueError("include_t_index_as must be 'row' or 'col'")
+
+    # Collect vectors and scalars
+    vectors = {
+        "config": np.array(all_inputs_dict["config"])
+    }
+
+    scalars = {
+        "V_col_(mL)": all_inputs_dict["V_col_(mL)"][0],
+        "L_col_(cm)": all_inputs_dict["L_col_(cm)"][0],
+        "A_col_(cm)": all_inputs_dict["A_col_(cm)"][0],
+        "d_col_(cm)": all_inputs_dict["d_col_(cm)"][0],
+        "e": all_inputs_dict["e"][0]
+    }
+
+    return {
+        "M_matrix": M_matrix,
+        "Q_matrix": Q_matrix,
+        "vectors": vectors,
+        "scalars": scalars
+    }
+
 
 # %%
 #%% Define in the Inputs
@@ -684,19 +806,297 @@ c2_vals = [c2_raff, c2_ext]
 f1_vals = [r1_raff, r1_ext]
 f2_vals = [r2_raff, r2_ext]
 
+import numpy as np
 
+def generate_dummy_data(n_points=50, description="Dummy Optimization Results"):
+    """
+    Generate dummy purity and recovery data for raffinate and extract streams.
+    Returns a data_dict in the required format.
+    """
+    # --- Raffinate Purity ---
+    c1_raff = np.clip(np.random.normal(0.7, 0.15, n_points), 0, 1)
+    c2_raff = np.clip(1 - c1_raff + np.random.normal(0, 0.1, n_points), 0, 1)
+
+    # --- Extract Purity ---
+    c1_ext = np.clip(np.random.normal(0.6, 0.2, n_points), 0, 1)
+    c2_ext = np.clip(1 - c1_ext + np.random.normal(0, 0.12, n_points), 0, 1)
+
+    # --- Raffinate Recovery ---
+    r1_raff = np.clip(np.random.normal(0.75, 0.1, n_points), 0, 1)
+    r2_raff = np.clip(1 - r1_raff + np.random.normal(0, 0.08, n_points), 0, 1)
+
+    # --- Extract Recovery ---
+    r1_ext = np.clip(np.random.normal(0.65, 0.12, n_points), 0, 1)
+    r2_ext = np.clip(1 - r1_ext + np.random.normal(0, 0.1, n_points), 0, 1)
+
+    # --- Pack into dict ---
+    data_dict = {
+        "Description": description,
+        "c1_vals": [c1_raff.tolist(), c1_ext.tolist()],   # Purity Comp1
+        "c2_vals": [c2_raff.tolist(), c2_ext.tolist()],   # Purity Comp2
+        "f1_vals": [r1_raff.tolist(), r1_ext.tolist()],   # Recovery Comp1
+        "f2_vals": [r2_raff.tolist(), r2_ext.tolist()],   # Recovery Comp2
+    }
+
+    return data_dict
+
+
+# Example usage
+dummy_outputs = generate_dummy_data()
+print(dummy_outputs.keys())
+
+# V_col, L, A_col, d_col, e, zone_config = 3, 1, 1, 1, 0.1, [1, 1, 1, 1]
 
 
 # From some varianles:
 sampling_budget = 1 # always
 optimization_budget=np.shape(f1_vals)[0]-sampling_budget
 zone_config = np.array([3,3,3,3])
-d_col = 2.6  # cm
-L = 30 # cm
+d_col = 5  # cm
+L = 70 # cm
 A_col = np.pi * d_col *0.25 # cm^2
 V_col = A_col * L # cm^3
 e = 0.4  # porosity
+import matplotlib.pyplot as plt
+import numpy as np
 
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.ticker import FormatStrFormatter
+
+def plot_flows_and_indexing(all_inputs_dict):
+    """
+    Plot Q1-Q4 flowrates (L/h) and indexing time (min) across optimization iterations.
+    Only markers are plotted (no lines), with grey vertical lines for readability.
+    Legend is drawn in a separate figure.
+    """
+
+    # Extract values
+    Q1 = np.array(all_inputs_dict["Q1_(L/h)"])
+    Q2 = np.array(all_inputs_dict["Q2_(L/h)"])
+    Q3 = np.array(all_inputs_dict["Q3_(L/h)"])
+    Q4 = np.array(all_inputs_dict["Q4_(L/h)"])
+    t_index = np.array(all_inputs_dict["t_index_min"])  # minutes
+
+    iterations = np.arange(len(Q1))  # x-axis
+
+    # Create figure
+    fig, ax1 = plt.subplots(figsize=(10, 6))
+
+    # Grey vertical lines at each iteration
+    for i in iterations:
+        ax1.axvline(x=i, color="grey", linestyle="--", alpha=0.3)
+
+    # Plot only markers for flowrates
+    m1 = ax1.plot(iterations, Q1, "o", label="Q1 (L/h)")
+    m2 = ax1.plot(iterations, Q2, "s", label="Q2 (L/h)")
+    m3 = ax1.plot(iterations, Q3, "^", label="Q3 (L/h)")
+    m4 = ax1.plot(iterations, Q4, "d", label="Q4 (L/h)")
+    ax1.set_xlabel("Iteration")
+    ax1.set_ylabel("Flow rate (L/h)")
+    ax1.yaxis.set_major_formatter(FormatStrFormatter("%.2g"))  # 2 sig figs
+
+    # Right-hand axis for indexing time
+    ax2 = ax1.twinx()
+    m5 = ax2.plot(iterations, t_index, "x", color="k", label="Indexing Time (min)")
+    ax2.set_ylabel("Indexing Time (min)", color="k")
+    ax2.tick_params(axis="y", labelcolor="k")
+    ax2.yaxis.set_major_formatter(FormatStrFormatter("%.2g"))  # 2 sig figs
+
+    plt.title("Flow Rates and Indexing Time per Iteration")
+    plt.tight_layout()
+    plt.show()
+
+    # --- Legend in separate figure ---
+    fig_leg = plt.figure(figsize=(8, 1))
+    ax_leg = fig_leg.add_subplot(111)
+    ax_leg.axis("off")
+    handles = m1 + m2 + m3 + m4 + m5
+    labels = [h.get_label() for h in handles]
+    ax_leg.legend(handles, labels, loc="center", ncol=5, frameon=False)
+    plt.show()
+
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.ticker import FormatStrFormatter
+
+def plot_flows_indexing_grid(all_inputs_dict):
+    """
+    Plot Q1-Q4 flowrates (L/h) and indexing time (min) across optimization iterations
+    on a (2,2) grid. Each subplot highlights one Q in color while others remain grey.
+    Indexing time is always shown in black.
+    """
+
+    # Extract values
+    Qs = [
+        np.array(all_inputs_dict["Q1_(L/h)"]),
+        np.array(all_inputs_dict["Q2_(L/h)"]),
+        np.array(all_inputs_dict["Q3_(L/h)"]),
+        np.array(all_inputs_dict["Q4_(L/h)"]),
+    ]
+    Q_labels = ["Q1 (L/h)", "Q2 (L/h)", "Q3 (L/h)", "Q4 (L/h)"]
+    Q_markers = ["o", "s", "^", "d"]  # different symbols for each
+    colors = ["tab:blue", "tab:orange", "tab:green", "tab:red"]
+
+    t_index = np.array(all_inputs_dict["t_index_min"])  # minutes
+    iterations = np.arange(len(Qs[0]))
+
+    # Setup subplots
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10), sharex=True)
+    axes = axes.flatten()
+
+    for k in range(4):  # loop over Q1-Q4
+        ax1 = axes[k]
+
+        # Grey vertical lines at each iteration
+        for i in iterations:
+            ax1.axvline(x=i, color="grey", linestyle="--", alpha=0.2)
+
+        # # Plot all Q’s in grey
+        # for j in range(4):
+        #     ax1.plot(iterations, Qs[j], Q_markers[j], 
+        #              color="grey", alpha=0.5, label=f"{Q_labels[j]} (other)" if j != k else None)
+
+        # Highlight only the target Q in color
+        ax1.plot(iterations, Qs[k], Q_markers[k], color=colors[k], label=Q_labels[k])
+
+        # Left y-axis (flow rates)
+        ax1.set_ylabel("Flow rate (L/h)")
+        ax1.yaxis.set_major_formatter(FormatStrFormatter("%.2g"))
+
+        # Right-hand axis for indexing time
+        ax2 = ax1.twinx()
+        ax2.plot(iterations, t_index, "x", color="k", label="Indexing Time (min)")
+        ax2.set_ylabel("Indexing Time (min)", color="k")
+        ax2.tick_params(axis="y", labelcolor="k")
+        ax2.yaxis.set_major_formatter(FormatStrFormatter("%.2g"))
+
+        ax1.set_title(f"Highlight: {Q_labels[k]}")
+        ax1.set_xlabel("Iteration")
+
+    plt.tight_layout()
+    plt.show()
+
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.ticker import FormatStrFormatter
+
+def find_pareto_front(f1, f2):
+    """
+    Finds Pareto front for 2D objective space (f1, f2).
+    Accepts inputs as lists, 1D arrays, or 2D arrays (2, n_points).
+    Returns boolean mask of Pareto-optimal points.
+    """
+    f1 = np.asarray(f1)
+    f2 = np.asarray(f2)
+
+    # --- Flatten if shape is (2, n_points) or (n_points, 2)
+    if f1.ndim > 1:
+        if f1.shape[0] == 2:   # (2, n_points)
+            f1 = f1[0, :]
+            f2 = f1[1, :] if f2.ndim > 1 else f2
+        elif f1.shape[1] == 2: # (n_points, 2)
+            f1, f2 = f1[:, 0], f1[:, 1]
+        else:
+            raise ValueError(f"Unexpected shape for f1/f2: {f1.shape}")
+
+    if f2.ndim > 1:
+        if f2.shape[0] == 2:
+            f2 = f2[1, :]
+        elif f2.shape[1] == 2:
+            f2 = f2[:, 1]
+        else:
+            raise ValueError(f"Unexpected shape for f2: {f2.shape}")
+
+    n_points = len(f1)
+    is_optimal = np.ones(n_points, dtype=bool)
+
+    for i in range(n_points):
+        if is_optimal[i]:
+            # Point i is dominated if another point is >= in both and > in at least one
+            is_optimal[is_optimal] = ~(
+                (f1[i] <= f1[is_optimal]) &
+                (f2[i] <= f2[is_optimal]) &
+                ((f1[i] < f1[is_optimal]) | (f2[i] < f2[is_optimal]))
+            )
+
+    return is_optimal
+
+
+def plot_flows_indexing_grid_with_dict(input_dict, output_dict):
+    """
+    Plots Q1-Q4 flows and indexing times across optimization iterations.
+    Vertical dashed lines at each iteration.
+    Red lines = purity-optimal, Blue lines = recovery-optimal.
+    Grid: 2x2, each plot highlights one Q flow in color.
+    """
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    # --- Extract matrices from input_dict ---
+    m_mat = np.vstack([input_dict["m1"], input_dict["m2"],
+                       input_dict["m3"], input_dict["m4"]]).T
+    Q_mat = np.vstack([input_dict["Q1_(L/h)"], input_dict["Q2_(L/h)"],
+                       input_dict["Q3_(L/h)"], input_dict["Q4_(L/h)"]]).T
+    t_index = np.array(input_dict["t_index_min"])
+
+    n_iter = Q_mat.shape[0]
+
+    # --- Extract Pareto info ---
+    f1_vals = np.array(output_dict["f1_vals"][0])  # raffinate
+    f2_vals = np.array(output_dict["f2_vals"][0])  # raffinate
+    c1_vals = np.array(output_dict["c1_vals"][0])
+    c2_vals = np.array(output_dict["c2_vals"][0])
+
+    pur_mask = find_pareto_front(c1_vals, c2_vals)
+    rec_mask = find_pareto_front(f1_vals, f2_vals)
+
+    # --- Colors & markers ---
+    flow_colors = ["C0", "C1", "C2", "C3"]
+    flow_labels = ["Q1", "Q2", "Q3", "Q4"]
+    marker_t = "x"
+
+    fig, axs = plt.subplots(2, 2, figsize=(14, 10))
+    axs = axs.flatten()
+
+    for i in range(4):
+        ax = axs[i]
+        for j in range(4):
+            color = flow_colors[j] if i == j else "lightgray"
+            for k in range(n_iter):
+                line_color = "red" if pur_mask[k] else ("blue" if rec_mask[k] else "gray")
+                ax.axvline(k, color=line_color, linestyle="--", alpha=0.5)
+            ax.scatter(range(n_iter), Q_mat[:, j], color=color, s=40, label=flow_labels[j] if i==j else "")
+        # Indexing time in all plots
+        ax.scatter(range(n_iter), t_index, color="k", marker=marker_t, label="t_index")
+        ax.set_xlabel("Iteration")
+        ax.set_ylabel("Flow (L/h) / t_index (min)")
+        ax.set_title(f"Highlighting {flow_labels[i]}")
+        ax.yaxis.set_major_formatter(lambda x, _: f"{x:.2g}")
+
+    # --- Legend in separate figure ---
+    fig2, ax2 = plt.subplots(figsize=(6, 2))
+    for i, lbl in enumerate(flow_labels):
+        ax2.scatter([], [], color=flow_colors[i], label=lbl, s=40)
+    ax2.scatter([], [], color="k", marker=marker_t, label="t_index")
+    ax2.axvline(0, color="red", linestyle="--", label="Purity Optimal")
+    ax2.axvline(0, color="blue", linestyle="--", label="Recovery Optimal")
+    ax2.axis("off")
+    ax2.legend(loc="center", ncol=3)
+    plt.show()
+
+input_dummy_dic = generate_dummy_inputs(n_points, V_col, L, A_col, d_col, e, zone_config)
+parsed = parse_inputs_dict(input_dummy_dic, include_t_index_as="col")
+
+# plot_flows_and_indexing(input_dummy_dic)
+data_dict = generate_dummy_data()
+plot_flows_indexing_grid_with_dict(input_dummy_dic, data_dict)
+plot_flows_indexing_grid(input_dummy_dic)
+
+print("M_matrix shape:", parsed["M_matrix"].shape)
+print("Q_matrix shape:", parsed["Q_matrix"].shape)
+print("Scalars:", parsed["scalars"])
+print("Vectors:", parsed["vectors"])
 # Run the Functions and Visualise
 # --- Paretos
 # rec_pareto_image_filename = create_recovery_pareto_plot(f1_vals, f2_vals, zone_config, sampling_budget, optimization_budget)
@@ -711,10 +1111,12 @@ plot_raff_ext_pareto(c1_vals, c2_vals, f1_vals, f2_vals)
 #     ext_rec_comp1, ext_rec_comp2,
 #     title_prefix="Extract"
 # )
+
 # create_purity_vs_rec_pareto_plot(f1_vals, f2_vals, c1_vals, c2_vals, zone_config, sampling_budget, optimization_budget, comp_1_name)
 # # create_purity_vs_rec_pareto_plot(f1_vals, f2_vals, c1_vals, c2_vals, zone_config, sampling_budget, optimization_budget, comp_2_name)
 # plot_outputs_vs_iterations(f1_vals, f2_vals, c1_vals, c2_vals)
 # compare_recovery_pareto_plot(f1_vals_50, f2_vals_50, f1_vals_100, f2_vals_100, c1_vals_50, c2_vals_50, c1_vals_100, c2_vals_100) # "rec" "pur"
+
 # # --- Constraints
 # constraints_vs_iterations(c1_vals, c2_vals)
 # plot_inputs_vs_iterations(all_inputs, f1_vals, f2_vals)
