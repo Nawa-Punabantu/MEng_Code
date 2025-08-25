@@ -325,7 +325,7 @@ subzone_set = config_2
 
 
 parameter_sets = [ {"C_feed": 0.003190078*1.4}, {"C_feed": 0.012222*0.8}] 
-Da_all = np.array([1.83e-5, 5.6-5]) 
+Da_all = np.array([1.83e-5, 5.6e-5]) 
 kav_params_all = np.array([[0.173], [0.151]])
 cusotom_isotherm_params_all = np.array([[4.13], [2.3]]) # [ [H_borate], [H_hcl] ]
 
@@ -358,12 +358,12 @@ subzone_set = config_2
 parameter_sets = [ {"C_feed": 0.003190078*1.4}, {"C_feed": 0.012222*0.8}] 
 # parameter_sets = [ {"C_feed": 0.003190078*1.4}, {"C_feed": 0.003190078*1.4}]  
 Da_all = np.array([5.77e-7, 2.3812e-7]) 
-kav_params_all = np.array([[0.0170], [0.0154]])
+kav_params_all = np.array([[0.170], [0.154]])
 cusotom_isotherm_params_all = np.array([[2.13], [2.35]]) # [ [H_borate], [H_hcl] ]
 
 ################### - Iniital Guess For optimization based in linear isotherm
 t_index_min = 10 # min
-triangle_guess = np.array([3.0, 2.13, 2.35, 1.5, t_index_min])
+triangle_guess = np.array([3.5, 2.13, 2.35, 1.5, t_index_min])
 m1, m2, m3, m4 = triangle_guess[0],triangle_guess[1],triangle_guess[2],triangle_guess[3]
 Q_I, Q_II, Q_III, Q_IV = mj_to_Qj(m1, t_index_min), mj_to_Qj(m2, t_index_min), mj_to_Qj(m3, t_index_min), mj_to_Qj(m4, t_index_min)
 Q_internal = np.array([Q_I, Q_II, Q_III, Q_IV])

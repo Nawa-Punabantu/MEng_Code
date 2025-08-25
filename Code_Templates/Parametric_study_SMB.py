@@ -21,6 +21,12 @@ import time
 from SMB_func_general import SMB
 
 
+"""
+All studies are for binary components only.
+
+For kineatic stuff, only changes to the more adsorbing component, "A" in [A, B] are implimented i.e. the other is kept fixed
+
+"""
 # parameter_sets = [
 #                     {"C_feed": 0.22},
 #                     {"C_feed": 0.22}
@@ -38,26 +44,35 @@ def solve_concentration(param_name, param_val, SMB_inputs, SMB_inputs_names):
     """
     param => string | name of parameter to be changed as listed in column_func_inputs_names
 
-    SMB_inputs_names = ['iso_type', 'Names', 'color', 'num_comp', 'nx_per_col', 'e', 'D_all', 'Bm', 'zone_config', 'L', 'd_col', 'd_in', 't_index_min', 'n_num_cycles', 'Q_internal', 'parameter_sets', 'cusotom_isotherm_params_all', 'kav_params_all']
+    SMB_inputs_names = ['iso_type', 'Names', 'color', 'num_comp', 'nx_per_col', 'e', 'D_all', 'Bm', 'zone_config', 'L', 'd_col', 'd_in', 't_index_min', 'n_num_cycles', 'Q_internal', 'parameter_sets', 'cusotom_isotherm_params_all', 'kav_params_all', 'subzone_set', 't_simulation_end']
 
     """
     # Ensure the input name matches one of the SMB input names
     
-    if param_name == "parameter_sets":
-        name_idx = SMB_inputs_names.index(param_name)
-        SMB_inputs[name_idx][0][param_name] =  [{"C_feed": param_val}, {"C_feed": 0.22}] 
+    if param_name == "C_feed":
+        name_idx = SMB_inputs_names.index('parameter_sets')
+        SMB_inputs[name_idx][0][param_name] =  param_val 
     
     elif param_name == "cusotom_isotherm_params_all":
         name_idx = SMB_inputs_names.index(param_name)
-        SMB_inputs[name_idx] =  np.array([[param_val], [0.53]])
+        SMB_inputs[name_idx][0] =  param_val
 
     elif param_name == "kav_params_all":
         name_idx = SMB_inputs_names.index(param_name)
-        SMB_inputs[name_idx][0] =  np.array([[param_val], [0.053]])
+        SMB_inputs[name_idx][0] =  [param_val]
 
     elif param_name == "D_all":
+        
+        print(f'param_name: {param_name}')
         name_idx = SMB_inputs_names.index(param_name)
-        SMB_inputs[name_idx][0] =  np.array([[param_val], [6.38e-6]])
+        print(f'name_idx: {name_idx}')
+        SMB_inputs[name_idx][0] =  param_val
+
+    elif param_name == "zone_config":
+        print(f'param_name: {param_name}')
+        name_idx = SMB_inputs_names.index(param_name)
+        print(f'name_idx: {name_idx}')
+        SMB_inputs[name_idx] =  param_val
     
     else:
         name_idx = SMB_inputs_names.index(param_name)
@@ -75,7 +90,7 @@ def generate_exponential_array(start, stop, step):
     exponents = np.arange(start, stop - 1, -step)
     return 10.0 ** exponents
 
-def scalar_value_parametric_study(param_name, lower_bound, upper_bound, dist_bn_points, SMB_inputs, SMB_inputs_names):
+def scalar_value_parametric_study(param_name, lower_bound, upper_bound, dist_bn_points, SMB_inputs, SMB_inputs_names, ZONE_CONFIGS = None):
     """
     Perform a parametric study on a given SMB input parameter.
 
@@ -104,6 +119,9 @@ def scalar_value_parametric_study(param_name, lower_bound, upper_bound, dist_bn_
         print(f'variable: {variable}')
     else:    
         variable = np.arange(lower_bound, upper_bound + dist_bn_points, dist_bn_points)
+
+    if param_name == 'zone_config' and ZONE_CONFIGS != None:
+        variable = ZONE_CONFIGS
 
     # Get the index of the parameter to vary:
     # name_idx = SMB_inputs_names.index(param_name)
@@ -275,105 +293,6 @@ def save_output_to_json(
 
     print(f"✅ Results saved to: {save_path}")
 
-
-
-
-
-
-def plot_parametric_results(output, x_values, y_variable_name, x_variable_name, color):
-    """
-    Plot the parametric study results for a given output variable.
-
-    Args:
-        output (dict): The results dictionary returned from `scalar_value_parametric_study`.
-        x_values (array-like): The values of the independent variable.
-        y_variable_name (str): The name of the output variable to plot.
-        x_variable_name (str): The name of the independent variable.
-        color (list or str): Color(s) used for plotting.
-
-    Raises:
-        ValueError: If the y_variable_name is not found in the results.
-    """
-    if x_values is None:
-        raise ValueError(f"{x_variable_name} is not a valid independent variable.")
-    
-    y_values = []
-
-    for result in output['results']:
-        if y_variable_name == "diff":
-            if 'Model_Acc' in result and 'Expected_Acc' in result:
-                diff = np.array(result['Model_Acc']) - np.array(result['Expected_Acc'])
-                # If it's a scalar, wrap into a list
-                if np.isscalar(diff):
-                    y_values.append(diff)
-                else:
-                    y_values.append(np.mean(diff))  # or np.max(np.abs(diff)) depending on what you want
-            else:
-                raise ValueError("Both 'Model_Acc' and 'Expected_Acc' must be in result when y_variable_name is 'diff'.")
-        else:
-            if y_variable_name in result:
-                y_values.append(result[y_variable_name])
-            else:
-                raise ValueError(f"{y_variable_name} not found. Available keys: {list(result.keys())}")
-
-    plt.figure(figsize=(10, 6))
-    
-    if y_variable_name == 'raff_intgral_purity' or y_variable_name == "ext_intgral_purity":
-        y_values = np.concatenate(y_values)
-        y_values_A = y_values[0::2]
-        y_values_B = y_values[1::2]
-        
-        plt.plot(x_values, y_values_A, marker='o', linestyle='-', color=color[0], label=Names[0])
-        plt.plot(x_values, y_values_B, marker='o', linestyle='-', color=color[1], label=Names[1])
-
-        
-        
-    elif y_variable_name == "diff":
-        plt.plot(x_values, y_values, marker='o', linestyle='-', color='purple')
-        plt.axhline(0, color='black', linestyle='--', linewidth=1.2, label="Zero Error")
-        plt.title(f"Parametric Study: {y_variable_name} vs {x_variable_name}")
-        plt.xlabel(x_variable_name)
-        plt.ylabel(f'{y_variable_name}, grams')
-        plt.legend()
-        plt.grid(True)
-        plt.show()
-
-    elif y_variable_name == "Error_percent":
-        plt.plot(x_values, y_values, marker='o', linestyle='-', color='red')
-        plt.axhline(0, color='black', linestyle='--', linewidth=1.2, label="Zero Error")
-        plt.title(f"Effect of {x_variable_name} on Mass Balance Error Percent")
-        plt.xlabel(x_variable_name)
-        plt.ylabel(f'{y_variable_name}, (%)') 
-        y_limit = max(np.max(y_values), abs(np.min(y_values)))
-        y_padding =  y_limit * 0.05
-        if y_limit < 10:
-            y_plot = 10 + y_padding
-        else:
-            y_plot = y_limit + y_padding
-        
-        plt.ylim(-y_plot , y_plot)
-        plt.legend()
-        plt.grid(True)
-        plt.show()
-
-    elif y_variable_name == "Simulation_time":
-        plt.plot(x_values, y_values, marker='o', linestyle='-', color='blue')
-        plt.title(f"Effect of {x_variable_name} on Computation Time (min)")
-        plt.xlabel(x_variable_name)
-        plt.ylabel(f'{y_variable_name}, (min)')
-        plt.ylim(0,)
-        plt.legend()
-        plt.grid(True)
-        plt.show()
-    
-    else:
-        plt.plot(x_values, y_values, marker='o', linestyle='-', color='purple')
-        plt.title(f"Parametric Study: {y_variable_name} vs {x_variable_name}")
-        plt.xlabel(x_variable_name)
-        plt.ylabel(y_variable_name)
-        plt.legend()
-        plt.grid(True)
-        plt.show()
         
 
 def plot_all_parametric_results(output, x_values, x_variable_name, lower_bound, upper_bound, dist_bn_points, tend, var_name):
@@ -467,7 +386,10 @@ def plot_all_parametric_results(output, x_values, x_variable_name, lower_bound, 
         var_name = '# Spacial Nodes per column, nx'
         var_name2 = 'nx'
 
-
+    elif var_name == 'zone_config':
+        var_name = 'Config' #[f'config_{i}' for i in range(len(x_values)+1)]
+        x_values = np.range(1,len(x_values))
+        var_name2 = 'Config'
 
     for result in output['results']:
         mb_errors.append(result.get("Error_percent", 0))
@@ -514,10 +436,10 @@ def plot_all_parametric_results(output, x_values, x_variable_name, lower_bound, 
 
 
     # Extract
-    axs[1].plot(x_values, np.array(ext_intgral_purityA)*100, marker='o', linestyle='-', color='red', label = 'Pur_A')
-    axs[1].plot(x_values, np.array(ext_intgral_purityB)*100, marker='s', linestyle='-', color='green', label = 'Pur_B')
-    axs[1].plot(x_values, np.array(ext_recovA)*100,         marker='^', linestyle='-', color='k', label = 'Rec_A')
-    axs[1].plot(x_values, np.array(ext_recovB)*100,        marker='d', linestyle='-', color='orange', label = 'Rec_B')
+    axs[1].plot(x_values, np.array(ext_intgral_purityA)*100, marker='o', linestyle='-', color='red', label = 'Raff_Pur_A')
+    axs[1].plot(x_values, np.array(ext_intgral_purityB)*100, marker='s', linestyle='-', color='green', label = 'Ext_Pur_B')
+    axs[1].plot(x_values, np.array(ext_recovA)*100,         marker='^', linestyle='-', color='k', label = 'Raff_Rec_A')
+    axs[1].plot(x_values, np.array(ext_recovB)*100,        marker='d', linestyle='-', color='orange', label = 'Ext_Rec_B')
 
     axs[1].set_title("Extract Purity and Recoveries")
     axs[1].set_xlabel(var_name)
@@ -644,7 +566,7 @@ subzone_set = []
 
 
 L = 70 # cm # Length of one column
-d_col = 4.5 # cm # column internal diameter
+d_col = 5 # cm # column internal diameter
 
 # Calculate the radius
 r_col = d_col / 2
@@ -659,7 +581,7 @@ nx_per_col = 15
 
 ################ Time Specs #################################################################################
 t_index_min = 10 # min # Index time # How long the pulse holds before swtiching
-n_num_cycles = 6   # Number of Cycles you want the SMB to run for
+n_num_cycles = 1   # Number of Cycles you want the SMB to run for
 t_simulation_end = None # HRS
 ###############  FLOWRATES  #################################################################################
 
@@ -698,10 +620,10 @@ t_simulation_end = None # HRS
 # cusotom_isotherm_params_all = np.array([[2.71],[2.94]])
 # Da_all = np.array([3.218e-6, 8.38e-6 ]) 
 
-parameter_sets = [ {"C_feed": 0.003190078*1.4}, {"C_feed": 0.012222*0.8}] 
-Da_all = np.array([5.77e-7, 2.3812e-7]) 
-kav_params_all = np.array([[0.170], [0.154]])
-cusotom_isotherm_params_all = np.array([[2.13], [2.4]]) # [ [H_borate], [H_hcl] ]
+# parameter_sets = [ {"C_feed": 0.003190078*1.4}, {"C_feed": 0.012222*0.8}] 
+# Da_all = np.array([5.77e-7, 2.3812e-7]) 
+# kav_params_all = np.array([[0.170], [0.154]])
+# cusotom_isotherm_params_all = np.array([[2.13], [2.4]]) # [ [H_borate], [H_hcl] ]
 
 m1, m2, m3, m4 = 3.5, 2.13, 2.4, 1.5
 Q_I, Q_II, Q_III, Q_IV = mj_to_Qj(m1, t_index_min), mj_to_Qj(m2, t_index_min), mj_to_Qj(m3, t_index_min), mj_to_Qj(m4, t_index_min)
@@ -718,7 +640,7 @@ cusotom_isotherm_params_all = np.array([[0.27], [0.53]]) # H_glu, H_fru
 
 
 # STORE/INITALIZE SMB VAIRABLES
-SMB_inputs = [iso_type, Names, colors, num_comp, nx_per_col, e, Da_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_params_all, kav_params_all, subzone_set, t_simulation_end]
+SMB_inputs = [iso_type, Names, colors, num_comp, nx_per_col, e, D_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_params_all, kav_params_all, subzone_set, t_simulation_end]
 SMB_inputs_names = ['iso_type', 'Names', 'color', 'num_comp', 'nx_per_col', 'e', 'D_all', 'Bm', 'zone_config', 'L', 'd_col', 'd_in', 't_index_min', 'n_num_cycles', 'Q_internal', 'parameter_sets', 'cusotom_isotherm_params_all', 'kav_params_all',  'subzone_set', 't_simulation_end']
 #%% ---------- SAMPLE RUN IF NECESSARY
 # start_test = time.time()
@@ -740,12 +662,21 @@ print('\n\n\n\nSolving Parametric Study #1 . . . . . . ')
 # - All lengths are in cm
 # - All concentrations are in g/cm^3 (g/mL)
 # 
-lower_bound = 10       # cm or g/cm^3
-upper_bound = 30   # cm or g/cm^3
-dist_bn_points = 10  # cm or g/cm^3
-var_name = 'nx_per_col'     # C_feed
+lower_bound = -10       # cm or g/cm^3
+upper_bound = -5   # cm or g/cm^3
+dist_bn_points = -1  # cm or g/cm^3
+ZONE_CONFIGS = None
 
-Output, x_variable, x_variable_name, tend = scalar_value_parametric_study(var_name, lower_bound, upper_bound, dist_bn_points, SMB_inputs, SMB_inputs_names) # (Name of quantitiy, lower_bound, upper_bound, resolution(=space between points))
+# //// if varying hte zone zone config:
+config1 = np.array([1,1,1,1])
+config2 = np.array([2,2,2,2])
+config3 = np.array([2,1,2,1])
+config4 = np.array([1,2,1,2])
+
+ZONE_CONFIGS = [config1,config2,config3,config4]
+var_name = 'zone_config'     # C_feed, 
+
+Output, x_variable, x_variable_name, tend = scalar_value_parametric_study(var_name, lower_bound, upper_bound, dist_bn_points, SMB_inputs, SMB_inputs_names, ZONE_CONFIGS = ZONE_CONFIGS) # (Name of quantitiy, lower_bound, upper_bound, resolution(=space between points))
 # print(F'Output: {Output}')
 # Output, x_variable, x_variable_name = scalar_value_parametric_study('parameter_sets', 2, 10, 1, Hkfp='H') # 
 # # Where resolution => space between points

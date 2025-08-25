@@ -590,10 +590,10 @@ print('\n\n\n\nSolving Parametric Study #1 . . . . . . ')
 # - All lengths are in cm
 # - All concentrations are in g/cm^3 (g/mL)
 # 
-lower_bound = 100       # cm or g/cm^3
-upper_bound = 200    # cm or g/cm^3
-dist_bn_points = 25   # cm or g/cm^3
-var_name = 'nx'     # C_feed
+lower_bound = -10       # cm or g/cm^3
+upper_bound = -5    # cm or g/cm^3
+dist_bn_points = -1   # cm or g/cm^3
+var_name = 'Da_all'     # C_feed
 
 Hkfp = None # 'H', 'kfp', None
 

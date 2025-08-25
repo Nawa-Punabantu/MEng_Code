@@ -1,0 +1,429 @@
+
+EnvironmentNameNotFound: Could not find conda environment: smb
+You can list all discoverable environments with `conda info --envs`.
+
+
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/apps/chpc/bio/anaconda3-2024.10.1/lib/python3.12/site-packages/sklearn/gaussian_process/kernels.py:442: ConvergenceWarning: The optimal value found for dimension 0 of parameter length_scale is close to the specified lower bound 1e-05. Decreasing the bound and calling fit again may find a better value.
+  warnings.warn(
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/apps/chpc/bio/anaconda3-2024.10.1/lib/python3.12/site-packages/sklearn/gaussian_process/kernels.py:442: ConvergenceWarning: The optimal value found for dimension 0 of parameter length_scale is close to the specified lower bound 1e-05. Decreasing the bound and calling fit again may find a better value.
+  warnings.warn(
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/apps/chpc/bio/anaconda3-2024.10.1/lib/python3.12/site-packages/sklearn/gaussian_process/_gpr.py:659: ConvergenceWarning: lbfgs failed to converge (status=2):
+ABNORMAL_TERMINATION_IN_LNSRCH.
+
+Increase the number of iterations (max_iter) or scale the data as shown in:
+    https://scikit-learn.org/stable/modules/preprocessing.html
+  _check_optimize_result("lbfgs", opt_res)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/apps/chpc/bio/anaconda3-2024.10.1/lib/python3.12/site-packages/sklearn/gaussian_process/_gpr.py:659: ConvergenceWarning: lbfgs failed to converge (status=2):
+ABNORMAL_TERMINATION_IN_LNSRCH.
+
+Increase the number of iterations (max_iter) or scale the data as shown in:
+    https://scikit-learn.org/stable/modules/preprocessing.html
+  _check_optimize_result("lbfgs", opt_res)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1643: RuntimeWarning: invalid value encountered in divide
+  raff_inst_purity = raff_mprofile/sum(raff_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1644: RuntimeWarning: invalid value encountered in divide
+  ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1678: RuntimeWarning: invalid value encountered in divide
+  raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+/home/npunabantu/SMB_Launch/Optimization/SMB_func_general.py:1679: RuntimeWarning: invalid value encountered in divide
+  ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])

@@ -764,7 +764,7 @@ def opt_func(batch, SMB):
             c1_vals  = np.vstack([c1_vals.reshape(-1,1), c_new[0]])
             c2_vals  = np.vstack([c2_vals.reshape(-1,1), c_new[1]])
 
-            print(f"\nGen {gen+1} Status:\n | Sampled Inputs:{x_new[:-1]}, {x_new[-1]*t_reff} min [m1, m2, m3, m4, t_index]|\n Outputs: G_f1: {f_new[0]*100} %, F_f2: {f_new[1]*100} % | GPur, FPur: {c_new[0]*100}%, {c_new[1]*100}%")
+            print(f"\nGen {gen+1} Status:\n | Sampled Inputs:{x_new[:-1]}, {x_new[-1]} min [m1, m2, m3, m4, t_index]|\n Outputs: G_f1: {f_new[0]*100} %, F_f2: {f_new[1]*100} % | GPur, FPur: {c_new[0]*100}%, {c_new[1]*100}%")
 
         return f1_vals, f2_vals, c1_vals , c2_vals , all_inputs
 

@@ -35,16 +35,33 @@ import time
 
 
 def SMB(SMB_inputs):
+    import numpy as np
+    from scipy.optimize import minimize
+    from scipy.integrate import solve_ivp
+    from scipy import integrate
+    from sklearn.gaussian_process import GaussianProcessRegressor
+    from sklearn.gaussian_process.kernels import RBF, ConstantKernel as C, Matern
+    from scipy.optimize import differential_evolution
+    from scipy.optimize import minimize, NonlinearConstraint
+    import json
+    from scipy.stats import norm
+    from scipy.integrate import solve_ivp
+    from scipy import integrate
+    import warnings
+    import time
+
     iso_type, Names, color, num_comp, nx_per_col, e, D_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_params_all, kav_params_all ,subzone_set, t_simulation_end = SMB_inputs[0:]
 
     ###################### (CALCUALTED) SECONDARY INPUTS #########################
-
+    print(f'parameter_sets[0][C_feed]: {parameter_sets[0]['C_feed']}')
     # Column Dimensions:
     ################################################################
     F = (1-e)/e     # Phase ratio
     t=0
     t_sets = 0
+
     Ncol_num = np.sum(zone_config) # Total number of columns
+    
     L_total = L*Ncol_num # Total Lenght of all columns
     A_col = np.pi*0.25*d_col**2 # cm^2
     V_col = A_col * L # cm^3
@@ -111,87 +128,7 @@ def SMB(SMB_inputs):
 
     # 1.
     # Func to Generate Indices for the columns
-    # def generate_repeated_numbers(n, m):
-    #     result = []
-    #     n = int(n)
-    #     m = int(m)
-    #     for i in range(m):
-    #         result.extend([i] * n)
-    #     return result
 
-        # 3.
-
-
-    def get_zone(status_unit):
-        """
-        Retrieves the zone number from the status_unit string.
-        '0' → zone 0
-        '4.1.0' or '4.2.N3.1.M3' → zone 4
-        """
-        try:
-            return int(status_unit.strip().split('.')[0])
-        except (IndexError, ValueError):
-            raise ValueError(f"Invalid status_unit format: '{status_unit}' — cannot retrieve zone.")
-
-    def get_type(status_unit):
-        """
-        Retrieves the type identifier from the status_unit string.
-        '0' → assumed type 1
-        '4.1.0' or '4.2.N3.1.M3' → type from 2nd segment
-        """
-        try:
-            segments = status_unit.strip().split('.')
-            return int(segments[1]) if len(segments) > 1 else 1
-        except ValueError:
-            raise ValueError(f"Invalid status_unit format: '{status_unit}' — cannot retrieve type.")
-
-    def get_rank(status_unit):
-        """
-        Retrieves the rank of the column within its zone.
-        - '0' → rank 0
-        - '4.1.0' → rank 0
-        - '4.2.N3.1.M3' → rank 1
-        """
-        try:
-            segments = status_unit.strip().split('.')
-            if segments == ['0']:
-                return 0
-            # Last number before 'M' (if exists) is rank
-            for seg in reversed(segments):
-                if seg.startswith('M'):
-                    continue
-                if seg.startswith('N'):
-                    continue
-                return int(seg)
-            raise ValueError("Could not determine rank.")
-        except (IndexError, ValueError):
-            raise ValueError(f"Invalid status_unit format: '{status_unit}' — cannot retrieve rank.")
-
-    def get_N_subzone(status_unit):
-        """
-        Retrieves the number of columns in the upstream sub-zone from the 'N' segment.
-        Raises helpful error if not found (likely to be type 1).
-        """
-        try:
-            for seg in status_unit.strip().split('.'):
-                if seg.startswith('N'):
-                    return int(seg[1:])
-            raise ValueError("No 'N' segment found — likely type 1 or not receiving from sub-zone.")
-        except ValueError as ve:
-            raise ValueError(f"Invalid status_unit format: '{status_unit}' — {str(ve)}")
-
-    def get_M_subzone(status_unit):
-        """
-        Retrieves the number of columns in the current sub-zone from the 'M' segment.
-        Raises helpful error if not found (likely a single-column zone).
-        """
-        try:
-            for seg in status_unit.strip().split('.'):
-                if seg.startswith('M'):
-                    return int(seg[1:])
-            raise ValueError("No 'M' segment found — likely not part of a multi-column sub-zone.")
-        except ValueError as ve:
-            raise ValueError(f"Invalid status_unit format: '{status_unit}' — {str(ve)}")
 
 # Func to divide the column into nodes
     
@@ -1014,7 +951,7 @@ def SMB(SMB_inputs):
 
     # # mod1: UNCOUPLED ISOTHERM:
     # # Profiles for each component can be solved independently
-
+    
     # ###########################################################################################
     def mod1(t, v, comp_idx, Q_pulse_all):
         # call.append("call")
@@ -1278,6 +1215,7 @@ def SMB(SMB_inputs):
 
         # Initialize
         values = []
+        values_avg = []
         nrows = M.shape[0]
 
         for i in range(len(width)-1):
@@ -1290,10 +1228,12 @@ def SMB(SMB_inputs):
             kk = (row_start+j*jump)%nrows
 
             MM = M[kk, t_start:tend]
+            MM_avg = np.average(MM)
 
             values.extend(MM)
+            values_avg.append(MM_avg)
 
-        return values
+        return [values, values_avg]
 
 
 
@@ -1332,6 +1272,7 @@ def SMB(SMB_inputs):
         m_feed = []
 
         C_feed = [[] for _ in range(num_comp)]
+        C_feed_avg = []
 
         for i in range(num_comp):
 
@@ -1349,9 +1290,10 @@ def SMB(SMB_inputs):
 
         for i in range(num_comp):
             if iso_type == 'UNC':
-                C_feed[i] = get_X_row( C_feed_all[i], row_start, jump, t_idx_all[i]) # g/cm^3
+                C_feed[i] = get_X_row( C_feed_all[i], row_start, jump, t_idx_all[i])[0] # g/cm^3
             elif iso_type == 'CUP':
-                C_feed[i] = get_X_row( C_feed_all[i], row_start, jump, t_idx_all) # g/cm^3
+                C_feed[i] = get_X_row( C_feed_all[i], row_start, jump, t_idx_all)[0] # g/cm^3
+                # C_feed_avg[i] = get_X_row( C_feed_all[i], row_start, jump, t_idx_all)[1] # g/cm^3
         # print('C_feed[0]:',C_feed[0])
 
         for i in range(num_comp):
@@ -1378,6 +1320,22 @@ def SMB(SMB_inputs):
 
 
 
+    def clean_matrix(X, X_feed):
+        """
+        Replace values in X with 0 if X[i,j]/X_feed < 0.001.
+
+        Parameters:
+        - X: np.ndarray of shape (m, n)
+        - X_feed: float
+
+        Returns:
+        - np.ndarray: cleaned matrix
+        """
+        ratio = X / X_feed
+        cleaned_X = np.where(ratio < 0.001, 0, X)
+        return cleaned_X
+
+
 
     def prod_profile(t_odes, y_odes, t_schedule, row_start_matrix, jump_matrix, t_idx_all, row_start_schedule):
 
@@ -1391,8 +1349,15 @@ def SMB(SMB_inputs):
         P = Product either raff or ext
         """
         ######## Storages for the Raffinate #########
+
+
         C_P1 = []
         C_P2 = []
+        # Storage
+        P_mprofile_AVG = []
+        P_cprofile_AVG = []
+        C_P1_AVG = []
+        C_P2_AVG = []
 
         Q_all_flows = [] # Flowrates expirenced by each component
         m_out_P = np.zeros(num_comp)
@@ -1436,16 +1401,32 @@ def SMB(SMB_inputs):
 
             if iso_type == 'UNC':
                 # Search the ODE matrix
-                C_R1_add = np.array(get_X_row( y_odes[i][:nx,:], row_start_matrix-1, jump_matrix, t_idx_all_Q[i])) # exclude q
-                C_R2_add = np.array(get_X_row( y_odes[i][:nx,:], row_start_matrix, jump_matrix, t_idx_all_Q[i]))
+                C_R1_add = np.array(get_X_row( y_odes[i][:nx,:], row_start_matrix-1, jump_matrix, t_idx_all_Q[i])[0]) # exclude q
+                C_R2_add = np.array(get_X_row( y_odes[i][:nx,:], row_start_matrix, jump_matrix, t_idx_all_Q[i])[0])
+                
+                C_R1_add_AVG = np.array(get_X_row( y_odes[i][:nx,:], row_start_matrix-1, jump_matrix, t_idx_all_Q[i])[1]) # exclude q
+                C_R2_add_AVG = np.array(get_X_row( y_odes[i][:nx,:], row_start_matrix, jump_matrix, t_idx_all_Q[i])[1])
+                
+                
                 # # Search the Flowrate Schedule
                 # P_vflows_1_add = np.array(get_X_row(Q_all_flows[i], row_start_schedule-1, jump_schedule, t_idx_all_Q[i]))
                 # P_vflows_2_add = np.array(get_X_row(Q_all_flows[i], row_start_schedule, jump_schedule, t_idx_all_Q[i]))
 
             elif iso_type == 'CUP':
 
-                C_R1_add = np.array(get_X_row( y_odes[i][:nx,:], row_start_matrix-1, jump_matrix, t_idx_all)) # exclude q
-                C_R2_add = np.array(get_X_row( y_odes[i][:nx,:], row_start_matrix, jump_matrix, t_idx_all))
+                C_R1_add = np.array(get_X_row( y_odes[i][:nx,:], row_start_matrix-1, jump_matrix, t_idx_all)[0]) # exclude q
+                C_R2_add = np.array(get_X_row( y_odes[i][:nx,:], row_start_matrix, jump_matrix, t_idx_all)[0])
+                
+                C_R1_add_AVG = np.array(get_X_row( y_odes[i][:nx,:], row_start_matrix-1, jump_matrix, t_idx_all)[1]) # exclude q
+                C_R2_add_AVG = np.array(get_X_row( y_odes[i][:nx,:], row_start_matrix, jump_matrix, t_idx_all)[1])
+
+
+                #Remove funcky concentration vals
+                C_R1_add_AVG = clean_matrix(C_R1_add_AVG, parameter_sets[i]['C_feed'])
+                # print(f'C_R1_add_AVG negative: {np.any(C_R1_add_AVG < 0)}')
+                # print(f'C_R1_add_AVG: {C_R1_add_AVG}\n\n')
+             
+                
                 # P_vflows_1_add = np.array(get_X_row(Q_all_flows, row_start_schedule-1, jump_schedule, t_idx_all_Q))
                 # P_vflows_2_add = np.array(get_X_row(Q_all_flows, row_start_schedule, jump_schedule, t_idx_all_Q))
 
@@ -1461,14 +1442,17 @@ def SMB(SMB_inputs):
             C_R1_add = C_R2_add # ??
             # P_mflows_1_add = C_R1_add * P_vflows_1_add  # (g/cm^3 * cm^3/s)  =>  g/s
             # P_mflows_2_add = C_R2_add * P_vflows_2_add  # g/s
-
+            
             if row_start_matrix == row_start_matrix_raff:
                 P_vflows_1_add = -QR*np.ones_like(C_R1_add)
                 P_mflows_1_add = C_R1_add * P_vflows_1_add  # (g/cm^3 * cm^3/s)  =>  g/s
+                P_mflows_1_add_AVG = C_R1_add_AVG * -QR  # (g/cm^3 * cm^3/s)  =>  g/s
 
             elif row_start_matrix == row_start_matrix_ext:
+                print(f'QR:{QR}')
                 P_vflows_1_add = -QX*np.ones_like(C_R1_add)
                 P_mflows_1_add = C_R1_add * P_vflows_1_add  # (g/cm^3 * cm^3/s)  =>  g/s
+                P_mflows_1_add_AVG = C_R1_add_AVG * -QX
 
 
 
@@ -1479,16 +1463,7 @@ def SMB(SMB_inputs):
             P_vflow[i] = P_vflows_1_add #- P_vflows_2_add # cm^3
 
             # Integrate
-            # Define rolling mean function
-            def rolling_mean(y, window_size):
-                return np.convolve(y, np.ones(window_size)/window_size, mode='same')
 
-            # Apply rolling mean before integration
-            window_size = 25  # Try 5, 7, 9 — experiment depending on how spiky the data is
-
-            P_mflows_1_add_smooth = rolling_mean(P_mflows_1_add, window_size)
-            C_R1_add_smooth =  rolling_mean(C_R1_add, window_size)
-            # P_mflows_2_add_smooth = rolling_mean(P_mflows_2_add, window_size)
 
             if iso_type == 'UNC':
                 m_P_add_1 = integrate.simpson(P_mflows_1, x=t_odes[i]) # g
@@ -1498,18 +1473,28 @@ def SMB(SMB_inputs):
                 m_P_add_1 = integrate.simpson(P_mflows_1_add, x=t_odes) # g
                 # m_P_add_2 = integrate.simpson(P_mflows_2_add, x=t_odes) # g
 
-
-
-            # Storage
+            
+            
+            #     
             # Concentration
-            P_cprofile.append(C_R1_add) # g/s
-            P_cprofile_smooth.append(C_R1_add_smooth) # g/s
+            P_cprofile.append(C_R1_add) # g/mL
+            # Average Concentration Profile
+            print(f'Before adding comp: {i}')
+            print(f'np.shape(P_cprofile_AVG): {np.shape(P_cprofile_AVG)}')
+            P_cprofile_AVG.append(C_R1_add_AVG) # g/mL
+
+            print(f'AFTER adding comp: {i}')
+            print(f'np.shape(P_cprofile_AVG): {np.shape(P_cprofile_AVG)}')
+
             # Mass g/s
             P_mprofile.append(P_mflows_1_add) #- P_mflows_2_add) # g/s
-            P_mprofile_smooth.append(P_mflows_1_add_smooth) #- P_mflows_2_add) # g/s
+            P_mprofile_AVG.append(P_mflows_1_add_AVG)
+
 
             C_P1.append(C_R1_add)  # Concentration Profiles
             C_P2.append(C_R2_add)
+
+                    
 
             P_vflows_1.append(P_vflows_1_add)
             # P_vflows_2.append(P_vflows_2_add)
@@ -1527,8 +1512,12 @@ def SMB(SMB_inputs):
             # print(f'i:{i}')
             # print(f'm_out_P_add = m_P_1[i] - m_P_2[i]: { m_P_1[i]} - {m_P_2[i]}')
             m_out_P[i] = m_out_P_add # [A, B] g
+        
+        print(f'np.shape(P_cprofile_AVG): {np.shape(P_cprofile_AVG)}')
+        print(f'np.shape(P_cprofile): {np.shape(P_cprofile)}')
 
-        return P_cprofile, P_mprofile, m_out_P, P_vflow
+
+        return P_cprofile, P_cprofile_AVG, P_mprofile, P_mprofile_AVG, m_out_P, P_vflow
 
 
 
@@ -1537,11 +1526,11 @@ def SMB(SMB_inputs):
     # raff_mprofile, m_out_raff, raff_vflow = prod_profile(t_sets, y_matrices, t_schedule, row_start_R1, row_start_R2, jump_matrix, t_idx_all, row_start+Z3)
     # ext_mprofile, m_out_ext, ext_vflow = prod_profile(t_sets, y_matrices, t_schedule, row_start_X1, row_start_X2, jump_matrix, t_idx_all, row_start+Z3+Z4+Z1)
     if iso_type == 'UNC':
-        raff_cprofile, raff_mprofile, m_out_raff, raff_vflow = prod_profile(t_sets, y_matrices, t_schedule, row_start_matrix_raff, jump_matrix, t_idx_all, row_start_schedule_raff)
-        ext_cprofile, ext_mprofile, m_out_ext, ext_vflow = prod_profile(t_sets, y_matrices, t_schedule, row_start_matrix_ext, jump_matrix, t_idx_all, row_start_schedule_ext)
+        raff_cprofile, raff_avg_cprofile, raff_mprofile, raff_avg_mprofile, m_out_raff, raff_vflow = prod_profile(t_sets, y_matrices, t_schedule, row_start_matrix_raff, jump_matrix, t_idx_all, row_start_schedule_raff)
+        ext_cprofile, ext_avg_cprofile, ext_mprofile, ext_avg_mprofile, m_out_ext, ext_vflow = prod_profile(t_sets, y_matrices, t_schedule, row_start_matrix_ext, jump_matrix, t_idx_all, row_start_schedule_ext)
     elif iso_type == 'CUP':
-        raff_cprofile, raff_mprofile, m_out_raff, raff_vflow = prod_profile(t, y_matrices, t_schedule, row_start_matrix_raff, jump_matrix, t_idx_all, row_start_schedule_raff)
-        ext_cprofile, ext_mprofile, m_out_ext, ext_vflow = prod_profile(t, y_matrices, t_schedule, row_start_matrix_ext, jump_matrix, t_idx_all, row_start_schedule_ext)
+        raff_cprofile, raff_avg_cprofile, raff_mprofile, raff_avg_mprofile, m_out_raff, raff_vflow = prod_profile(t, y_matrices, t_schedule, row_start_matrix_raff, jump_matrix, t_idx_all, row_start_schedule_raff)
+        ext_cprofile, ext_avg_cprofile, ext_mprofile, ext_avg_mprofile, m_out_ext, ext_vflow = prod_profile(t, y_matrices, t_schedule, row_start_matrix_ext, jump_matrix, t_idx_all, row_start_schedule_ext)
     #######################################################
     # print(f'raff_vflow: {raff_vflow}')
     # print(f'np.shape(raff_vflow): {np.shape(raff_vflow[0])}')
@@ -1637,11 +1626,41 @@ def SMB(SMB_inputs):
     # 3. Productivity
 
 
+
+
+    import numpy as np
+
+
+
+    def replace_nan_with_zero(arr: np.ndarray) -> np.ndarray:
+        """
+        Replace NaN values with zeros, leaving all other values unchanged.
+
+        Parameters
+        ----------
+        arr : np.ndarray
+            Input matrix of shape (m, n).
+
+        Returns
+        -------
+        np.ndarray
+            Copy of the matrix with NaNs replaced by zeros.
+        """
+        return np.nan_to_num(arr, nan=0.0)
+
+
+
+
     # 1. Purity
     #######################################################
     # 1.1 Instantanoues:
-    raff_inst_purity = raff_mprofile/sum(raff_mprofile)
-    ext_inst_purity = ext_mprofile/sum(ext_mprofile)
+
+    raff_inst_purity = raff_avg_cprofile/sum(raff_avg_cprofile)
+    ext_inst_purity = ext_avg_cprofile/sum(ext_avg_cprofile)
+
+    # CLEAN
+    raff_inst_purity = replace_nan_with_zero(raff_inst_purity)
+    ext_inst_purity = replace_nan_with_zero(ext_inst_purity)
 
     # 1.2 Integral:
     raff_intgral_purity = m_out_raff/sum(m_out_raff)
@@ -1659,36 +1678,46 @@ def SMB(SMB_inputs):
 
     # 2. Recovery
     #######################################################
+
+    # Initialize:
+
     # 2.1 Instantanoues Feed Recovery:
-    print(f'raff_cprofile shape:{np.shape(raff_cprofile)}')
-    print(f'C_feed shape:{np.shape(C_feed)}, ')
-
-    raff_inst_recovery= np.zeros_like(raff_cprofile)
-    ext_inst_recovery = np.zeros_like(ext_cprofile)
-
-
+    raff_inst_feed_recovery= np.zeros_like(raff_avg_cprofile)
+    ext_inst_feed_recovery = np.zeros_like(ext_avg_cprofile)
     # 2.1 Instantanoues Output Recovery:
-    raff_inst_output_recovery = np.zeros_like(ext_cprofile)
-    ext_inst_output_recovery = np.zeros_like(raff_cprofile)
+    raff_inst_output_recovery = np.zeros_like(raff_avg_cprofile)
+    ext_inst_output_recovery = np.zeros_like(ext_avg_cprofile)
 
     # Populate
     for i in range(num_comp):
-        raff_inst_recovery[i] = raff_mprofile[i]/sum(np.array(C_feed[i])*QF)
-        ext_inst_recovery[i] = ext_mprofile[i]/sum(np.array(C_feed[i])*QF)
-        raff_inst_output_recovery[i, :] = raff_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
-        ext_inst_output_recovery[i, :] = ext_mprofile[i]/(raff_mprofile[i] + ext_mprofile[i])
+        print(f'\nraff_avg_mprofile negatives\n: {raff_avg_mprofile[i]}')    
+        print(f'ext_avg_mprofile negatives\n: {ext_avg_mprofile[i]}')   
 
+
+        raff_inst_feed_recovery[i] = raff_avg_mprofile[i] / C_feed[i][0]*QF
+        ext_inst_feed_recovery[i] = ext_avg_mprofile[i] / C_feed[i][0]*QF
+
+        # OUTLET RECOVERY  
+        denom = raff_avg_mprofile[i] + ext_avg_mprofile[i]
+
+        print(f'denom\n: {denom}\n')
+        raff_inst_output_recovery[i, :] = raff_avg_mprofile[i] / denom
+        ext_inst_output_recovery[i, :] = ext_avg_mprofile[i] / denom
+
+    # CLEAN;
+    raff_inst_output_recovery = replace_nan_with_zero(raff_inst_output_recovery)
+    ext_inst_output_recovery = replace_nan_with_zero(ext_inst_output_recovery)
     # 2.2 Integral Recovery:
-    raff_recov = m_out_raff/m_in
-    ext_recov = m_out_ext/m_in
+    # Relaive to Feed
+    raff_feed_recov = m_out_raff/m_in
+    ext_feed_recov = m_out_ext/m_in
+    # Relaive to Outputs
+    raff_output_recov = m_out_raff/sum(m_out_raff)
+    ext_output_recov = m_out_ext/sum(m_out_ext)
 
-    # Output recovery => recovery relative to only the flow out the extract and raffiante
-    raff_output_recov = np.zeros(num_comp)
-    ext_output_recov = np.zeros(num_comp)
 
-    for i in range(num_comp):
-        raff_output_recov[i] = m_out_raff[i]/(m_out_raff[i] + m_out_ext[i])
-        ext_output_recov[i] = m_out_ext[i]/(m_out_raff[i] + m_out_ext[i])
+
+
 
     # 3. Productivity
     #######################################################
@@ -1699,7 +1728,39 @@ def SMB(SMB_inputs):
     #######################################################
 
     ############## TABLES ##################
+    # Purities
+    # raff_den = np.sum(raff_mprofile, axis=0, keepdims=True)   # shape (1, n_time)
+    # ext_den  = np.sum(ext_mprofile, axis=0, keepdims=True)    # shape (1, n_time)
 
+    # raff_inst_purity = np.divide(
+    #     raff_mprofile, 
+    #     raff_den, 
+    #     out=np.zeros_like(raff_mprofile, dtype=float),
+    #     where=raff_den != 0
+    # )  # shape (num_comp, n_time)
+
+    # ext_inst_purity = np.divide(
+    #     ext_mprofile, 
+    #     ext_den, 
+    #     out=np.zeros_like(ext_mprofile, dtype=float),
+    #     where=ext_den != 0
+    # )  # shape (num_comp, n_time)
+
+
+    # # Recoveries
+    # denom = raff_mprofile + ext_mprofile   # shape (num_comp, n_time)
+
+    # raff_inst_output_recovery = np.divide(
+    #     raff_mprofile, denom,
+    #     out=np.zeros_like(raff_mprofile, dtype=float),
+    #     where=denom != 0
+    # )
+
+    # ext_inst_output_recovery = np.divide(
+    #     ext_mprofile, denom,
+    #     out=np.zeros_like(ext_mprofile, dtype=float),
+    #     where=denom != 0
+    # )
 
 
     # Define the data for the table
@@ -1731,8 +1792,8 @@ def SMB(SMB_inputs):
             f'{ext_intgral_purity} %',
             # f'{raff_stream_final_purity} g/cm^3',
             # f'{ext_stream_final_purity}',
-            f'{raff_recov} %',
-            f'{ext_recov} %'
+            f'{raff_feed_recov} %',
+            f'{ext_feed_recov} %'
         ]
     }
 
@@ -1742,920 +1803,1053 @@ def SMB(SMB_inputs):
 
     # # Display the DataFrame
     # print(df)
-    results = [y_matrices, nx, t, t_sets, t_schedule, C_feed, m_in, m_out, raff_cprofile, ext_cprofile, raff_intgral_purity, raff_recov, ext_intgral_purity, ext_recov, raff_vflow, ext_vflow, Model_Acc, Expected_Acc, Error_percent, 
-                raff_inst_purity, ext_inst_purity, raff_inst_output_recovery, ext_inst_output_recovery, raff_output_recov, ext_output_recov
+    results = [y_matrices, nx, t, t_sets, t_schedule, C_feed, m_in, m_out, raff_cprofile, ext_cprofile, raff_intgral_purity, raff_feed_recov, ext_intgral_purity, ext_feed_recov, raff_vflow, ext_vflow, Model_Acc, Expected_Acc, Error_percent, 
+                raff_inst_purity, ext_inst_purity, raff_inst_feed_recovery, ext_inst_feed_recovery, raff_inst_output_recovery, ext_inst_output_recovery, raff_avg_cprofile, ext_avg_cprofile, raff_avg_mprofile, ext_avg_mprofile, t_schedule, raff_output_recov, ext_output_recov
                  ]
     return results
 
 
 
 
-# # Plotting Fucntions - if need be
-# ###########################################################################################
-# # Loading the Plotting Libraries
-# from matplotlib.pyplot import subplots
-# import matplotlib.pyplot as plt
-# import matplotlib.animation as animation
-# # from PIL import Image
-# from scipy import integrate
-# import plotly.graph_objects as go
-# ###########################################
-# # IMPORTING MY OWN FUNCTIONS
-# ###########################################
-# # Loading the Plotting Libraries
-# from matplotlib.pyplot import subplots
-# import matplotlib.pyplot as plt
-# import matplotlib.animation as animation
-# # from PIL import Image
-# from scipy import integrate
-# import plotly.graph_objects as go
-# ###########################################
-# # IMPORTING MY OWN FUNCTIONS
-# ###########################################
+# Plotting Fucntions - if need be
+###########################################################################################
+# Loading the Plotting Libraries
+from matplotlib.pyplot import subplots
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+# from PIL import Image
+from scipy import integrate
+import plotly.graph_objects as go
+###########################################
+# IMPORTING MY OWN FUNCTIONS
+###########################################
+# Loading the Plotting Libraries
+from matplotlib.pyplot import subplots
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+# from PIL import Image
+from scipy import integrate
+import plotly.graph_objects as go
+###########################################
+# IMPORTING MY OWN FUNCTIONS
+###########################################
 
-# def see_prod_curves(t_odes, Y, t_index) :
-#     # Y = C_feed, C_raff, C_ext
-#     # X = t_sets
-#     fig, ax = plt.subplots(1, 3, figsize=(25, 5))
+def see_prod_curves(t_odes, Y, t_index) :
+    # Y = C_feed, C_raff, C_ext
+    # X = t_sets
+    fig, ax = plt.subplots(1, 3, figsize=(25, 5))
     
 
-#     # 0 - Feed Profile
-#     # 1 - Raffinate Profile
-#     # 2 - Extract Profile
-#     t_odes  = t_odes/60/60
-#     # # Concentration Plots
-#     for i in range(num_comp): # for each component
-#         if iso_type == "UNC":
-#             ax[0].plot(t_odes[i], Y[0][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
-#             ax[1].plot(t_odes[i], Y[1][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
-#             ax[2].plot(t_odes[i], Y[2][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
+    # 0 - Feed Profile
+    # 1 - Raffinate Profile
+    # 2 - Extract Profile
+    t_odes  = t_odes/60/60
+    # # Concentration Plots
+    for i in range(num_comp): # for each component
+        if iso_type == "UNC":
+            ax[0].plot(t_odes[i], Y[0][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
+            ax[1].plot(t_odes[i], Y[1][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
+            ax[2].plot(t_odes[i], Y[2][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
         
-#         elif iso_type == "CUP":    
-#             ax[0].plot(t_odes, Y[0][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
-#             ax[1].plot(t_odes, Y[1][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
-#             ax[2].plot(t_odes, Y[2][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
-#     # Loop over components
-#     # smooth=True
-#     # window= 350
-#     # poly=1
-#     # color_smooth = ['green', 'orange']
-#     # # colors = ['grey', 'grey']
-#     # for i in range(num_comp):
-#     #     for j, label in enumerate(["Feed", "Raffinate", "Extract"]):
-#     #         yj = Y[j][i]
+        elif iso_type == "CUP":    
+            ax[0].plot(t_odes, Y[0][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
+            ax[1].plot(t_odes, Y[1][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
+            ax[2].plot(t_odes, Y[2][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
+    # Loop over components
+    # smooth=True
+    # window= 350
+    # poly=1
+    # color_smooth = ['green', 'orange']
+    # # colors = ['grey', 'grey']
+    # for i in range(num_comp):
+    #     for j, label in enumerate(["Feed", "Raffinate", "Extract"]):
+    #         yj = Y[j][i]
 
-#     #         if smooth:
-#     #             # Raw in gray
-#     #             ax[j].plot(t_odes, yj, color='grey', alpha=0.4)
-#     #             # Smoothed in component color
-#     #             yj_s = savgol_filter(yj, window, poly, mode="nearest")
-#     #             ax[j].plot(t_odes, yj_s, color=colors[i],
-#     #                        label=f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
-#     #             # ax[j].plot(t_odes, yj, color=colors[i],
-#     #             #            label=f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
-#     #         else:
-#     #             ax[j].plot(t_odes, yj, color=colors[i],
-#     #                        label=f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
+    #         if smooth:
+    #             # Raw in gray
+    #             ax[j].plot(t_odes, yj, color='grey', alpha=0.4)
+    #             # Smoothed in component color
+    #             yj_s = savgol_filter(yj, window, poly, mode="nearest")
+    #             ax[j].plot(t_odes, yj_s, color=colors[i],
+    #                        label=f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
+    #             # ax[j].plot(t_odes, yj, color=colors[i],
+    #             #            label=f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
+    #         else:
+    #             ax[j].plot(t_odes, yj, color=colors[i],
+    #                        label=f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
         
-#     # Add Accessories
-#     ax[0].set_xlabel('Time, hrs')
-#     ax[0].set_ylabel('($\mathregular{g/cm^3}$)')
-#     ax[0].set_title(f'Feed Concentration Curves\nConfig: {Z1}:{Z2}:{Z3}:{Z4},\nNumber of Cycles:{n_num_cycles}\nIndex Time: {t_index}s')
-#     # ax[0].legend()
+    # Add Accessories
+    ax[0].set_xlabel('Time, hrs')
+    ax[0].set_ylabel('($\mathregular{g/cm^3}$)')
+    ax[0].set_title(f'Feed Concentration Curves\nConfig: {Z1}:{Z2}:{Z3}:{Z4},\nNumber of Cycles:{n_num_cycles}\nIndex Time: {t_index}s')
+    # ax[0].legend()
 
-#     ax[1].set_xlabel('Time, hrs')
-#     ax[1].set_ylabel('($\mathregular{g/cm^3}$)')
-#     ax[1].set_title(f'Raffinate Elution Curves\nConfig: {Z1}:{Z2}:{Z3}:{Z4},\nNumber of Cycles:{n_num_cycles}\nIndex Time: {t_index}s')
-#     # ax[1].legend()
+    ax[1].set_xlabel('Time, hrs')
+    ax[1].set_ylabel('($\mathregular{g/cm^3}$)')
+    ax[1].set_title(f'Raffinate Elution Curves\nConfig: {Z1}:{Z2}:{Z3}:{Z4},\nNumber of Cycles:{n_num_cycles}\nIndex Time: {t_index}s')
+    # ax[1].legend()
 
-#     ax[2].set_xlabel('Time, hrs')
-#     ax[2].set_ylabel('($\mathregular{g/cm^3}$)')
-#     ax[2].set_title(f'Extract Elution Curves\nConfig: {Z1}:{Z2}:{Z3}:{Z4},\nNumber of Cycles:{n_num_cycles}\nIndex Time: {t_index}s')
-#     # ax[2].legend()
+    ax[2].set_xlabel('Time, hrs')
+    ax[2].set_ylabel('($\mathregular{g/cm^3}$)')
+    ax[2].set_title(f'Extract Elution Curves\nConfig: {Z1}:{Z2}:{Z3}:{Z4},\nNumber of Cycles:{n_num_cycles}\nIndex Time: {t_index}s')
+    # ax[2].legend()
 
 
-#     plt.show()
+    plt.show()
 
-#     # Volumetric Flowrate Plots
-#     fig, vx = plt.subplots(1, 2, figsize=(25, 5))
-#     for i in range(num_comp): # for each component
-#         if iso_type == "UNC":
+    # Volumetric Flowrate Plots
+    fig, vx = plt.subplots(1, 2, figsize=(25, 5))
+    for i in range(num_comp): # for each component
+        if iso_type == "UNC":
             
-#             vx[0].plot(t_odes[i], Y[3][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
-#             vx[1].plot(t_odes[i], Y[4][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
+            vx[0].plot(t_odes[i], Y[3][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
+            vx[1].plot(t_odes[i], Y[4][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
         
-#         elif iso_type == "CUP":    
+        elif iso_type == "CUP":    
             
-#             vx[0].plot(t_odes, Y[3][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
-#             vx[1].plot(t_odes, Y[4][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
+            vx[0].plot(t_odes, Y[3][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
+            vx[1].plot(t_odes, Y[4][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
         
-#     # Add Accessories
-#     vx[0].set_xlabel('Time, hrs')
-#     vx[0].set_ylabel('($\mathregular{cm^3/s}$)')
-#     vx[0].set_title(f'Raffinate Volumetric Flowrates')
-#     vx[0].legend()
+    # Add Accessories
+    vx[0].set_xlabel('Time, hrs')
+    vx[0].set_ylabel('($\mathregular{cm^3/s}$)')
+    vx[0].set_title(f'Raffinate Volumetric Flowrates')
+    vx[0].legend()
 
-#     vx[1].set_xlabel('Time, hrs')
-#     vx[1].set_ylabel('($\mathregular{cm^3/s}$)')
-#     vx[1].set_title(f'Extract Volumetric Flowrates')
-#     # vx[1].legend()
+    vx[1].set_xlabel('Time, hrs')
+    vx[1].set_ylabel('($\mathregular{cm^3/s}$)')
+    vx[1].set_title(f'Extract Volumetric Flowrates')
+    # vx[1].legend()
 
-#     plt.show()
+    plt.show()
 
 
-# import numpy as np
-# import matplotlib.pyplot as plt
-# from scipy.signal import savgol_filter
-# import numpy as np
-# import matplotlib.pyplot as plt
-# from scipy.signal import savgol_filter
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.signal import savgol_filter
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.signal import savgol_filter
 
-# from scipy.signal import savgol_filter
+from scipy.signal import savgol_filter
 
-# from scipy.signal import savgol_filter
-# import numpy as np
+from scipy.signal import savgol_filter
+import numpy as np
 
-# # def hybrid_smooth(y, window=200, poly=2, alpha=0.3):
-# #     y = np.asarray(y)
+# def hybrid_smooth(y, window=200, poly=2, alpha=0.3):
+#     y = np.asarray(y)
     
-# #     # Determine axis to smooth along (time axis)
-# #     axis = 0 if y.ndim == 1 else 0
-# #     n_points = y.shape[axis]
+#     # Determine axis to smooth along (time axis)
+#     axis = 0 if y.ndim == 1 else 0
+#     n_points = y.shape[axis]
 
-# #     # Ensure valid window length
-# #     window_len = min(window, n_points // 2 * 2 - 1)  # largest odd <= n_points
-# #     if window_len <= poly:
-# #         window_len = poly + 1 if (poly + 1) % 2 == 1 else poly + 2
+#     # Ensure valid window length
+#     window_len = min(window, n_points // 2 * 2 - 1)  # largest odd <= n_points
+#     if window_len <= poly:
+#         window_len = poly + 1 if (poly + 1) % 2 == 1 else poly + 2
 
-# #     # Apply Savitzky-Golay filter along axis
-# #     y_smooth = savgol_filter(y, window_length=window_len, polyorder=poly, axis=axis)
+#     # Apply Savitzky-Golay filter along axis
+#     y_smooth = savgol_filter(y, window_length=window_len, polyorder=poly, axis=axis)
     
-# #     # Hybrid smoothing: blend original with smoothed
-# #     return alpha * y + (1 - alpha) * y_smooth
+#     # Hybrid smoothing: blend original with smoothed
+#     return alpha * y + (1 - alpha) * y_smooth
 
 
 
-# # def see_prod_curves(t_data, Y, smooth=True, window=200, poly=2, alpha=0.3):
-# #     import matplotlib.pyplot as plt
-# #     from scipy.signal import savgol_filter
-# #     import numpy as np
+# def see_prod_curves(t_data, Y, smooth=True, window=200, poly=2, alpha=0.3):
+#     import matplotlib.pyplot as plt
+#     from scipy.signal import savgol_filter
+#     import numpy as np
 
-# #     C_feed, raff_cprofile, ext_cprofile, raff_vflow, ext_vflow = Y
+#     C_feed, raff_cprofile, ext_cprofile, raff_vflow, ext_vflow = Y
 
-# #     fig, ax = plt.subplots(figsize=(10,6))
+#     fig, ax = plt.subplots(figsize=(10,6))
 
-# #     # Helper function for smoothing
-# #     def hybrid_smooth(y):
-# #         if smooth:
-# #             y_smooth = savgol_filter(y, window_length=min(window, len(y)//2*2-1), polyorder=poly)
-# #             # Blend smoothed with original
-# #             return alpha * y + (1 - alpha) * y_smooth
-# #         return y
-
-# #     # Apply smoothing
-# #     raff_c_smooth = hybrid_smooth(Y[1], window=201, poly=2, alpha=0.3)
-# #     ext_c_smooth  = hybrid_smooth(Y[2], window=201, poly=2, alpha=0.3)
-
-# #     # Plot
-# #     ax.plot(t_data, raff_c_smooth, label="Raffinate", color="blue")
-# #     ax.plot(t_data, ext_c_smooth,  label="Extract",   color="red")
-
-# #     ax.set_xlabel("Time")
-# #     ax.set_ylabel("Concentration")
-# #     ax.legend()
-# #     ax.set_title("SMB Raffinate & Extract Elution Curves")
-
-# #     plt.show()
-
-
-# def col_liquid_profile(t, y, Axis_title, c_in, Ncol_num, L_total):
-#     y_plot = np.copy(y)
-#     # # Removeing the BC nodes
-#     # for del_row in start:
-#     #     y_plot = np.delete(y_plot, del_row, axis=0)
-        
-#     # print('y_plot:', y_plot.shape)
-    
-#     x = np.linspace(0, L_total, np.shape(y_plot[0:nx, :])[0])
-#     dt = t[1] - t[0]
-    
-
-    
-#     # Start vs End Snapshot
-#     fig, ax = plt.subplots(1, 2, figsize=(25, 5))
-
-#     ax[0].plot(x, y_plot[:, 0], label="t_start")
-#     ax[0].plot(x, y_plot[:, -1], label="t_end")
-
-#     # Add vertical black lines at positions where i % nx_col == 0
-#     for col_idx in range(Ncol_num + 1):  # +1 to include the last column boundary
-#         x_pos = col_idx #nx_col + col_idx*nx_col + col_idx #col_idx * ((nx_col) * dx)
-#         #x_pos = dx * x_pos
-#         ax[0].axvline(x=x_pos, color='k', linestyle='-')
-#         ax[1].axvline(x=x_pos, color='k', linestyle='-')
-
-#     ax[0].set_xlabel('Column Length, m')
-#     ax[0].set_ylabel('($\mathregular{g/l}$)')
-#     ax[0].axhline(y=c_in, color='g', linestyle= '--', linewidth=1, label="Inlet concentration")  # Inlet concentration
-#     # ax[0].legend()
-
-#     # Progressive Change at all ts:
-#     for j in range(np.shape(y_plot)[1]):
-#         ax[1].plot(x, y_plot[:, j])
-#         ax[1].set_xlabel('Column Length, m')
-#         ax[1].set_ylabel('($\mathregular{g/l}$)')
-#     plt.show()
-
-
-# import numpy as np
-# import matplotlib.pyplot as plt
-# from scipy.signal import savgol_filter   # for smooth mean
-
-# def col_liquid_profile(t, y, Axis_title, c_in, Ncol_num, L_total, smooth=True, window=11, poly=3):
-#     """
-#     Plot column concentration profiles with optional smoothing.
-
-#     Parameters
-#     ----------
-#     t : array
-#         Time points
-#     y : 2D array
-#         Concentration profiles [space, time]
-#     Axis_title : str
-#         Title for y-axis label
-#     c_in : float
-#         Inlet concentration
-#     Ncol_num : int
-#         Number of columns
-#     L_total : float
-#         Column length
-#     smooth : bool
-#         Whether to apply Savitzky-Golay smoothing
-#     window : int
-#         Window length for smoothing (must be odd)
-#     poly : int
-#         Polynomial order for smoothing
-#     """
-#     y_plot = np.copy(y)
-#     nx = y_plot.shape[0]  # number of spatial nodes
-
-#     x = np.linspace(0, L_total, nx)
-
-#     fig, ax = plt.subplots(1, 2, figsize=(25, 5))
-
-#     # --- Start vs End Snapshot ---
-#     y_start, y_end = y_plot[:, 0], y_plot[:, -1]
-
-#     if smooth:
-#         y_start_s = savgol_filter(y_start, window, poly)
-#         y_end_s   = savgol_filter(y_end, window, poly)
-#     else:
-#         y_start_s, y_end_s = y_start, y_end
-
-#     ax[0].plot(x, y_start, color="gray", alpha=0.4, label="t_start (raw)")
-#     ax[0].plot(x, y_start_s, "r-", label="t_start (smoothed)")
-#     ax[0].plot(x, y_end, color="gray", alpha=0.4, label="t_end (raw)")
-#     ax[0].plot(x, y_end_s, "b-", label="t_end (smoothed)")
-
-#     for col_idx in range(Ncol_num + 1):
-#         ax[0].axvline(x=col_idx, color='k', linestyle='-')
-#         ax[1].axvline(x=col_idx, color='k', linestyle='-')
-
-#     ax[0].set_xlabel('Column Length, m')
-#     ax[0].set_ylabel(Axis_title)
-#     ax[0].axhline(y=c_in, color='g', linestyle='--', linewidth=1, label="Inlet concentration")
-#     ax[0].legend()
-
-#     # --- Progressive Profiles ---
-#     for j in range(y_plot.shape[1]):
-#         yj = y_plot[:, j]
+#     # Helper function for smoothing
+#     def hybrid_smooth(y):
 #         if smooth:
-#             yj_s = savgol_filter(yj, window, poly)
-#             ax[1].plot(x, yj_s, alpha=0.8)
-#         else:
-#             ax[1].plot(x, yj, alpha=0.8)
+#             y_smooth = savgol_filter(y, window_length=min(window, len(y)//2*2-1), polyorder=poly)
+#             # Blend smoothed with original
+#             return alpha * y + (1 - alpha) * y_smooth
+#         return y
 
-#     ax[1].set_xlabel('Column Length, m')
-#     ax[1].set_ylabel(Axis_title)
-#     ax[1].set_title("Progressive evolution (smoothed)" if smooth else "Progressive evolution")
+#     # Apply smoothing
+#     raff_c_smooth = hybrid_smooth(Y[1], window=201, poly=2, alpha=0.3)
+#     ext_c_smooth  = hybrid_smooth(Y[2], window=201, poly=2, alpha=0.3)
+
+#     # Plot
+#     ax.plot(t_data, raff_c_smooth, label="Raffinate", color="blue")
+#     ax.plot(t_data, ext_c_smooth,  label="Extract",   color="red")
+
+#     ax.set_xlabel("Time")
+#     ax.set_ylabel("Concentration")
+#     ax.legend()
+#     ax.set_title("SMB Raffinate & Extract Elution Curves")
 
 #     plt.show()
 
 
-
-# def col_solid_profile(t, y, Axis_title, Ncol_num, start, L_total):
-    
-#     # Removeing the BC nodes
-#     y_plot = np.copy(y)
-#     # Removeing the BC nodes
-#     for del_row in start:
-#         y_plot = np.delete(y_plot, del_row, axis=0)
+def col_liquid_profile(t, y, Axis_title, c_in, Ncol_num, L_total):
+    y_plot = np.copy(y)
+    # # Removeing the BC nodes
+    # for del_row in start:
+    #     y_plot = np.delete(y_plot, del_row, axis=0)
         
-#     # print('y_plot:', y_plot.shape)
+    # print('y_plot:', y_plot.shape)
     
-#     x = np.linspace(0, L_total, np.shape(y_plot[0:nx, :])[0])
-#     dt = t[1] - t[0]
+    x = np.linspace(0, L_total, np.shape(y_plot[0:nx, :])[0])
+    dt = t[1] - t[0]
     
-#     # Start vs End Snapshot
-#     fig, ax = plt.subplots(1, 2, figsize=(25, 5))
 
-#     ax[0].plot(x, y_plot[:, 0], label="t_start")
-#     ax[0].plot(x, y_plot[:, -1], label="t_end")
-#     # ax[0].plot(x, y_plot[:, len(t) // 2], label="t_middle")
+    
+    # Start vs End Snapshot
+    fig, ax = plt.subplots(1, 2, figsize=(25, 5))
 
-#     # Add vertical black lines at positions where i % nx_col == 0
-#     for col_idx in range(Ncol_num + 1):  # +1 to include the last column boundary
-#         x_pos = col_idx*L #nx_col + col_idx*nx_col + col_idx #col_idx * ((nx_col) * dx)
-#         #x_pos = dx * x_pos
-#         ax[0].axvline(x=x_pos, color='k', linestyle='-')
-#         ax[1].axvline(x=x_pos, color='k', linestyle='-')
+    ax[0].plot(x, y_plot[:, 0], label="t_start")
+    ax[0].plot(x, y_plot[:, -1], label="t_end")
 
-#     ax[0].set_xlabel('Column Length, m')
-#     ax[0].set_ylabel('($\mathregular{g/l}$)')
-#     ax[0].set_title(f'{Axis_title}')
-#     ax[0].legend()
+    # Add vertical black lines at positions where i % nx_col == 0
+    for col_idx in range(Ncol_num + 1):  # +1 to include the last column boundary
+        x_pos = col_idx #nx_col + col_idx*nx_col + col_idx #col_idx * ((nx_col) * dx)
+        #x_pos = dx * x_pos
+        ax[0].axvline(x=x_pos, color='k', linestyle='-')
+        ax[1].axvline(x=x_pos, color='k', linestyle='-')
 
-#     # Progressive Change at all ts:
-#     for j in range(np.shape(y_plot)[1]):
-#         ax[1].plot(x, y_plot[:, j])
-#         ax[1].set_xlabel('Column Length, m')
-#         ax[1].set_ylabel('($\mathregular{g/l}$)')
-#         ax[1].set_title(f'{Axis_title}')
-#     plt.show()  # Display all the figures 
+    ax[0].set_xlabel('Column Length, m')
+    ax[0].set_ylabel('($\mathregular{g/l}$)')
+    ax[0].axhline(y=c_in, color='g', linestyle= '--', linewidth=1, label="Inlet concentration")  # Inlet concentration
+    # ax[0].legend()
 
-
+    # Progressive Change at all ts:
+    for j in range(np.shape(y_plot)[1]):
+        ax[1].plot(x, y_plot[:, j])
+        ax[1].set_xlabel('Column Length, m')
+        ax[1].set_ylabel('($\mathregular{g/l}$)')
+    plt.show()
 
 
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.signal import savgol_filter   # for smooth mean
 
-# def see_prod_curves_with_data(t_odes, Y, t_index, exp_data_raff=None, exp_data_ext=None, show_exp=True):
-#     # Y = [C_feed, C_raff, C_ext]
-#     # exp_data_raff/ext = dict of {i: (t_exp, C_exp)}, for component i
+def col_liquid_profile(t, y, Axis_title, c_in, Ncol_num, L_total, smooth=True, window=11, poly=3):
+    """
+    Plot column concentration profiles with optional smoothing.
 
-#     fig, ax = plt.subplots(1, 3, figsize=(25, 5), constrained_layout=True)
+    Parameters
+    ----------
+    t : array
+        Time points
+    y : 2D array
+        Concentration profiles [space, time]
+    Axis_title : str
+        Title for y-axis label
+    c_in : float
+        Inlet concentration
+    Ncol_num : int
+        Number of columns
+    L_total : float
+        Column length
+    smooth : bool
+        Whether to apply Savitzky-Golay smoothing
+    window : int
+        Window length for smoothing (must be odd)
+    poly : int
+        Polynomial order for smoothing
+    """
+    y_plot = np.copy(y)
+    nx = y_plot.shape[0]  # number of spatial nodes
 
-#     t_odes_hr = t_odes / 3600  # convert to hours
+    x = np.linspace(0, L_total, nx)
 
-#     for i in range(num_comp):
-#         label_base = f"{Names[i]}" #,{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}"
+    fig, ax = plt.subplots(1, 2, figsize=(25, 5))
 
-#         # Determine clipping bounds
-#         t_min = 0
-#         t_max = np.inf
-#         if show_exp:
-#             t_exp_vals = []
-#             if exp_data_raff and i in exp_data_raff:
-#                 t_exp_vals.extend(exp_data_raff[i][0])
-#             if exp_data_ext and i in exp_data_ext:
-#                 t_exp_vals.extend(exp_data_ext[i][0])
-#             if t_exp_vals:
-#                 t_min = min(t_exp_vals)
-#                 t_max = max(t_exp_vals)
+    # --- Start vs End Snapshot ---
+    y_start, y_end = y_plot[:, 0], y_plot[:, -1]
 
-#         # Manual clipping using index-based slicing (not masks)
-#         if iso_type == "UNC":
-#             t_i = t_odes[i]
-#             start_idx = np.searchsorted(t_i, t_min, side='left')
-#             end_idx   = np.searchsorted(t_i, t_max, side='right')
-#             t_plot = t_i[start_idx:end_idx] / 3600
+    if smooth:
+        y_start_s = savgol_filter(y_start, window, poly)
+        y_end_s   = savgol_filter(y_end, window, poly)
+    else:
+        y_start_s, y_end_s = y_start, y_end
 
-#             ax[0].plot(t_plot, Y[0][i][start_idx:end_idx], color=colors[i], label=label_base)
-#             ax[1].plot(t_plot, Y[1][i][start_idx:end_idx], color=colors[i], label=label_base)
-#             ax[2].plot(t_plot, Y[2][i][start_idx:end_idx], color=colors[i], label=label_base)
+    ax[0].plot(x, y_start, color="gray", alpha=0.4, label="t_start (raw)")
+    ax[0].plot(x, y_start_s, "r-", label="t_start (smoothed)")
+    ax[0].plot(x, y_end, color="gray", alpha=0.4, label="t_end (raw)")
+    ax[0].plot(x, y_end_s, "b-", label="t_end (smoothed)")
 
-#         elif iso_type == "CUP":
-#             start_idx = np.searchsorted(t_odes, t_min, side='left')
-#             end_idx   = np.searchsorted(t_odes, t_max, side='right')
-#             t_plot = t_odes[start_idx:end_idx] / 3600
+    for col_idx in range(Ncol_num + 1):
+        ax[0].axvline(x=col_idx, color='k', linestyle='-')
+        ax[1].axvline(x=col_idx, color='k', linestyle='-')
 
-#             ax[0].plot(t_plot, Y[0][i][start_idx:end_idx], color=colors[i], label=label_base)
-#             ax[1].plot(t_plot, Y[1][i][start_idx:end_idx], color=colors[i], label=label_base)
-#             ax[2].plot(t_plot, Y[2][i][start_idx:end_idx], color=colors[i], label=label_base)
+    ax[0].set_xlabel('Column Length, m')
+    ax[0].set_ylabel(Axis_title)
+    ax[0].axhline(y=c_in, color='g', linestyle='--', linewidth=1, label="Inlet concentration")
+    ax[0].legend()
 
-#         # Plot experimental data
-#         if show_exp:
-#             if exp_data_raff and i in exp_data_raff:
-#                 t_exp_r, C_exp_r = exp_data_raff[i]
-#                 ax[1].scatter(t_exp_r / 3600, C_exp_r, color=colors[i], marker='x', s=40 # label=f"Exp Raff"
-#                              , label=f"Exp", alpha=0.6)
-#             if exp_data_ext and i in exp_data_ext:
-#                 t_exp_e, C_exp_e = exp_data_ext[i]
-#                 ax[2].scatter(t_exp_e / 3600, C_exp_e, color=colors[i], marker='o', s=40, # label=f"Exp Ext",
-#                                label=f"Exp",alpha=0.6)
+    # --- Progressive Profiles ---
+    for j in range(y_plot.shape[1]):
+        yj = y_plot[:, j]
+        if smooth:
+            yj_s = savgol_filter(yj, window, poly)
+            ax[1].plot(x, yj_s, alpha=0.8)
+        else:
+            ax[1].plot(x, yj, alpha=0.8)
 
-#     # Titles and labels
-#     ax[0].set_xlabel('Time, hrs')
-#     ax[0].set_title(f'Feed Concentration Curves in (g/mL)\nConfig: {Z1}:{Z2}:{Z3}:{Z4}\nIndex Time: {t_index/60}min')
+    ax[1].set_xlabel('Column Length, m')
+    ax[1].set_ylabel(Axis_title)
+    ax[1].set_title("Progressive evolution (smoothed)" if smooth else "Progressive evolution")
 
-#     ax[1].set_xlabel('Time, hrs')
-#     ax[1].set_title(f'Raffinate Elution Curves in (g/mL)\nConfig: {Z1}:{Z2}:{Z3}:{Z4}\nIndex Time: {t_index/60}min')
-
-#     ax[2].set_xlabel('Time, hrs')
-#     ax[2].set_title(f'Extract Elution Curves in (g/mL)\nConfig: {Z1}:{Z2}:{Z3}:{Z4}\nIndex Time: {t_index/60}min')
-
-#     for a in ax:
-#         a.legend()
-#     # plt.tight_layout()
-#     plt.show()
-
-
-# def mj_to_Qj(mj, t_index_min):
-#     '''
-#     Converts flowrate ratios to internal flowrates - flowrates within columns
-#     '''
-#     Qj = (mj*V_col*(1-e) + V_col*e)/(t_index_min*60) # cm^3/s
-#     return Qj
+    plt.show()
 
 
-# # %%
-# # --------------- FUNCTION EVALUATION SECTION
 
-# # SMB VARIABLES
-# # ######################################################
-# # What tpye of isoherm is required?
-# # Coupled: "CUP"
-# # Uncoupled: "UNC"
-# iso_type = "CUP"
+def col_solid_profile(t, y, Axis_title, Ncol_num, start, L_total):
+    
+    # Removeing the BC nodes
+    y_plot = np.copy(y)
+    # Removeing the BC nodes
+    for del_row in start:
+        y_plot = np.delete(y_plot, del_row, axis=0)
+        
+    # print('y_plot:', y_plot.shape)
+    
+    x = np.linspace(0, L_total, np.shape(y_plot[0:nx, :])[0])
+    dt = t[1] - t[0]
+    
+    # Start vs End Snapshot
+    fig, ax = plt.subplots(1, 2, figsize=(25, 5))
 
-# ###################### PRIMARY INPUTS #########################
-# # Define the names, colors, and parameter sets for 6 components
-# Names = ["Glucose", "Fructose"]#, 'C', 'D']#, "C"]#, "D", "E", "F"]
-# colors = ["green", "orange"]    #, "purple", "brown"]#, "b"]#, "r", "purple", "brown"]
-# num_comp = len(Names) # Number of components
-# e = 0.56 # 0.56         # bed voidage
-# Bm = 300
+    ax[0].plot(x, y_plot[:, 0], label="t_start")
+    ax[0].plot(x, y_plot[:, -1], label="t_end")
+    # ax[0].plot(x, y_plot[:, len(t) // 2], label="t_middle")
 
-# # Column Dimensions
+    # Add vertical black lines at positions where i % nx_col == 0
+    for col_idx in range(Ncol_num + 1):  # +1 to include the last column boundary
+        x_pos = col_idx*L #nx_col + col_idx*nx_col + col_idx #col_idx * ((nx_col) * dx)
+        #x_pos = dx * x_pos
+        ax[0].axvline(x=x_pos, color='k', linestyle='-')
+        ax[1].axvline(x=x_pos, color='k', linestyle='-')
 
-# # How many columns in each Zone?
+    ax[0].set_xlabel('Column Length, m')
+    ax[0].set_ylabel('($\mathregular{g/l}$)')
+    ax[0].set_title(f'{Axis_title}')
+    ax[0].legend()
 
-# Z1, Z2, Z3, Z4 = 1, 1, 1, 1 # *3 for smb config
-# zone_config = np.array([Z1, Z2, Z3, Z4])
-
-# # sub_zone information - EASIER TO FILL IN IF YOU DRAW THE SYSTEM
-# # -----------------------------------------------------
-# # sub_zone_j = [[feed_bays], [reciveinig_bays]]
-# # -----------------------------------------------------
-# # feed_bay = the bay(s) that feed the set of reciveing bays in "reciveinig_bays" e.g. [2] or [2,3,4] 
-# # reciveinig_bays = the set of bayes that recieve material from the feed bay
-
-# """
-# sub-zones are counted from the feed onwards i.e. sub_zone_1 is the first subzone "seen" by the feed stream. 
-# Bays are counted in the same way, starting from 1 rather than 0
-# """
-# # Borate-HCL
-# sub_zone_1 = [[22, 23, 24], [1]] # ---> in subzone 1, there are 2 columns stationed at bay 3 and 4. Bay 3 and 4 recieve feed from bay 1"""
-
-# sub_zone_2 = [[3], [4,5,6]] 
-# sub_zone_3 = [[4,5,6], [7]] 
-
-# sub_zone_4 = [[9], [10, 11, 12]] 
-# sub_zone_5 = [[10,11,12], [13]]
-
-# sub_zone_6 = [[15],[16, 17, 18]]
-# sub_zone_7 = [[16, 17, 18],[19]]
-
-# sub_zone_8 = [[21],[22, 23, 24]]
+    # Progressive Change at all ts:
+    for j in range(np.shape(y_plot)[1]):
+        ax[1].plot(x, y_plot[:, j])
+        ax[1].set_xlabel('Column Length, m')
+        ax[1].set_ylabel('($\mathregular{g/l}$)')
+        ax[1].set_title(f'{Axis_title}')
+    plt.show()  # Display all the figures 
 
 
-# subzone_set = [sub_zone_1,sub_zone_2,sub_zone_3,sub_zone_4,sub_zone_5,sub_zone_6, sub_zone_7, sub_zone_8]
-# subzone_set = []
-# # # PACK:
-# # subzone_set = [sub_zone_1,sub_zone_2,sub_zone_3,sub_zone_4,sub_zone_5,sub_zone_6,sub_zone_7,sub_zone_8]
 
-# # Glucose Fructose
-# # sub_zone_1 = [[3], [4,5,6]] # ---> in subzone 1, there are 2 columns stationed at bay 3 and 4. Bay 3 and 4 recieve feed from bay 1"""
-# # sub_zone_2 = [[4,5,6], [7,8,9]] 
 
-# # sub_zone_3 = [[7,8,9], [10,11,12]] 
-# # sub_zone_4 = [[10,11,12], [13]]
 
-# # sub_zone_5 = [[15],[16, 17, 18]]
-# # sub_zone_6 = [[16, 17, 18],[19, 20, 21]]
-# # sub_zone_7 = [[19, 20, 21], [22, 23, 24]]
-# # sub_zone_8 = [[22, 23, 24], [1]]
+def see_prod_curves_with_data(t_odes, Y, t_index, exp_data_raff=None, exp_data_ext=None, show_exp=True):
+    # Y = [C_feed, C_raff, C_ext]
+    # exp_data_raff/ext = dict of {i: (t_exp, C_exp)}, for component i
 
+    fig, ax = plt.subplots(1, 3, figsize=(25, 5), constrained_layout=True)
+
+    t_odes_hr = t_odes / 3600  # convert to hours
+
+    for i in range(num_comp):
+        label_base = f"{Names[i]}" #,{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}"
+
+        # Determine clipping bounds
+        t_min = 0
+        t_max = np.inf
+        if show_exp:
+            t_exp_vals = []
+            if exp_data_raff and i in exp_data_raff:
+                t_exp_vals.extend(exp_data_raff[i][0])
+            if exp_data_ext and i in exp_data_ext:
+                t_exp_vals.extend(exp_data_ext[i][0])
+            if t_exp_vals:
+                t_min = min(t_exp_vals)
+                t_max = max(t_exp_vals)
+
+        # Manual clipping using index-based slicing (not masks)
+        if iso_type == "UNC":
+            t_i = t_odes[i]
+            start_idx = np.searchsorted(t_i, t_min, side='left')
+            end_idx   = np.searchsorted(t_i, t_max, side='right')
+            t_plot = t_i[start_idx:end_idx] / 3600
+
+            ax[0].plot(t_plot, Y[0][i][start_idx:end_idx], color=colors[i], label=label_base)
+            ax[1].plot(t_plot, Y[1][i][start_idx:end_idx], color=colors[i], label=label_base)
+            ax[2].plot(t_plot, Y[2][i][start_idx:end_idx], color=colors[i], label=label_base)
+
+        elif iso_type == "CUP":
+            start_idx = np.searchsorted(t_odes, t_min, side='left')
+            end_idx   = np.searchsorted(t_odes, t_max, side='right')
+            t_plot = t_odes[start_idx:end_idx] / 3600
+
+            ax[0].plot(t_plot, Y[0][i][start_idx:end_idx], color=colors[i], label=label_base)
+            ax[1].plot(t_plot, Y[1][i][start_idx:end_idx], color=colors[i], label=label_base)
+            ax[2].plot(t_plot, Y[2][i][start_idx:end_idx], color=colors[i], label=label_base)
+
+        # Plot experimental data
+        if show_exp:
+            if exp_data_raff and i in exp_data_raff:
+                t_exp_r, C_exp_r = exp_data_raff[i]
+                ax[1].scatter(t_exp_r / 3600, C_exp_r, color=colors[i], marker='x', s=40 # label=f"Exp Raff"
+                             , label=f"Exp", alpha=0.6)
+            if exp_data_ext and i in exp_data_ext:
+                t_exp_e, C_exp_e = exp_data_ext[i]
+                ax[2].scatter(t_exp_e / 3600, C_exp_e, color=colors[i], marker='o', s=40, # label=f"Exp Ext",
+                               label=f"Exp",alpha=0.6)
+
+    # Titles and labels
+    ax[0].set_xlabel('Time, hrs')
+    ax[0].set_title(f'Feed Concentration Curves in (g/mL)\nConfig: {Z1}:{Z2}:{Z3}:{Z4}\nIndex Time: {t_index/60}min')
+
+    ax[1].set_xlabel('Time, hrs')
+    ax[1].set_title(f'Raffinate Elution Curves in (g/mL)\nConfig: {Z1}:{Z2}:{Z3}:{Z4}\nIndex Time: {t_index/60}min')
+
+    ax[2].set_xlabel('Time, hrs')
+    ax[2].set_title(f'Extract Elution Curves in (g/mL)\nConfig: {Z1}:{Z2}:{Z3}:{Z4}\nIndex Time: {t_index/60}min')
+
+    for a in ax:
+        a.legend()
+    # plt.tight_layout()
+    plt.show()
+
+
+
+def see_instantane_outputs(t_odes, Y2, t_index):
+    """
+    Y2 = [raff_inst_purity, 
+          ext_inst_purity, 
+          raff_inst_output_recovery, 
+          ext_inst_output_recovery]
+    """
+
+    fig, ax = plt.subplots(2, 2, figsize=(25, 5), constrained_layout=True)
+
+    t_odes_hr = t_odes / 3600  # convert to hours
+
+    for i in range(num_comp):
+        label_base = f"{Names[i]}" #,{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}"
+
+        # Determine clipping bounds
+        t_min = 0
+        t_max = np.inf
+
+        # Manual clipping using index-based slicing (not masks)
+        if iso_type == "UNC":
+            t_i = t_odes[i]
+            start_idx = np.searchsorted(t_i, t_min, side='left')
+            end_idx   = np.searchsorted(t_i, t_max, side='right')
+            t_plot = t_i[start_idx:end_idx] / 3600
+
+            ax[0].plot(t_plot, Y2[0][i][start_idx:end_idx], color=colors[i], label=label_base)
+            ax[1].plot(t_plot, Y2[1][i][start_idx:end_idx], color=colors[i], label=label_base)
+            ax[2].plot(t_plot, Y2[2][i][start_idx:end_idx], color=colors[i], label=label_base)
+            ax[3].plot(t_plot, Y2[3][i][start_idx:end_idx], color=colors[i], label=label_base)
+
+        elif iso_type == "CUP":
+            start_idx = np.searchsorted(t_odes, t_min, side='left')
+            end_idx   = np.searchsorted(t_odes, t_max, side='right')
+            t_plot = t_odes[start_idx:end_idx] / 3600
+
+            ax[0].plot(t_plot, Y2[0][i][start_idx:end_idx]*100, color=colors[i], label=label_base)
+            ax[1].plot(t_plot, Y2[1][i][start_idx:end_idx]*100, color=colors[i], label=label_base)
+            ax[2].plot(t_plot, Y2[2][i][start_idx:end_idx]*100, color=colors[i], label=label_base)
+            ax[3].plot(t_plot, Y2[3][i][start_idx:end_idx]*100, color=colors[i], label=label_base)
+
+
+    # Titles and labels
+    ax[0].set_xlabel('Time, hrs')
+    ax[0].set_title(f'Raff Instantaneous Purity (%) \nConfig: {Z1}:{Z2}:{Z3}:{Z4}\nIndex Time: {t_index/60}min')
+
+    ax[1].set_xlabel('Time, hrs')
+    ax[1].set_title(f'Ext Instantaneous Purity (%) \nConfig: {Z1}:{Z2}:{Z3}:{Z4}\nIndex Time: {t_index/60}min')
+
+    ax[2].set_xlabel('Time, hrs')
+    ax[2].set_title(f'Ext Instantaneous Feed-Recovery (%) \nConfig: {Z1}:{Z2}:{Z3}:{Z4}\nIndex Time: {t_index/60}min')
+
+    ax[3].set_xlabel('Time, hrs')
+    ax[3].set_title(f'Ext Instantaneous Feed-Recovery (%) \nConfig: {Z1}:{Z2}:{Z3}:{Z4}\nIndex Time: {t_index/60}min')
+
+    for a in ax:
+        a.legend()
+    # plt.tight_layout()
+    plt.show()
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+def see_instantane_outputs2(t_odes, Y2, t_index, iso_type="CUP"):
+    """
+    Visualizes instantaneous purities and recoveries for raffinate & extract.
+
+    Parameters
+    ----------
+    t_odes : array-like
+        Time vector (s).
+    Y2 : list of lists
+        Structure: [
+          raff_inst_purity, 
+          ext_inst_purity, 
+          raff_inst_output_recovery, 
+          ext_inst_output_recovery
+        ]
+        Each entry is [num_comp x time_array].
+    t_index : float
+        Indexing time (s).
+    iso_type : str
+        "UNC" (unconverted time array per component)
+        or "CUP" (common time array).
+    """
+
+    # --- Setup figure ---
+    fig, axs = plt.subplots(2, 2, figsize=(14, 8), constrained_layout=True)
+    axs = axs.ravel()  # flatten to 1D for easy looping
+
+    # --- Titles for subplots ---
+    titles = [
+        "Raffinate Instantaneous Purity (%)",
+        "Extract Instantaneous Purity (%)",
+        "Raffinate Instantaneous Outlet-Recovery (%)",
+        "Extract Instantaneous Outlet-Recovery (%)",
+    ]
+
+    # --- Time conversion ---
+    def get_time_slice(t_data, t_min=0, t_max=np.inf):
+        start_idx = np.searchsorted(t_data, t_min, side='left')
+        end_idx   = np.searchsorted(t_data, t_max, side='right')
+        return t_data[start_idx:end_idx] / 3600, start_idx, end_idx  # in hours
+
+    # --- Plotting loop ---
+    for i in range(num_comp):
+        label_base = f"{Names[i]}"
+        scale = 1.0 if iso_type == "UNC" else 100.0
+
+        for j in range(4):
+            if iso_type == "UNC":
+                t_i = t_odes[i]
+            else:
+                t_i = t_odes
+
+            t_plot, start_idx, end_idx = get_time_slice(t_i)
+            axs[j].scatter(
+                t_plot,
+                Y2[j][i][start_idx:end_idx] * scale,
+                color=colors[i],
+                label=label_base
+            )
+
+    # --- Formatting ---
+    for idx, ax in enumerate(axs):
+        ax.set_xlabel("Time (hrs)")
+        ax.set_title(
+            f"{titles[idx]}\nConfig: {Z1}:{Z2}:{Z3}:{Z4}, Index Time: {t_index/60:.2f} min"
+        )
+        ax.grid(True)
+    
+    # Move legend outside
+    handles, labels = axs[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="upper center", ncol=num_comp, bbox_to_anchor=(0.5, 1.05))
+
+    plt.show()
+
+
+def mj_to_Qj(mj, t_index_min):
+    '''
+    Converts flowrate ratios to internal flowrates - flowrates within columns
+    '''
+    Qj = (mj*V_col*(1-e) + V_col*e)/(t_index_min*60) # cm^3/s
+    return Qj
+
+
+# %%
+# --------------- FUNCTION EVALUATION SECTION
+
+# SMB VARIABLES
+# ######################################################
+# What tpye of isoherm is required?
+# Coupled: "CUP"
+# Uncoupled: "UNC"
+iso_type = "CUP"
+
+###################### PRIMARY INPUTS #########################
+# Define the names, colors, and parameter sets for 6 components
+Names = ["Glucose", "Fructose"]#, 'C', 'D']#, "C"]#, "D", "E", "F"]
+colors = ["green", "orange"]    #, "purple", "brown"]#, "b"]#, "r", "purple", "brown"]
+num_comp = len(Names) # Number of components
+e = 0.56 # 0.56         # bed voidage
+Bm = 300
+
+# Column Dimensions
+
+# How many columns in each Zone?
+
+Z1, Z2, Z3, Z4 = 1, 1, 1, 1 # *3 for smb config
+zone_config = np.array([Z1, Z2, Z3, Z4])
+
+# sub_zone information - EASIER TO FILL IN IF YOU DRAW THE SYSTEM
+# -----------------------------------------------------
+# sub_zone_j = [[feed_bays], [reciveinig_bays]]
+# -----------------------------------------------------
+# feed_bay = the bay(s) that feed the set of reciveing bays in "reciveinig_bays" e.g. [2] or [2,3,4] 
+# reciveinig_bays = the set of bayes that recieve material from the feed bay
+
+"""
+sub-zones are counted from the feed onwards i.e. sub_zone_1 is the first subzone "seen" by the feed stream. 
+Bays are counted in the same way, starting from 1 rather than 0
+"""
+# Borate-HCL
+sub_zone_1 = [[22, 23, 24], [1]] # ---> in subzone 1, there are 2 columns stationed at bay 3 and 4. Bay 3 and 4 recieve feed from bay 1"""
+
+sub_zone_2 = [[3], [4,5,6]] 
+sub_zone_3 = [[4,5,6], [7]] 
+
+sub_zone_4 = [[9], [10, 11, 12]] 
+sub_zone_5 = [[10,11,12], [13]]
+
+sub_zone_6 = [[15],[16, 17, 18]]
+sub_zone_7 = [[16, 17, 18],[19]]
+
+sub_zone_8 = [[21],[22, 23, 24]]
+
+
+subzone_set = [sub_zone_1,sub_zone_2,sub_zone_3,sub_zone_4,sub_zone_5,sub_zone_6, sub_zone_7, sub_zone_8]
+subzone_set = []
 # # PACK:
-# # subzone_set = [sub_zone_1,sub_zone_2,sub_zone_3,sub_zone_4,sub_zone_5,sub_zone_6,sub_zone_7,sub_zone_8]
-# # subzone_set = [] # no subzoning
+# subzone_set = [sub_zone_1,sub_zone_2,sub_zone_3,sub_zone_4,sub_zone_5,sub_zone_6,sub_zone_7,sub_zone_8]
 
-# # PLEASE ASSIGN THE BAYS THAT ARE TO THE IMMEDIATE LEFT OF THE RAFFIANTE AND EXTRACT
-# # product_bays = [2, 5] # [raff, extract]
+# Glucose Fructose
+# sub_zone_1 = [[3], [4,5,6]] # ---> in subzone 1, there are 2 columns stationed at bay 3 and 4. Bay 3 and 4 recieve feed from bay 1"""
+# sub_zone_2 = [[4,5,6], [7,8,9]] 
 
+# sub_zone_3 = [[7,8,9], [10,11,12]] 
+# sub_zone_4 = [[10,11,12], [13]]
 
+# sub_zone_5 = [[15],[16, 17, 18]]
+# sub_zone_6 = [[16, 17, 18],[19, 20, 21]]
+# sub_zone_7 = [[19, 20, 21], [22, 23, 24]]
+# sub_zone_8 = [[22, 23, 24], [1]]
 
-# L = 70 # cm # Length of one column
-# d_col = 4.5 # cm # column internal diameter
+# PACK:
+# subzone_set = [sub_zone_1,sub_zone_2,sub_zone_3,sub_zone_4,sub_zone_5,sub_zone_6,sub_zone_7,sub_zone_8]
+# subzone_set = [] # no subzoning
 
-# # Calculate the radius
-# r_col = d_col / 2
-# # Calculate the area of the base
-# A_col = np.pi * (r_col ** 2) # cm^2
-# V_col = A_col*L # cm^3
-# # Dimensions of the tubing and from each column:
-# # Assuming the pipe diameter is 20% of the column diameter:
-# d_in = 0.2 * d_col # cm
-# nx_per_col = 15
-
-
-# ################ Time Specs #################################################################################
-# t_index_min = 10 # min # Index time # How long the pulse holds before swtiching
-# n_num_cycles = 6   # Number of Cycles you want the SMB to run for
-# t_simulation_end = None # HRS
-# ###############  FLOWRATES  #################################################################################
-
-# # # Jochen et al:
-# # Q_P, Q_Q, Q_R, Q_S = 5.21, 4, 5.67, 4.65 # x10-7 m^3/s
-# # conv_fac = 0.1 # x10-7 m^3/s => cm^3/s
-# # Q_P, Q_Q, Q_R, Q_S  = Q_P*conv_fac, Q_Q*conv_fac, Q_R*conv_fac, Q_S*conv_fac
-
-# # Q_I, Q_II, Q_III, Q_IV = Q_R,  Q_S, Q_P, Q_Q
-
-# # # Q_I, Q_II, Q_III, Q_IV = 2,1,2,1
-# # Q_I, Q_II, Q_III, Q_IV = 11/3.6, 8.96/3.6, 9.96/3.6, 7.96/3.6 # L/h
+# PLEASE ASSIGN THE BAYS THAT ARE TO THE IMMEDIATE LEFT OF THE RAFFIANTE AND EXTRACT
+# product_bays = [2, 5] # [raff, extract]
 
 
 
+L = 70 # cm # Length of one column
+d_col = 5 # cm # column internal diameter
+
+# Calculate the radius
+r_col = d_col / 2
+# Calculate the area of the base
+A_col = np.pi * (r_col ** 2) # cm^2
+V_col = A_col*L # cm^3
+# Dimensions of the tubing and from each column:
+# Assuming the pipe diameter is 20% of the column diameter:
+d_in = 0.2 * d_col # cm
+nx_per_col = 15
 
 
-# # # Parameter Sets for different components
-# ################################################################
+################ Time Specs #################################################################################
+t_index_min = 10 # min # Index time # How long the pulse holds before swtiching
+n_num_cycles = 3   # Number of Cycles you want the SMB to run for
+t_simulation_end = None # HRS
+###############  FLOWRATES  #################################################################################
 
-# # Units:
-# # - Concentrations: g/cm^3
-# # - kh: 1/s
-# # - Da: cm^2/s
+# # Jochen et al:
+# Q_P, Q_Q, Q_R, Q_S = 5.21, 4, 5.67, 4.65 # x10-7 m^3/s
+# conv_fac = 0.1 # x10-7 m^3/s => cm^3/s
+# Q_P, Q_Q, Q_R, Q_S  = Q_P*conv_fac, Q_Q*conv_fac, Q_R*conv_fac, Q_S*conv_fac
 
-# # A must have a less affinity to resin that B - FOUND IN EXtract purity
-# # Parameter sets for different components
-# # Units:
-# # - Concentrations: g/cm^3
-# # - kfp: 1/s
-# # parameter_sets = [
-# #                     {"C_feed": 0.09222},    # Glucose SMB Launch
-# #                     {"C_feed": 0.061222}]   # Fructose
+# Q_I, Q_II, Q_III, Q_IV = Q_R,  Q_S, Q_P, Q_Q
 
-# # kav_params_all = np.array([[0.1467], [0.1462]])
-# # cusotom_isotherm_params_all = np.array([[2.71],[2.94]])
-# # Da_all = np.array([3.218e-6, 8.38e-6 ]) 
+# # Q_I, Q_II, Q_III, Q_IV = 2,1,2,1
+# Q_I, Q_II, Q_III, Q_IV = 11/3.6, 8.96/3.6, 9.96/3.6, 7.96/3.6 # L/h
+
+
+
+
+
+# # Parameter Sets for different components
+################################################################
+
+# Units:
+# - Concentrations: g/cm^3
+# - kh: 1/s
+# - Da: cm^2/s
+
+# A must have a less affinity to resin that B - FOUND IN EXtract purity
+# Parameter sets for different components
+# Units:
+# - Concentrations: g/cm^3
+# - kfp: 1/s
+# parameter_sets = [
+#                     {"C_feed": 0.09222},    # Glucose SMB Launch
+#                     {"C_feed": 0.061222}]   # Fructose
+
+# kav_params_all = np.array([[0.1467], [0.1462]])
+# cusotom_isotherm_params_all = np.array([[2.71],[2.94]])
+# Da_all = np.array([3.218e-6, 8.38e-6 ]) 
 
 # parameter_sets = [ {"C_feed": 0.003190078*1.4}, {"C_feed": 0.012222*0.8}] 
-# Da_all = np.array([5.77e-7, 2.3812e-7]) 
-# kav_params_all = np.array([[0.170], [0.154]])
-# cusotom_isotherm_params_all = np.array([[2.13], [2.4]]) # [ [H_borate], [H_hcl] ]
+# parameter_sets = [ {"C_feed": 0.003190078}, {"C_feed": 0.003190078}] 
+parameter_sets = [ {"C_feed": 2}, {"C_feed": 2}] 
+Da_all = np.array([5.77e-7, 2.3812e-7])
+kav_params_all = np.array([[0.170], [0.154]])
+cusotom_isotherm_params_all = np.array([[2.13], [2.35]]) # [ [H_borate], [H_hcl] ]
 
-# m1, m2, m3, m4 = 3.5, 2.13, 2.4, 1.5
-# Q_I, Q_II, Q_III, Q_IV = mj_to_Qj(m1, t_index_min), mj_to_Qj(m2, t_index_min), mj_to_Qj(m3, t_index_min), mj_to_Qj(m4, t_index_min)
-
-# Q_internal = np.array([Q_I, Q_II, Q_III, Q_IV])
-
-# # ISOTHERM PARAMETERS
-# ####################################################################### ####################
-# # Uncomment as necessary:
-
-# # Linear, H
-
-# # Da_all = np.array([6.218e-6, 6.38e-6 ]) 
-# # kav_params_all = np.array([[0.0315], [0.0217]])
-# # cusotom_isotherm_params_all = np.array([[0.27], [0.53]]) # H_glu, H_fru 
-# # Sub et al = np.array([[0.27], [0.53]])
-
-# # # Langmuir, [Q_max, b]
-# # cusotom_isotherm_params_all = np.array([[2.51181596, 1.95381598], [3.55314612, 1.65186647]])
-
-# # Linear + Langmuir, [H, Q_max, b]
-# # cusotom_isotherm_params_all = np.array([[1, 2.70420148, 1.82568197], [1, 3.4635919, 1.13858329]])
+m1, m2, m3, m4 = 3.5, 2.13, 2.35, 1.5
+Q_I, Q_II, Q_III, Q_IV = mj_to_Qj(m1, t_index_min), mj_to_Qj(m2, t_index_min), mj_to_Qj(m3, t_index_min), mj_to_Qj(m4, t_index_min)
+Q_internal = np.array([Q_I, Q_II, Q_III, Q_IV])
 
 
-# # STORE/INITALIZE SMB VAIRABLES
-# SMB_inputs = [iso_type, Names, colors, num_comp, nx_per_col, e, Da_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_params_all, kav_params_all, subzone_set, t_simulation_end]
-# #%% ---------- SAMPLE RUN IF NECESSARY
-# start_test = time.time()
-# results = SMB(SMB_inputs)
+# STORE/INITALIZE SMB VAIRABLES
+SMB_inputs = [iso_type, Names, colors, num_comp, nx_per_col, e, Da_all, Bm, zone_config, L, d_col, d_in, t_index_min, n_num_cycles, Q_internal, parameter_sets, cusotom_isotherm_params_all, kav_params_all, subzone_set, t_simulation_end]
+#%% ---------- SAMPLE RUN IF NECESSARY
+start_test = time.time()
+results = SMB(SMB_inputs)
+                 
+y_matrices, nx, t, t_sets, t_schedule, C_feed, m_in, m_out, raff_cprofile, ext_cprofile, raff_intgral_purity, raff_feed_recov, ext_intgral_purity, ext_feed_recov, raff_vflow, ext_vflow, Model_Acc, Expected_Acc, Error_percent = results[0:19]
+raff_inst_purity, ext_inst_purity, raff_inst_feed_recovery, ext_inst_feed_recovery, raff_inst_output_recovery, ext_inst_output_recovery, raff_avg_cprofile, ext_avg_cprofile, raff_avg_mprofile, ext_avg_mprofile, t_schedule, raff_output_recov, ext_output_recov = results[19:]
+end_test = time.time()
 
-# y_matrices, nx, t, t_sets, t_schedule, C_feed, m_in, m_out, raff_cprofile, ext_cprofile, raff_intgral_purity, raff_recov, ext_intgral_purity, ext_recov, raff_vflow, ext_vflow, Model_Acc, Expected_Acc, Error_percent = results[0:19]
-# raff_inst_purity, ext_inst_purity, raff_inst_output_recovery, ext_inst_output_recovery, raff_output_recov, ext_output_recov = results[19:]
-# end_test = time.time()
-
-# duration = end_test - start_test
-# # print(f'Simulation Took: {duration/60} min')
-# # print(f'ext_cprofile: {ext_cprofile}')
-# # print(f'raff_cprofile: {raff_cprofile}')
-# #%% Plotting
-
+duration = end_test - start_test
 # print(f'Simulation Took: {duration/60} min')
-# # print(f'ext_cprofile: {ext_cprofile}')
-# # print(f'raff_cprofile: {raff_cprofile}')
-# print("-----------------------------------------------------------")
-# Y1 = [C_feed, raff_cprofile, ext_cprofile, raff_vflow, ext_vflow]
-# Y2 = [C_feed, raff_inst_purity, ext_inst_purity, raff_inst_output_recovery, ext_inst_output_recovery]
+# print(f'ext_cprofile: {ext_cprofile}')
+# print(f'raff_cprofile: {raff_cprofile}')
+#%% Plotting
 
+print(f'Simulation Took: {duration/60} min')
+# print(f'ext_cprofile: {ext_cprofile}')
+# print(f'raff_cprofile: {raff_cprofile}')
+print("-----------------------------------------------------------")
+Y1 = [C_feed, raff_cprofile, ext_cprofile, raff_vflow, ext_vflow]
 
-# # # g/L
+Y2 = [raff_avg_cprofile, ext_avg_cprofile, raff_avg_mprofile, ext_avg_mprofile]
 
-# t_exp_raff = np.array([120, 140, 160, 180, 210, 240, 300, 320, 340, 360, 380, 400, 420, 440, 460, 470, 480, 490, 500, 520, 530 ])*60 # seconds
-# t_exp_ext = np.array([80, 100, 120, 140, 160, 180, 210, 240, 300, 320, 340, 360, 380, 400, 420,440, 460, 470, 480, 490, 500, 520, 530 ])*60
+print(f': ext_inst_purity: {ext_inst_purity}')
+Y3 = [raff_inst_purity, ext_inst_purity, raff_inst_output_recovery, ext_inst_output_recovery] # RAFF AND EXT PURITY AND RECOVERY
+# print(f'raff_avg_cprofile.shape: {np.shape(raff_avg_cprofile)}') # np.shape(raff_avg_cprofile)
+# print(f'raff_avg_cprofile: {raff_avg_cprofile}') # np.shape(raff_avg_cprofile)'
 
-
-# # 0 => Glu, 1 => Fru
-# exp_data_raff = {
-#     0: (t_exp_raff, np.array([0.56, 2.67, 6.69, 7.01, 3.94, 5.53, 5.74, 7.11, 7.01, 7.54, 9.44, 8.81, 10.18, 9.97, 9.55, 9.12, 10.07, 9.12, 9.12, 8.81, 8.38 ])/1000),  # (time in hrs, conc)
-#     1: (t_exp_raff, np.array([2.94, 4.03, 3.81, 4.19, 8.76, 4.37, 4.46, 4.79, 5.59, 6.76, 6.76, 6.19, 6.72, 6.73, 6.55, 6.78, 6.43, 7.08, 6.68, 6.99, 9.82])/1000),
-# }
-
-# exp_data_ext = {
-#     0: (t_exp_ext, np.array([ 2.57,5.21,6.16,6.69,10.92,6.69,12.93, 13.25, 11.45, 15.26, 11.77, 14.20, 13.78, 14.09, 12.72, 12.61, 10.07, 14.20,12.82, 15.05, 13.88, 14.52, 15.57])/1000),
-#     1: (t_exp_ext, np.array([8.73,6.39, 7.34, 7.01, 6.58, 6.91, 2.97, 2.65, 6.75, 5.64, 8.43, 6.40, 8.02, 7.31, 7.98, 8.59, 9.13, 5.80, 9.38, 6.15, 8.22, 6.28, 6.43])/1000),
-# }
-
-# if iso_type == "UNC":
-#     see_prod_curves(t_sets, Y, t_index_min*60)
-#     # see_prod_curves_with_data(t_sets, Y, t_index_min*60, exp_data_raff, exp_data_ext, show_exp=True)
-# elif iso_type == "CUP":
-#     see_prod_curves(t, Y1, t_index_min*60)
-#     see_prod_curves(t, Y2, t_index_min*60)
-#     # see_prod_curves_with_data(t, Y, t_index_min*60, exp_data_raff, exp_data_ext, show_exp=True)
-
-
-# # Define the data for the table
-
-# sigfig = 3
-# data = {
-#     'Metric': [
-#         'Total Expected Acc (IN-OUT)', 
-#         'Total Model Acc (r+l)', 
-#         'Total Error Percent (relative to Exp_Acc)', 
-
-#         # f'Mass In {Names}',
-#         # f'Mass Out {Names}',
-        
-#         f'Raffinate Integral Purity {Names}', 
-#         f'Extract Integral Purity {Names}',
-
-#         f'Raffinate Integral OUTPUT Recovery {Names}', 
-#         f'Extract Integral OUTPUT Recovery {Names}',
-
-#         f'Raffinate Integral Feed Recovery {Names}', 
-#         f'Extract Integral Feed Recovery {Names}'
-#         ],
-
-#     'Value': [
-#         f'{np.round(sum(Expected_Acc), sigfig)} g', 
-#         f'{np.round(sum(Model_Acc), sigfig)} g', 
-#         f'{np.round(Error_percent, sigfig + 2)} %',
-
-#         # f'{m_in} g',
-#         # f'{m_out} g', 
-
-#         f'[{np.round(raff_intgral_purity[0], sigfig)*100}, {np.round(raff_intgral_purity[1], sigfig)*100}] %', 
-#         f'[{np.round(ext_intgral_purity[0],sigfig)*100}, {np.round(ext_intgral_purity[1], sigfig)*100}] %', 
-
-#         f'[{np.round(raff_output_recov[0],sigfig)*100}, {np.round(raff_output_recov[1],sigfig)*100}] %', 
-#         f'[{np.round(ext_output_recov[0],sigfig)*100}, {np.round(ext_output_recov[1],sigfig)*100}] %',
-
-#         f'[{np.round(raff_recov[0], sigfig)*100}, {np.round(raff_recov[1], sigfig)*100}] %', 
-#         f'[{np.round(ext_recov[0], sigfig)*100}, {np.round(ext_recov[1], sigfig)*100}] %'
-
-#     ]
-# }
-
-# import pandas as pd
-# # Create a DataFrame
-# df = pd.DataFrame(data)
-
-# # Display the DataFrame
-# print(df)
-
-
-# # Plot the table as a figure
-# fig, ax = plt.subplots(figsize=(8, 4)) # Adjust figure size as needed
-# ax.axis('tight')
-# ax.axis('off')
-# table = ax.table(cellText=df.values, colLabels=df.columns, cellLoc='center', loc='center')
-
-# # Format the table's appearance
-# table.auto_set_font_size(False)
-# table.set_fontsize(10)
-# table.scale(1.5, 1.5)  # Adjust scaling of the table
-
-# # Display the table
+# plt.scatter(t_schedule, ext_avg_cprofile)
 # plt.show()
 
+# # g/L
 
-# #%%
-# print(f'shape(y): {np.shape(y_matrices)}')
-
-# #%%
-
-
-# # ANIMATION
-# ###########################################################################################
-
-# import matplotlib.pyplot as plt
-# import matplotlib.animation as animation
+t_exp_raff = np.array([120, 140, 160, 180, 210, 240, 300, 320, 340, 360, 380, 400, 420, 440, 460, 470, 480, 490, 500, 520, 530 ])*60 # seconds
+t_exp_ext = np.array([80, 100, 120, 140, 160, 180, 210, 240, 300, 320, 340, 360, 380, 400, 420,440, 460, 470, 480, 490, 500, 520, 530 ])*60
 
 
-# def animate_smb_concentration_profiles(y, t, labels, colors, nx_per_col, cols_per_zone, L_col,
-#                                        t_index, parameter_sets, filename="smb_profiles.mp4"):
-#     """
-#     Create an animated visualization of SMB liquid-phase concentration profiles across zones.
+# 0 => Glu, 1 => Fru
+exp_data_raff = {
+    0: (t_exp_raff, np.array([0.56, 2.67, 6.69, 7.01, 3.94, 5.53, 5.74, 7.11, 7.01, 7.54, 9.44, 8.81, 10.18, 9.97, 9.55, 9.12, 10.07, 9.12, 9.12, 8.81, 8.38 ])/1000),  # (time in hrs, conc)
+    1: (t_exp_raff, np.array([2.94, 4.03, 3.81, 4.19, 8.76, 4.37, 4.46, 4.79, 5.59, 6.76, 6.76, 6.19, 6.72, 6.73, 6.55, 6.78, 6.43, 7.08, 6.68, 6.99, 9.82])/1000),
+}
 
-#     Parameters:
-#     - y: (n_components, nx_total, time_points) concentration data
-#     - t: time vector (in seconds)
-#     - labels: list of component names
-#     - colors: list of colors per component
-#     - nx_per_col: number of spatial points per column
-#     - cols_per_zone: list with number of columns per zone
-#     - L_col: length of each column (m)
-#     - t_index: time (s) for 1 indexing shift
-#     - parameter_sets: list of dicts per component
-#     - filename: output video file name
-#     """
-#     n_components, nx_total, nt = y.shape
-#     n_zones = len(cols_per_zone)
-#     n_cols_total = sum(cols_per_zone)
-#     L_total = n_cols_total * L_col
+exp_data_ext = {
+    0: (t_exp_ext, np.array([ 2.57,5.21,6.16,6.69,10.92,6.69,12.93, 13.25, 11.45, 15.26, 11.77, 14.20, 13.78, 14.09, 12.72, 12.61, 10.07, 14.20,12.82, 15.05, 13.88, 14.52, 15.57])/1000),
+    1: (t_exp_ext, np.array([8.73,6.39, 7.34, 7.01, 6.58, 6.91, 2.97, 2.65, 6.75, 5.64, 8.43, 6.40, 8.02, 7.31, 7.98, 8.59, 9.13, 5.80, 9.38, 6.15, 8.22, 6.28, 6.43])/1000),
+}
 
-#     # Determine frame indices for animation (≤ 90s total shown if t > 120s)
-#     if t[-1] > 120:
-#         t_segment = 30  # seconds
-#         frames_per_segment = int(t_segment / (t[1] - t[0]))
-#         first_idx = np.arange(0, frames_per_segment)
-#         middle_idx = np.arange(nt // 2 - frames_per_segment // 2, nt // 2 + frames_per_segment // 2)
-#         last_idx = np.arange(nt - frames_per_segment, nt)
-#         selected_frames = np.concatenate([first_idx, middle_idx, last_idx])
-#     else:
-#         selected_frames = np.arange(nt)
-
-#     # Calculate column junction positions
-#     col_boundaries = [i * nx_per_col for i in range(n_cols_total + 1)]
-#     x_full = np.linspace(0, L_total, nx_total)
-
-#     # Initial port positions (index in spatial array), assuming inlet at col 0 (zone 3)
-#     stream_order = ["Feed", "Extract", "Raffinate", "Desorbent"]
-#     stream_colors = ["red", "blue", "orange", "purple"]
-#     stream_zone = [2, 1, 3, 0]  # zone indices: Feed at zone 3 (index 2), etc.
-
-#     # Compute starting port positions in terms of column number
-#     start_ports = np.cumsum([0] + cols_per_zone[:-1])  # column index per zone start
-
-#     # Pre-compute port positions over time (indexed every t_index)
-#     port_positions = {stream: [] for stream in stream_order}
-#     for time_val in t:
-#         idx_shift = int(time_val // t_index)
-#         for i, stream in enumerate(stream_order):
-#             base_col = start_ports[stream_zone[i]]
-#             pos = (base_col + idx_shift) % n_cols_total
-#             port_positions[stream].append(pos * nx_per_col * L_col)  # convert to length
-
-#     # Set up figure and axes (4 stacked panels)
-#     fig, axes = plt.subplots(n_zones, 1, figsize=(8, 10), sharex=True)
-#     lines = [[] for _ in range(n_zones)]
-
-#     for zone_id, ax in enumerate(axes):
-#         ax.set_xlim(0, L_total)
-#         ax.set_ylim(0, np.max(y))
-#         ax.set_ylabel("C (g/L)")
-#         ax.set_title(f"Zone {zone_id + 1}")
-
-#         # Vertical black lines for column boundaries
-#         col_start = sum(cols_per_zone[:zone_id]) * nx_per_col * L_col
-#         for i in range(cols_per_zone[zone_id] + 1):
-#             ax.axvline(x=col_start + i * L_col, color='black', linewidth=0.5)
-
-#         # Plot initialization for each component
-#         for comp_idx in range(n_components):
-#             # Spatial slice for this zone
-#             start = sum(cols_per_zone[:zone_id]) * nx_per_col
-#             end = start + cols_per_zone[zone_id] * nx_per_col
-#             x = x_full[start:end]
-#             line, = ax.plot(x, y[comp_idx, start:end, 0], color=colors[comp_idx], label=labels[comp_idx])
-#             lines[zone_id].append(line)
-
-#     # Add time and legend box
-#     time_text = axes[0].text(0.95, 0.9, '', transform=axes[0].transAxes,
-#                              ha='right', va='top', fontsize=10, bbox=dict(facecolor='white', alpha=0.7))
-#     axes[-1].set_xlabel("Column Length (m)")
-#     axes[0].legend(loc='upper left', bbox_to_anchor=(1, 1))
-
-#     # Initialize stream vertical lines
-#     stream_lines = [axes[0].axvline(0, color=color, linestyle='--', linewidth=1.5) for color in stream_colors]
-
-#     # Update function
-#     def update(frame_idx):
-#         t_hr = t[frame_idx] / 3600  # convert to hours
-#         time_text.set_text(f"Time: {t_hr:.2f} h")
-
-#         for zone_id, ax in enumerate(axes):
-#             start = sum(cols_per_zone[:zone_id]) * nx_per_col
-#             end = start + cols_per_zone[zone_id] * nx_per_col
-#             for comp_idx in range(n_components):
-#                 lines[zone_id][comp_idx].set_ydata(y[comp_idx, start:end, frame_idx])
-
-#         # Update stream lines (positioned in top axis only)
-#         for i, stream in enumerate(stream_order):
-#             x_pos = port_positions[stream][frame_idx]
-#             stream_lines[i].set_xdata(x_pos)
-
-#         return [l for sublist in lines for l in sublist] + stream_lines + [time_text]
-
-#     # Create animation
-#     ani = animation.FuncAnimation(fig, update, frames=selected_frames, interval=100, blit=True)
-
-#     # Save animation
-#     writer = animation.FFMpegWriter(fps=15, bitrate=1800)
-#     ani.save(filename, writer=writer)
-#     plt.close()
-#     return filename
-
-# # Run it with the simulated data
-# sample_data_bundle = {
-#     "y": y_matrices,
-#     "t": t,
-#     "labels": Names,
-#     "colors": colors,
-#     "nx_per_col": nx_per_col,
-#     "cols_per_zone": zone_config,
-#     "L_col": L,
-#     "t_index": t_index_min,
-#     "parameter_sets": parameter_sets
-# }
-
-# def plot_all_columns_single_axes(y_matrices, t,indxing_period, time_index,
-#                                   nx_per_col, L_col, zone_config, 
-#                                   labels=None, colors=None,
-#                                   title="Concentration Across Entire Column"):
-#     """
-#     Plot all columns together on one continuous axis for each component at a given time index.
-
-#     Parameters:
-#     - y_matrices: array of shape (n_components, nx_total, n_timepoints)
-#     - time_index: int, index along the time axis
-#     - nx_per_col: int, spatial points per column
-#     - L_col: float, physical length of each column
-#     - labels: list of component names (optional)
-#     - colors: list of line colors per component (optional)
-#     - title: overall figure title
-#     """
-
-#     n_components, nx_total, n_timepoints = y_matrices.shape
-
-#     n_columns = np.sum(zone_config)
-#     nx_total = nx_per_col*n_columns # just for the liquid phase
-
-#     total_length = L_col * n_columns # cm
-#     x = np.linspace(0, total_length, nx_total)
-#     # Rotate so that Z3 is first
-#     zone_config_rot = np.roll(zone_config, -2)  # => [Z3, Z4, Z1, Z2]
-
-#     # Labels accordingly
-#     zone_labels = ['Z3', 'Z4', 'Z1', 'Z2']
-
-#     plt.figure(figsize=(10, 6))
-#     for i in range(n_components):
-#         y_vals = y_matrices[i][ 0:nx_total, time_index]
-#         label = labels[i] if labels else f"Comp {i+1}"
-#         color = colors[i] if colors else None
-#         plt.plot(x, y_vals, label=label, color=color)
-#     x_plot = 0
-#     for i, x_zone in enumerate(zone_config_rot):
-#         x_plot += x_zone
-#         plt.axvline(x=x_plot*L, color='k', linestyle='--', linewidth=2)
-#         plt.text(x_plot*L, plt.ylim()[1]*0.995, zone_labels[i], ha='right', va='top',
-#                 fontsize=8, color='k')
-#     for i in range(0,n_columns+1):
-#         x_plot = i*L
-#         plt.axvline(x=x_plot, color='grey', linestyle='--', linewidth=1)
-
-#     plt.title(f"{title} (Time Index {time_index}) (Time Stamp: {t[time_index]/60} min)\nIndxing_period: {indxing_period} min")
-#     plt.xlabel("Position along full unit (cm)")
-#     plt.ylabel("Concentration (g/L)")
-#     # plt.grid(True)
-#     plt.legend()
-#     plt.tight_layout()
-#     plt.show()
+if iso_type == "UNC":
+    see_prod_curves(t, Y1, t_index_min*60)
+    see_instantane_outputs(t_schedule, Y2, t_index_min*60)
+    # see_prod_curves_with_data(t_sets, Y, t_index_min*60, exp_data_raff, exp_data_ext, show_exp=True)
+elif iso_type == "CUP":
+    # see_prod_curves(t, Y1, t_index_min*60)
+    see_instantane_outputs2(np.array(t_schedule), Y2, t_index_min*60)
+    see_instantane_outputs2(np.array(t_schedule), Y3, t_index_min*60)
+    # see_prod_curves_with_data(t, Y, t_index_min*60, exp_data_raff, exp_data_ext, show_exp=True)
 
 
-# #%%
-# # animate_smb_concentration_profiles(**sample_data_bundle)
-# plot_all_columns_single_axes(
-#     y_matrices=y_matrices,
-#     t = t,
-#     indxing_period = t_index_min,
-#     # time_index= int(np.round(np.shape(y_matrices)[2]*0.01)),
-#     time_index= 700, # 27, 31, 35. 70, 90
-#     nx_per_col=nx_per_col,
-#     L_col = L,
-#     zone_config = zone_config,
-#     labels=['A', 'B'],
-#     colors=['green', 'orange']
-# )
+# Define the data for the table
+
+sigfig = 3
+data = {
+    'Metric': [
+        'Total Expected Acc (IN-OUT)', 
+        'Total Model Acc (r+l)', 
+        'Total Error Percent (relative to Exp_Acc)', 
+
+        # f'Mass In {Names}',
+        # f'Mass Out {Names}',
+        
+        f'Raffinate Integral Purity {Names}', 
+        f'Extract Integral Purity {Names}',
+
+        f'Raffinate Integral OUTPUT Recovery {Names}', 
+        f'Extract Integral OUTPUT Recovery {Names}',
+
+        f'Raffinate Integral Feed Recovery {Names}', 
+        f'Extract Integral Feed Recovery {Names}'
+        ],
+
+    'Value': [
+        f'{np.round(sum(Expected_Acc), sigfig)} g', 
+        f'{np.round(sum(Model_Acc), sigfig)} g', 
+        f'{np.round(Error_percent, sigfig + 2)} %',
+
+        # f'{m_in} g',
+        # f'{m_out} g', 
+
+        f'[{np.round(raff_intgral_purity[0], sigfig)*100}, {np.round(raff_intgral_purity[1], sigfig)*100}] %', 
+        f'[{np.round(ext_intgral_purity[0],sigfig)*100}, {np.round(ext_intgral_purity[1], sigfig)*100}] %', 
+
+        f'[{np.round(raff_output_recov[0],sigfig)*100}, {np.round(raff_output_recov[1],sigfig)*100}] %', 
+        f'[{np.round(ext_output_recov[0],sigfig)*100}, {np.round(ext_output_recov[1],sigfig)*100}] %',
+
+        f'[{np.round(raff_feed_recov[0], sigfig)*100}, {np.round(raff_feed_recov[1], sigfig)*100}] %', 
+        f'[{np.round(ext_feed_recov[0], sigfig)*100}, {np.round(ext_feed_recov[1], sigfig)*100}] %'
+
+    ]
+}
+
+import pandas as pd
+# Create a DataFrame
+df = pd.DataFrame(data)
+
+# Display the DataFrame
+print(df)
+
+
+# Plot the table as a figure
+fig, ax = plt.subplots(figsize=(8, 4)) # Adjust figure size as needed
+ax.axis('tight')
+ax.axis('off')
+table = ax.table(cellText=df.values, colLabels=df.columns, cellLoc='center', loc='center')
+
+# Format the table's appearance
+table.auto_set_font_size(False)
+table.set_fontsize(10)
+table.scale(1.5, 1.5)  # Adjust scaling of the table
+
+# Display the table
+plt.show()
+
+
+#%%
+print(f'shape(y): {np.shape(y_matrices)}')
+
+#%%
+
+
+# ANIMATION
+###########################################################################################
+
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+
+
+def animate_smb_concentration_profiles(y, t, labels, colors, nx_per_col, cols_per_zone, L_col,
+                                       t_index, parameter_sets, filename="smb_profiles.mp4"):
+    """
+    Create an animated visualization of SMB liquid-phase concentration profiles across zones.
+
+    Parameters:
+    - y: (n_components, nx_total, time_points) concentration data
+    - t: time vector (in seconds)
+    - labels: list of component names
+    - colors: list of colors per component
+    - nx_per_col: number of spatial points per column
+    - cols_per_zone: list with number of columns per zone
+    - L_col: length of each column (m)
+    - t_index: time (s) for 1 indexing shift
+    - parameter_sets: list of dicts per component
+    - filename: output video file name
+    """
+    n_components, nx_total, nt = y.shape
+    n_zones = len(cols_per_zone)
+    n_cols_total = sum(cols_per_zone)
+    L_total = n_cols_total * L_col
+
+    # Determine frame indices for animation (≤ 90s total shown if t > 120s)
+    if t[-1] > 120:
+        t_segment = 30  # seconds
+        frames_per_segment = int(t_segment / (t[1] - t[0]))
+        first_idx = np.arange(0, frames_per_segment)
+        middle_idx = np.arange(nt // 2 - frames_per_segment // 2, nt // 2 + frames_per_segment // 2)
+        last_idx = np.arange(nt - frames_per_segment, nt)
+        selected_frames = np.concatenate([first_idx, middle_idx, last_idx])
+    else:
+        selected_frames = np.arange(nt)
+
+    # Calculate column junction positions
+    col_boundaries = [i * nx_per_col for i in range(n_cols_total + 1)]
+    x_full = np.linspace(0, L_total, nx_total)
+
+    # Initial port positions (index in spatial array), assuming inlet at col 0 (zone 3)
+    stream_order = ["Feed", "Extract", "Raffinate", "Desorbent"]
+    stream_colors = ["red", "blue", "orange", "purple"]
+    stream_zone = [2, 1, 3, 0]  # zone indices: Feed at zone 3 (index 2), etc.
+
+    # Compute starting port positions in terms of column number
+    start_ports = np.cumsum([0] + cols_per_zone[:-1])  # column index per zone start
+
+    # Pre-compute port positions over time (indexed every t_index)
+    port_positions = {stream: [] for stream in stream_order}
+    for time_val in t:
+        idx_shift = int(time_val // t_index)
+        for i, stream in enumerate(stream_order):
+            base_col = start_ports[stream_zone[i]]
+            pos = (base_col + idx_shift) % n_cols_total
+            port_positions[stream].append(pos * nx_per_col * L_col)  # convert to length
+
+    # Set up figure and axes (4 stacked panels)
+    fig, axes = plt.subplots(n_zones, 1, figsize=(8, 10), sharex=True)
+    lines = [[] for _ in range(n_zones)]
+
+    for zone_id, ax in enumerate(axes):
+        ax.set_xlim(0, L_total)
+        ax.set_ylim(0, np.max(y))
+        ax.set_ylabel("C (g/L)")
+        ax.set_title(f"Zone {zone_id + 1}")
+
+        # Vertical black lines for column boundaries
+        col_start = sum(cols_per_zone[:zone_id]) * nx_per_col * L_col
+        for i in range(cols_per_zone[zone_id] + 1):
+            ax.axvline(x=col_start + i * L_col, color='black', linewidth=0.5)
+
+        # Plot initialization for each component
+        for comp_idx in range(n_components):
+            # Spatial slice for this zone
+            start = sum(cols_per_zone[:zone_id]) * nx_per_col
+            end = start + cols_per_zone[zone_id] * nx_per_col
+            x = x_full[start:end]
+            line, = ax.plot(x, y[comp_idx, start:end, 0], color=colors[comp_idx], label=labels[comp_idx])
+            lines[zone_id].append(line)
+
+    # Add time and legend box
+    time_text = axes[0].text(0.95, 0.9, '', transform=axes[0].transAxes,
+                             ha='right', va='top', fontsize=10, bbox=dict(facecolor='white', alpha=0.7))
+    axes[-1].set_xlabel("Column Length (m)")
+    axes[0].legend(loc='upper left', bbox_to_anchor=(1, 1))
+
+    # Initialize stream vertical lines
+    stream_lines = [axes[0].axvline(0, color=color, linestyle='--', linewidth=1.5) for color in stream_colors]
+
+    # Update function
+    def update(frame_idx):
+        t_hr = t[frame_idx] / 3600  # convert to hours
+        time_text.set_text(f"Time: {t_hr:.2f} h")
+
+        for zone_id, ax in enumerate(axes):
+            start = sum(cols_per_zone[:zone_id]) * nx_per_col
+            end = start + cols_per_zone[zone_id] * nx_per_col
+            for comp_idx in range(n_components):
+                lines[zone_id][comp_idx].set_ydata(y[comp_idx, start:end, frame_idx])
+
+        # Update stream lines (positioned in top axis only)
+        for i, stream in enumerate(stream_order):
+            x_pos = port_positions[stream][frame_idx]
+            stream_lines[i].set_xdata(x_pos)
+
+        return [l for sublist in lines for l in sublist] + stream_lines + [time_text]
+
+    # Create animation
+    ani = animation.FuncAnimation(fig, update, frames=selected_frames, interval=100, blit=True)
+
+    # Save animation
+    writer = animation.FFMpegWriter(fps=15, bitrate=1800)
+    ani.save(filename, writer=writer)
+    plt.close()
+    return filename
+
+# Run it with the simulated data
+sample_data_bundle = {
+    "y": y_matrices,
+    "t": t,
+    "labels": Names,
+    "colors": colors,
+    "nx_per_col": nx_per_col,
+    "cols_per_zone": zone_config,
+    "L_col": L,
+    "t_index": t_index_min,
+    "parameter_sets": parameter_sets
+}
+
+def plot_all_columns_single_axes(y_matrices, t,indxing_period, time_index,
+                                  nx_per_col, L_col, zone_config, 
+                                  labels=None, colors=None,
+                                  title="Concentration Across Entire Column"):
+    """
+    Plot all columns together on one continuous axis for each component at a given time index.
+
+    Parameters:
+    - y_matrices: array of shape (n_components, nx_total, n_timepoints)
+    - time_index: int, index along the time axis
+    - nx_per_col: int, spatial points per column
+    - L_col: float, physical length of each column
+    - labels: list of component names (optional)
+    - colors: list of line colors per component (optional)
+    - title: overall figure title
+    """
+
+    n_components, nx_total, n_timepoints = y_matrices.shape
+
+    n_columns = np.sum(zone_config)
+    nx_total = nx_per_col*n_columns # just for the liquid phase
+
+    total_length = L_col * n_columns # cm
+    x = np.linspace(0, total_length, nx_total)
+    # Rotate so that Z3 is first
+    zone_config_rot = np.roll(zone_config, -2)  # => [Z3, Z4, Z1, Z2]
+
+    # Labels accordingly
+    zone_labels = ['Z3', 'Z4', 'Z1', 'Z2']
+
+    plt.figure(figsize=(10, 6))
+    for i in range(n_components):
+        y_vals = y_matrices[i][ 0:nx_total, time_index]
+        label = labels[i] if labels else f"Comp {i+1}"
+        color = colors[i] if colors else None
+        plt.plot(x, y_vals, label=label, color=color)
+    x_plot = 0
+    for i, x_zone in enumerate(zone_config_rot):
+        x_plot += x_zone
+        plt.axvline(x=x_plot*L, color='k', linestyle='--', linewidth=2)
+        plt.text(x_plot*L, plt.ylim()[1]*0.995, zone_labels[i], ha='right', va='top',
+                fontsize=8, color='k')
+    for i in range(0,n_columns+1):
+        x_plot = i*L
+        plt.axvline(x=x_plot, color='grey', linestyle='--', linewidth=1)
+
+    plt.title(f"{title} (Time Index {time_index}) (Time Stamp: {t[time_index]/60} min)\nIndxing_period: {indxing_period} min")
+    plt.xlabel("Position along full unit (cm)")
+    plt.ylabel("Concentration (g/L)")
+    # plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+
+#%%
+# animate_smb_concentration_profiles(**sample_data_bundle)
+plot_all_columns_single_axes(
+    y_matrices=y_matrices,
+    t = t,
+    indxing_period = t_index_min,
+    # time_index= int(np.round(np.shape(y_matrices)[2]*0.01)),
+    time_index= 700, # 27, 31, 35. 70, 90
+    nx_per_col=nx_per_col,
+    L_col = L,
+    zone_config = zone_config,
+    labels=['A', 'B'],
+    colors=['green', 'orange']
+)
 
 
 
 
-# # %%
+# %%
 
 
 
-# # %%
+# %%

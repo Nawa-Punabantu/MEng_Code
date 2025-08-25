@@ -749,63 +749,6 @@ def parse_inputs_dict(all_inputs_dict, include_t_index_as="col"):
     }
 
 
-# %%
-#%% Define in the Inputs
-# Input the location if the saved jsons
-# Make sure the path include the folder AND the file names!
-inputs_path = r"C:\Users\28820169\SIMS_20_iter_all_inputs.json"
-outputs_path = r"C:\Users\28820169\SIMS_20_iter_all_outputs.json"
-
-# for comparing
-inputs_path_20 = r"C:\Users\28820169\Downloads\BO Papers\Regression_Analysis\SIMS_20_iter_all_inputs.json"
-outputs_path_20 = r"C:\Users\28820169\Downloads\BO Papers\Regression_Analysis\SIMS_20_iter_all_outputs.json"
-
-# inputs_path_100 = r"C:\Users\28820169\Downloads\BO Papers\Regression_Analysis\SIMS_100_iter_all_inputs.json"
-# outputs_path_100 = r"C:\Users\28820169\Downloads\BO Papers\Regression_Analysis\SIMS_100_iter_all_outputs.json"
-
-# inputs_path_50 = r"C:\Users\28820169\Downloads\BO Papers\Regression_Analysis\SIMS_50_3333_iter_all_inputs.json"
-# outputs_path_50 = r"C:\Users\28820169\Downloads\BO Papers\Regression_Analysis\SIMS_50_3333_iter_all_outputs.json"
-
-# all_inputs_20, f1_vals_20, f2_vals_20, c1_vals_20, c2_vals_20 = load_inputs_outputs(inputs_path_20, outputs_path_20)
-# all_inputs_100, f1_vals_100, f2_vals_100, c1_vals_100, c2_vals_100 = load_inputs_outputs(inputs_path_100, outputs_path_100)
-# all_inputs_50, f1_vals_50, f2_vals_50, c1_vals_50, c2_vals_50 = load_inputs_outputs(inputs_path_50, outputs_path_50)
-
-
-# # Load the file and the data
-all_inputs, f1_vals, f2_vals, c1_vals, c2_vals = load_inputs_outputs(inputs_path, outputs_path)
-
-
-import numpy as np
-
-np.random.seed(42)  # for reproducibility
-
-
-# GET dummy Data
-# Number of points
-n_points = 50
-
-# Raffinate purity (comp1, comp2) — random but correlated
-c1_raff = np.clip(np.random.normal(0.7, 0.15, n_points), 0, 1)
-c2_raff = np.clip(1 - c1_raff + np.random.normal(0, 0.1, n_points), 0, 1)
-
-# Extract purity (comp1, comp2) — different distribution
-c1_ext = np.clip(np.random.normal(0.6, 0.2, n_points), 0, 1)
-c2_ext = np.clip(1 - c1_ext + np.random.normal(0, 0.12, n_points), 0, 1)
-
-# Raffinate recovery (comp1, comp2) — another distribution
-r1_raff = np.clip(np.random.normal(0.75, 0.1, n_points), 0, 1)
-r2_raff = np.clip(1 - r1_raff + np.random.normal(0, 0.08, n_points), 0, 1)
-
-# Extract recovery (comp1, comp2)
-r1_ext = np.clip(np.random.normal(0.65, 0.12, n_points), 0, 1)
-r2_ext = np.clip(1 - r1_ext + np.random.normal(0, 0.1, n_points), 0, 1)
-
-# Pack into nested lists as expected by the plotting function
-c1_vals = [c1_raff, c1_ext]
-c2_vals = [c2_raff, c2_ext]
-f1_vals = [r1_raff, r1_ext]
-f2_vals = [r2_raff, r2_ext]
-
 import numpy as np
 
 def generate_dummy_data(n_points=50, description="Dummy Optimization Results"):
@@ -840,23 +783,6 @@ def generate_dummy_data(n_points=50, description="Dummy Optimization Results"):
 
     return data_dict
 
-
-# Example usage
-dummy_outputs = generate_dummy_data()
-print(dummy_outputs.keys())
-
-# V_col, L, A_col, d_col, e, zone_config = 3, 1, 1, 1, 0.1, [1, 1, 1, 1]
-
-
-# From some varianles:
-sampling_budget = 1 # always
-optimization_budget=np.shape(f1_vals)[0]-sampling_budget
-zone_config = np.array([3,3,3,3])
-d_col = 5  # cm
-L = 70 # cm
-A_col = np.pi * d_col *0.25 # cm^2
-V_col = A_col * L # cm^3
-e = 0.4  # porosity
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -980,47 +906,54 @@ def plot_flows_indexing_grid(all_inputs_dict):
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.ticker import FormatStrFormatter
+def find_pareto_front(x, y):
+    """Return boolean mask of Pareto-optimal points."""
+    pareto_mask = np.ones(len(x), dtype=bool)
+    for i in range(len(x)):
+        if pareto_mask[i]:
+            pareto_mask[i] = not np.any((x >= x[i]) & (y >= y[i]) & ((x > x[i]) | (y > y[i])))
+    return pareto_mask
 
-def find_pareto_front(f1, f2):
-    """
-    Finds Pareto front for 2D objective space (f1, f2).
-    Accepts inputs as lists, 1D arrays, or 2D arrays (2, n_points).
-    Returns boolean mask of Pareto-optimal points.
-    """
-    f1 = np.asarray(f1)
-    f2 = np.asarray(f2)
+# def find_pareto_front(f1, f2):
+#     """
+#     Finds Pareto front for 2D objective space (f1, f2).
+#     Accepts inputs as lists, 1D arrays, or 2D arrays (2, n_points).
+#     Returns boolean mask of Pareto-optimal points.
+#     """
+#     f1 = np.asarray(f1)
+#     f2 = np.asarray(f2)
 
-    # --- Flatten if shape is (2, n_points) or (n_points, 2)
-    if f1.ndim > 1:
-        if f1.shape[0] == 2:   # (2, n_points)
-            f1 = f1[0, :]
-            f2 = f1[1, :] if f2.ndim > 1 else f2
-        elif f1.shape[1] == 2: # (n_points, 2)
-            f1, f2 = f1[:, 0], f1[:, 1]
-        else:
-            raise ValueError(f"Unexpected shape for f1/f2: {f1.shape}")
+#     # --- Flatten if shape is (2, n_points) or (n_points, 2)
+#     if f1.ndim > 1:
+#         if f1.shape[0] == 2:   # (2, n_points)
+#             f1 = f1[0, :]
+#             f2 = f1[1, :] if f2.ndim > 1 else f2
+#         elif f1.shape[1] == 2: # (n_points, 2)
+#             f1, f2 = f1[:, 0], f1[:, 1]
+#         else:
+#             raise ValueError(f"Unexpected shape for f1/f2: {f1.shape}")
 
-    if f2.ndim > 1:
-        if f2.shape[0] == 2:
-            f2 = f2[1, :]
-        elif f2.shape[1] == 2:
-            f2 = f2[:, 1]
-        else:
-            raise ValueError(f"Unexpected shape for f2: {f2.shape}")
+#     if f2.ndim > 1:
+#         if f2.shape[0] == 2:
+#             f2 = f2[1, :]
+#         elif f2.shape[1] == 2:
+#             f2 = f2[:, 1]
+#         else:
+#             raise ValueError(f"Unexpected shape for f2: {f2.shape}")
 
-    n_points = len(f1)
-    is_optimal = np.ones(n_points, dtype=bool)
+#     n_points = len(f1)
+#     is_optimal = np.ones(n_points, dtype=bool)
 
-    for i in range(n_points):
-        if is_optimal[i]:
-            # Point i is dominated if another point is >= in both and > in at least one
-            is_optimal[is_optimal] = ~(
-                (f1[i] <= f1[is_optimal]) &
-                (f2[i] <= f2[is_optimal]) &
-                ((f1[i] < f1[is_optimal]) | (f2[i] < f2[is_optimal]))
-            )
+#     for i in range(n_points):
+#         if is_optimal[i]:
+#             # Point i is dominated if another point is >= in both and > in at least one
+#             is_optimal[is_optimal] = ~(
+#                 (f1[i] <= f1[is_optimal]) &
+#                 (f2[i] <= f2[is_optimal]) &
+#                 ((f1[i] < f1[is_optimal]) | (f2[i] < f2[is_optimal]))
+#             )
 
-    return is_optimal
+#     return is_optimal
 
 
 def plot_flows_indexing_grid_with_dict(input_dict, output_dict):
@@ -1085,25 +1018,37 @@ def plot_flows_indexing_grid_with_dict(input_dict, output_dict):
     ax2.legend(loc="center", ncol=3)
     plt.show()
 
-input_dummy_dic = generate_dummy_inputs(n_points, V_col, L, A_col, d_col, e, zone_config)
-parsed = parse_inputs_dict(input_dummy_dic, include_t_index_as="col")
 
-# plot_flows_and_indexing(input_dummy_dic)
-data_dict = generate_dummy_data()
-plot_flows_indexing_grid_with_dict(input_dummy_dic, data_dict)
-plot_flows_indexing_grid(input_dummy_dic)
 
-print("M_matrix shape:", parsed["M_matrix"].shape)
-print("Q_matrix shape:", parsed["Q_matrix"].shape)
-print("Scalars:", parsed["scalars"])
-print("Vectors:", parsed["vectors"])
+
+
+
+
+
+# %% ------------------------------------------ EXTRACT DATA ---------------------------------------------------
+#%% Define in the Inputs
+# Input the location if the saved jsons
+# Make sure the path include the folder AND the file names!
+inputs_path = r"C:\Users\28820169\Desktop\MEng_Code\Code_Templates\ILLOVO_PCR-borhcl_51iter_config2_all_inputs.json"
+outputs_path = r"C:\Users\28820169\Desktop\MEng_Code\Code_Templates\ILLOVO_PCR-borhcl_51iter_config2_all_outputs.json"
+
+# # Load the file and the data
+all_inputs, f1_vals, f2_vals, c1_vals, c2_vals = load_inputs_outputs(inputs_path, outputs_path)
+
+comp_1_name = "Borate"
+comp_2_name = "HCl"
+
+
+
 # Run the Functions and Visualise
 # --- Paretos
 # rec_pareto_image_filename = create_recovery_pareto_plot(f1_vals, f2_vals, zone_config, sampling_budget, optimization_budget)
 # pur_pareto_image_filename = create_purity_pareto_plot(c1_vals, c2_vals, zone_config, sampling_budget, optimization_budget)
-comp_1_name = "Fructose"
-comp_2_name = "Glucose"
 
+
+
+
+# Exceute Plots
 plot_raff_ext_pareto(c1_vals, c2_vals, f1_vals, f2_vals)
 
 # plot_dual_pareto(
