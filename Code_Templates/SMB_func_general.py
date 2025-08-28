@@ -1219,6 +1219,8 @@ def SMB(SMB_inputs):
         nrows = M.shape[0]
 
         for i in range(len(width)-1):
+
+
             j = i%nrows
             # print('i', i)
             # print('j', j)
@@ -1228,6 +1230,12 @@ def SMB(SMB_inputs):
             kk = (row_start+j*jump)%nrows
 
             MM = M[kk, t_start:tend]
+
+            if i == 0:
+                values_avg.append(MM[0])
+                print(f'values:\n{values} ')
+                print(f'values_avg:\n{values_avg} ')
+            
             MM_avg = np.average(MM)
 
             values.extend(MM)
@@ -1423,6 +1431,7 @@ def SMB(SMB_inputs):
 
                 #Remove funcky concentration vals
                 C_R1_add_AVG = clean_matrix(C_R1_add_AVG, parameter_sets[i]['C_feed'])
+                print(f'C_R1_add_AVG:\n{C_R1_add_AVG}')
                 # print(f'C_R1_add_AVG negative: {np.any(C_R1_add_AVG < 0)}')
                 # print(f'C_R1_add_AVG: {C_R1_add_AVG}\n\n')
              
@@ -1852,9 +1861,20 @@ def see_prod_curves(t_odes, Y, t_index):
      raff_avg_cprofile, ext_avg_cprofile, t_schedule) = Y
     colour_set_1 = ['lightcoral','lightblue']
     fig, ax = plt.subplots(1, 3, figsize=(25, 5))
+    t_indexing  = t_schedule[1] - t_schedule[0] # s
+
+    for i, t in enumerate(t_schedule):
+        t_schedule[i] = t + t_indexing
     
+    where_to_insert = 0
+    t_schedule.insert(where_to_insert, 0)
+
     t_odes_hr   = t_odes / 3600         # convert to hours
+
+
     t_sched_hr  = np.array(t_schedule) / 3600
+
+    print(f'raff_avg_cprofile : {raff_avg_cprofile}')
 
     # Plot each component
     for i in range(num_comp): 
@@ -1880,11 +1900,11 @@ def see_prod_curves(t_odes, Y, t_index):
 
             # Raffinate zigzag
             ax[1].plot(t_odes_hr, raff_cprofile[i], color=colour_set_1[i], linewidth=1.0, alpha=0.7)
-            ax[1].plot(t_sched_hr, raff_avg_cprofile[i], linestyle="-", color=colors[i], linewidth=2, label=label)
+            ax[1].scatter(t_sched_hr, raff_avg_cprofile[i], linestyle="-", color=colors[i], linewidth = 1.5, label=label)
 
             # Extract zigzag
             ax[2].plot(t_odes_hr, ext_cprofile[i], color=colour_set_1[i], linewidth=1.0, alpha=0.7)
-            ax[2].plot(t_sched_hr, ext_avg_cprofile[i], linestyle="-", color=colors[i], linewidth=2, label=label)
+            ax[2].scatter(t_sched_hr, ext_avg_cprofile[i], linestyle="-", color=colors[i], linewidth=1.5, label=label)
 
     # Axis labels and titles
     ax[0].set_xlabel('Time (h)')
@@ -2135,7 +2155,7 @@ def see_prod_curves_with_data(t_odes, Y, t_index, exp_data_raff=None, exp_data_e
 
 
 
-def see_instantane_outputs(t_odes, Y2, t_index):
+def see_instantane_outputs(t_odes, Y2, t_index, Y_labels):
     """
     Y2 = [raff_inst_purity, 
           ext_inst_purity, 
@@ -2175,7 +2195,7 @@ def see_instantane_outputs(t_odes, Y2, t_index):
 
 
 
-            ax[1].plot(t_plot, Y2[1][i][start_idx:end_idx]*100, color=colors[i], label=label_base)
+            ax[1].plot(t_plot, Y2[1][i][start_idx:end_idx]*100, color= "#1b9e77", alpha = 0.1,label=label_base)
             # Plot the average
             ax[1].plot(t_plot, Y2[-2][i][start_idx:end_idx]*100, color=colors[i], label=label_base)
 
@@ -2186,18 +2206,21 @@ def see_instantane_outputs(t_odes, Y2, t_index):
             ax[3].plot(t_plot, Y2[3][i][start_idx:end_idx]*100, color=colors[i], label=label_base)
 
 
+    
     # Titles and labels
+
+
     ax[0].set_xlabel('Time, hrs')
-    ax[0].set_title(f'Raff Instantaneous Purity (%) \nConfig: {Z1}:{Z2}:{Z3}:{Z4}\nIndex Time: {t_index/60}min')
+    ax[0].set_title(f'{Y_labels[0]} (%) \nConfig: {Z1}:{Z2}:{Z3}:{Z4}\nIndex Time: {t_index/60}min')
 
     ax[1].set_xlabel('Time, hrs')
-    ax[1].set_title(f'Ext Instantaneous Purity (%) \nConfig: {Z1}:{Z2}:{Z3}:{Z4}\nIndex Time: {t_index/60}min')
+    ax[1].set_title(f'{Y_labels[1]} (%) \nConfig: {Z1}:{Z2}:{Z3}:{Z4}\nIndex Time: {t_index/60}min')
 
     ax[2].set_xlabel('Time, hrs')
-    ax[2].set_title(f'Ext Instantaneous Feed-Recovery (%) \nConfig: {Z1}:{Z2}:{Z3}:{Z4}\nIndex Time: {t_index/60}min')
+    ax[2].set_title(f'{Y_labels[2]} (%) \nConfig: {Z1}:{Z2}:{Z3}:{Z4}\nIndex Time: {t_index/60}min')
 
     ax[3].set_xlabel('Time, hrs')
-    ax[3].set_title(f'Ext Instantaneous Feed-Recovery (%) \nConfig: {Z1}:{Z2}:{Z3}:{Z4}\nIndex Time: {t_index/60}min')
+    ax[3].set_title(f'{Y_labels[3]} (%) \nConfig: {Z1}:{Z2}:{Z3}:{Z4}\nIndex Time: {t_index/60}min')
 
     for a in ax:
         a.legend()
@@ -2207,7 +2230,7 @@ def see_instantane_outputs(t_odes, Y2, t_index):
 import matplotlib.pyplot as plt
 import numpy as np
 
-def see_instantane_outputs2(t_odes, Y2, t_index, iso_type="CUP"):
+def plot_instantane_outputs(t_odes, Y2, titles, t_index, y_limit = None, iso_type="CUP"):
     """
     Visualizes instantaneous purities and recoveries for raffinate & extract.
 
@@ -2235,12 +2258,12 @@ def see_instantane_outputs2(t_odes, Y2, t_index, iso_type="CUP"):
     axs = axs.ravel()  # flatten to 1D for easy looping
 
     # --- Titles for subplots ---
-    titles = [
-        "Raffinate Instantaneous Purity (%)",
-        "Extract Instantaneous Purity (%)",
-        "Raffinate Instantaneous Outlet-Recovery (%)",
-        "Extract Instantaneous Outlet-Recovery (%)",
-    ]
+    # titles = [
+    #     "Raffinate Instantaneous Purity (%)",
+    #     "Extract Instantaneous Purity (%)",
+    #     "Raffinate Instantaneous Outlet-Recovery (%)",
+    #     "Extract Instantaneous Outlet-Recovery (%)",
+    # ]
 
     # --- Time conversion ---
     def get_time_slice(t_data, t_min=0, t_max=np.inf):
@@ -2251,7 +2274,7 @@ def see_instantane_outputs2(t_odes, Y2, t_index, iso_type="CUP"):
     # --- Plotting loop ---
     for i in range(num_comp):
         label_base = f"{Names[i]}"
-        scale = 1.0 if iso_type == "UNC" else 100.0
+        scale = 1.0 if iso_type == "UNC" else y_limit[1]
 
         for j in range(4):
             if iso_type == "UNC":
@@ -2271,8 +2294,10 @@ def see_instantane_outputs2(t_odes, Y2, t_index, iso_type="CUP"):
     for idx, ax in enumerate(axs):
         ax.set_xlabel("Time (hrs)")
         ax.set_title(
-            f"{titles[idx]}\nConfig: {Z1}:{Z2}:{Z3}:{Z4}, Index Time: {t_index/60:.2f} min"
+            f"{titles[idx%len(titles)]}\nConfig: {Z1}:{Z2}:{Z3}:{Z4}, Index Time: {t_index/60:.2f} min"
         )
+        if y_limit != None:
+            ax.set_ylim(y_limit)
         ax.grid(True)
     
     # Move legend outside
@@ -2383,7 +2408,7 @@ nx_per_col = 15
 
 ################ Time Specs #################################################################################
 t_index_min = 10 # min # Index time # How long the pulse holds before swtiching
-n_num_cycles = 5  # Number of Cycles you want the SMB to run for
+n_num_cycles = 2  # Number of Cycles you want the SMB to run for
 t_simulation_end = None # HRS
 ###############  FLOWRATES  #################################################################################
 
@@ -2454,12 +2479,16 @@ print(f'Simulation Took: {duration/60} min')
 # print(f'ext_cprofile: {ext_cprofile}')
 # print(f'raff_cprofile: {raff_cprofile}')
 print("-----------------------------------------------------------")
+# Y1
 Y1 = [C_feed, raff_cprofile, ext_cprofile, raff_vflow, ext_vflow, raff_avg_cprofile, ext_avg_cprofile, t_schedule]
-
+# Y2
 Y2 = [raff_avg_cprofile, ext_avg_cprofile, raff_avg_mprofile, ext_avg_mprofile]
+Y2_lables = ['Raffinate Concentration Profile', 'Extract Concentration Profile','Raffinate Mass Flow Profile', 'Extract Mass Flow Profile' ]
 
-print(f': ext_inst_purity: {ext_inst_purity}')
+# Y3
 Y3 = [raff_inst_purity, ext_inst_purity, raff_inst_output_recovery, ext_inst_output_recovery] # RAFF AND EXT PURITY AND RECOVERY
+Y3_lables = ['Raffinate Instantaneous Purity', 'Extract Instantaneous Purity','Raffinate Instantaneous Recovery', 'Extract  Instantaneous Recovery' ]
+
 # print(f'raff_avg_cprofile.shape: {np.shape(raff_avg_cprofile)}') # np.shape(raff_avg_cprofile)
 # print(f'raff_avg_cprofile: {raff_avg_cprofile}') # np.shape(raff_avg_cprofile)'
 
@@ -2485,295 +2514,294 @@ exp_data_ext = {
 
 if iso_type == "UNC":
     see_prod_curves(t, Y1, t_index_min*60)
-    see_instantane_outputs(t_schedule, Y2, t_index_min*60)
+    plot_instantane_outputs(t_schedule, Y2, t_index_min*60)
     # see_prod_curves_with_data(t_sets, Y, t_index_min*60, exp_data_raff, exp_data_ext, show_exp=True)
 elif iso_type == "CUP":
     see_prod_curves(t, Y1, t_index_min*60)
-    see_instantane_outputs2(np.array(t_schedule), Y2, t_index_min*60)
-    see_instantane_outputs2(np.array(t_schedule), Y3, t_index_min*60)
-    # see_prod_curves_with_data(t, Y1, t_index_min*60, exp_data_raff, exp_data_ext, show_exp=True)
+    # plot_instantane_outputs(np.array(t_schedule), Y3, Y3_lables, t_index_min*60, (-1,102))
+    # plot_instantane_outputs(t, Y1, t_index_min*60, exp_data_raff, exp_data_ext, show_exp=True)
 
 
-# Define the data for the table
+# # Define the data for the table
 
-sigfig = 3
-data = {
-    'Metric': [
-        'Total Expected Acc (IN-OUT)', 
-        'Total Model Acc (r+l)', 
-        'Total Error Percent (relative to Exp_Acc)', 
+# sigfig = 3
+# data = {
+#     'Metric': [
+#         'Total Expected Acc (IN-OUT)', 
+#         'Total Model Acc (r+l)', 
+#         'Total Error Percent (relative to Exp_Acc)', 
 
-        # f'Mass In {Names}',
-        # f'Mass Out {Names}',
+#         # f'Mass In {Names}',
+#         # f'Mass Out {Names}',
         
-        f'Raffinate Integral Purity {Names}', 
-        f'Extract Integral Purity {Names}',
+#         f'Raffinate Integral Purity {Names}', 
+#         f'Extract Integral Purity {Names}',
 
-        f'Raffinate Integral OUTPUT Recovery {Names}', 
-        f'Extract Integral OUTPUT Recovery {Names}',
+#         f'Raffinate Integral OUTPUT Recovery {Names}', 
+#         f'Extract Integral OUTPUT Recovery {Names}',
 
-        f'Raffinate Integral Feed Recovery {Names}', 
-        f'Extract Integral Feed Recovery {Names}'
-        ],
+#         f'Raffinate Integral Feed Recovery {Names}', 
+#         f'Extract Integral Feed Recovery {Names}'
+#         ],
 
-    'Value': [
-        f'{np.round(sum(Expected_Acc), sigfig)} g', 
-        f'{np.round(sum(Model_Acc), sigfig)} g', 
-        f'{np.round(Error_percent, sigfig + 2)} %',
+#     'Value': [
+#         f'{np.round(sum(Expected_Acc), sigfig)} g', 
+#         f'{np.round(sum(Model_Acc), sigfig)} g', 
+#         f'{np.round(Error_percent, sigfig + 2)} %',
 
-        # f'{m_in} g',
-        # f'{m_out} g', 
+#         # f'{m_in} g',
+#         # f'{m_out} g', 
 
-        f'[{np.round(raff_intgral_purity[0], sigfig)*100}, {np.round(raff_intgral_purity[1], sigfig)*100}] %', 
-        f'[{np.round(ext_intgral_purity[0],sigfig)*100}, {np.round(ext_intgral_purity[1], sigfig)*100}] %', 
+#         f'[{np.round(raff_intgral_purity[0], sigfig)*100}, {np.round(raff_intgral_purity[1], sigfig)*100}] %', 
+#         f'[{np.round(ext_intgral_purity[0],sigfig)*100}, {np.round(ext_intgral_purity[1], sigfig)*100}] %', 
 
-        f'[{np.round(raff_output_recov[0],sigfig)*100}, {np.round(raff_output_recov[1],sigfig)*100}] %', 
-        f'[{np.round(ext_output_recov[0],sigfig)*100}, {np.round(ext_output_recov[1],sigfig)*100}] %',
+#         f'[{np.round(raff_output_recov[0],sigfig)*100}, {np.round(raff_output_recov[1],sigfig)*100}] %', 
+#         f'[{np.round(ext_output_recov[0],sigfig)*100}, {np.round(ext_output_recov[1],sigfig)*100}] %',
 
-        f'[{np.round(raff_feed_recov[0], sigfig)*100}, {np.round(raff_feed_recov[1], sigfig)*100}] %', 
-        f'[{np.round(ext_feed_recov[0], sigfig)*100}, {np.round(ext_feed_recov[1], sigfig)*100}] %'
+#         f'[{np.round(raff_feed_recov[0], sigfig)*100}, {np.round(raff_feed_recov[1], sigfig)*100}] %', 
+#         f'[{np.round(ext_feed_recov[0], sigfig)*100}, {np.round(ext_feed_recov[1], sigfig)*100}] %'
 
-    ]
-}
+#     ]
+# }
 
-import pandas as pd
-# Create a DataFrame
-df = pd.DataFrame(data)
+# import pandas as pd
+# # Create a DataFrame
+# df = pd.DataFrame(data)
 
-# Display the DataFrame
-print(df)
-
-
-# Plot the table as a figure
-fig, ax = plt.subplots(figsize=(8, 4)) # Adjust figure size as needed
-ax.axis('tight')
-ax.axis('off')
-table = ax.table(cellText=df.values, colLabels=df.columns, cellLoc='center', loc='center')
-
-# Format the table's appearance
-table.auto_set_font_size(False)
-table.set_fontsize(10)
-table.scale(1.5, 1.5)  # Adjust scaling of the table
-
-# Display the table
-plt.show()
+# # Display the DataFrame
+# print(df)
 
 
-#%%
-print(f'shape(y): {np.shape(y_matrices)}')
+# # Plot the table as a figure
+# fig, ax = plt.subplots(figsize=(8, 4)) # Adjust figure size as needed
+# ax.axis('tight')
+# ax.axis('off')
+# table = ax.table(cellText=df.values, colLabels=df.columns, cellLoc='center', loc='center')
 
-#%%
+# # Format the table's appearance
+# table.auto_set_font_size(False)
+# table.set_fontsize(10)
+# table.scale(1.5, 1.5)  # Adjust scaling of the table
 
-
-# ANIMATION
-###########################################################################################
-
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-
-
-def animate_smb_concentration_profiles(y, t, labels, colors, nx_per_col, cols_per_zone, L_col,
-                                       t_index, parameter_sets, filename="smb_profiles.mp4"):
-    """
-    Create an animated visualization of SMB liquid-phase concentration profiles across zones.
-
-    Parameters:
-    - y: (n_components, nx_total, time_points) concentration data
-    - t: time vector (in seconds)
-    - labels: list of component names
-    - colors: list of colors per component
-    - nx_per_col: number of spatial points per column
-    - cols_per_zone: list with number of columns per zone
-    - L_col: length of each column (m)
-    - t_index: time (s) for 1 indexing shift
-    - parameter_sets: list of dicts per component
-    - filename: output video file name
-    """
-    n_components, nx_total, nt = y.shape
-    n_zones = len(cols_per_zone)
-    n_cols_total = sum(cols_per_zone)
-    L_total = n_cols_total * L_col
-
-    # Determine frame indices for animation (≤ 90s total shown if t > 120s)
-    if t[-1] > 120:
-        t_segment = 30  # seconds
-        frames_per_segment = int(t_segment / (t[1] - t[0]))
-        first_idx = np.arange(0, frames_per_segment)
-        middle_idx = np.arange(nt // 2 - frames_per_segment // 2, nt // 2 + frames_per_segment // 2)
-        last_idx = np.arange(nt - frames_per_segment, nt)
-        selected_frames = np.concatenate([first_idx, middle_idx, last_idx])
-    else:
-        selected_frames = np.arange(nt)
-
-    # Calculate column junction positions
-    col_boundaries = [i * nx_per_col for i in range(n_cols_total + 1)]
-    x_full = np.linspace(0, L_total, nx_total)
-
-    # Initial port positions (index in spatial array), assuming inlet at col 0 (zone 3)
-    stream_order = ["Feed", "Extract", "Raffinate", "Desorbent"]
-    stream_colors = ["red", "blue", "orange", "purple"]
-    stream_zone = [2, 1, 3, 0]  # zone indices: Feed at zone 3 (index 2), etc.
-
-    # Compute starting port positions in terms of column number
-    start_ports = np.cumsum([0] + cols_per_zone[:-1])  # column index per zone start
-
-    # Pre-compute port positions over time (indexed every t_index)
-    port_positions = {stream: [] for stream in stream_order}
-    for time_val in t:
-        idx_shift = int(time_val // t_index)
-        for i, stream in enumerate(stream_order):
-            base_col = start_ports[stream_zone[i]]
-            pos = (base_col + idx_shift) % n_cols_total
-            port_positions[stream].append(pos * nx_per_col * L_col)  # convert to length
-
-    # Set up figure and axes (4 stacked panels)
-    fig, axes = plt.subplots(n_zones, 1, figsize=(8, 10), sharex=True)
-    lines = [[] for _ in range(n_zones)]
-
-    for zone_id, ax in enumerate(axes):
-        ax.set_xlim(0, L_total)
-        ax.set_ylim(0, np.max(y))
-        ax.set_ylabel("C (g/L)")
-        ax.set_title(f"Zone {zone_id + 1}")
-
-        # Vertical black lines for column boundaries
-        col_start = sum(cols_per_zone[:zone_id]) * nx_per_col * L_col
-        for i in range(cols_per_zone[zone_id] + 1):
-            ax.axvline(x=col_start + i * L_col, color='black', linewidth=0.5)
-
-        # Plot initialization for each component
-        for comp_idx in range(n_components):
-            # Spatial slice for this zone
-            start = sum(cols_per_zone[:zone_id]) * nx_per_col
-            end = start + cols_per_zone[zone_id] * nx_per_col
-            x = x_full[start:end]
-            line, = ax.plot(x, y[comp_idx, start:end, 0], color=colors[comp_idx], label=labels[comp_idx])
-            lines[zone_id].append(line)
-
-    # Add time and legend box
-    time_text = axes[0].text(0.95, 0.9, '', transform=axes[0].transAxes,
-                             ha='right', va='top', fontsize=10, bbox=dict(facecolor='white', alpha=0.7))
-    axes[-1].set_xlabel("Column Length (m)")
-    axes[0].legend(loc='upper left', bbox_to_anchor=(1, 1))
-
-    # Initialize stream vertical lines
-    stream_lines = [axes[0].axvline(0, color=color, linestyle='--', linewidth=1.5) for color in stream_colors]
-
-    # Update function
-    def update(frame_idx):
-        t_hr = t[frame_idx] / 3600  # convert to hours
-        time_text.set_text(f"Time: {t_hr:.2f} h")
-
-        for zone_id, ax in enumerate(axes):
-            start = sum(cols_per_zone[:zone_id]) * nx_per_col
-            end = start + cols_per_zone[zone_id] * nx_per_col
-            for comp_idx in range(n_components):
-                lines[zone_id][comp_idx].set_ydata(y[comp_idx, start:end, frame_idx])
-
-        # Update stream lines (positioned in top axis only)
-        for i, stream in enumerate(stream_order):
-            x_pos = port_positions[stream][frame_idx]
-            stream_lines[i].set_xdata(x_pos)
-
-        return [l for sublist in lines for l in sublist] + stream_lines + [time_text]
-
-    # Create animation
-    ani = animation.FuncAnimation(fig, update, frames=selected_frames, interval=100, blit=True)
-
-    # Save animation
-    writer = animation.FFMpegWriter(fps=15, bitrate=1800)
-    ani.save(filename, writer=writer)
-    plt.close()
-    return filename
-
-# Run it with the simulated data
-sample_data_bundle = {
-    "y": y_matrices,
-    "t": t,
-    "labels": Names,
-    "colors": colors,
-    "nx_per_col": nx_per_col,
-    "cols_per_zone": zone_config,
-    "L_col": L,
-    "t_index": t_index_min,
-    "parameter_sets": parameter_sets
-}
-
-def plot_all_columns_single_axes(y_matrices, t,indxing_period, time_index,
-                                  nx_per_col, L_col, zone_config, 
-                                  labels=None, colors=None,
-                                  title="Concentration Across Entire Column"):
-    """
-    Plot all columns together on one continuous axis for each component at a given time index.
-
-    Parameters:
-    - y_matrices: array of shape (n_components, nx_total, n_timepoints)
-    - time_index: int, index along the time axis
-    - nx_per_col: int, spatial points per column
-    - L_col: float, physical length of each column
-    - labels: list of component names (optional)
-    - colors: list of line colors per component (optional)
-    - title: overall figure title
-    """
-
-    n_components, nx_total, n_timepoints = y_matrices.shape
-
-    n_columns = np.sum(zone_config)
-    nx_total = nx_per_col*n_columns # just for the liquid phase
-
-    total_length = L_col * n_columns # cm
-    x = np.linspace(0, total_length, nx_total)
-    # Rotate so that Z3 is first
-    zone_config_rot = np.roll(zone_config, -2)  # => [Z3, Z4, Z1, Z2]
-
-    # Labels accordingly
-    zone_labels = ['Z3', 'Z4', 'Z1', 'Z2']
-
-    plt.figure(figsize=(10, 6))
-    for i in range(n_components):
-        y_vals = y_matrices[i][ 0:nx_total, time_index]
-        label = labels[i] if labels else f"Comp {i+1}"
-        color = colors[i] if colors else None
-        plt.plot(x, y_vals, label=label, color=color)
-    x_plot = 0
-    for i, x_zone in enumerate(zone_config_rot):
-        x_plot += x_zone
-        plt.axvline(x=x_plot*L, color='k', linestyle='--', linewidth=2)
-        plt.text(x_plot*L, plt.ylim()[1]*0.995, zone_labels[i], ha='right', va='top',
-                fontsize=8, color='k')
-    for i in range(0,n_columns+1):
-        x_plot = i*L
-        plt.axvline(x=x_plot, color='grey', linestyle='--', linewidth=1)
-
-    plt.title(f"{title} (Time Index {time_index}) (Time Stamp: {t[time_index]/60} min)\nIndxing_period: {indxing_period} min")
-    plt.xlabel("Position along full unit (cm)")
-    plt.ylabel("Concentration (g/L)")
-    # plt.grid(True)
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
+# # Display the table
+# plt.show()
 
 
-#%%
-# animate_smb_concentration_profiles(**sample_data_bundle)
-plot_all_columns_single_axes(
-    y_matrices=y_matrices,
-    t = t,
-    indxing_period = t_index_min,
-    # time_index= int(np.round(np.shape(y_matrices)[2]*0.01)),
-    time_index= 700, # 27, 31, 35. 70, 90
-    nx_per_col=nx_per_col,
-    L_col = L,
-    zone_config = zone_config,
-    labels=Names,
-    colors= colors
-)
+# #%%
+# print(f'shape(y): {np.shape(y_matrices)}')
+
+# #%%
 
 
+# # ANIMATION
+# ###########################################################################################
+
+# import matplotlib.pyplot as plt
+# import matplotlib.animation as animation
 
 
-# %%
+# def animate_smb_concentration_profiles(y, t, labels, colors, nx_per_col, cols_per_zone, L_col,
+#                                        t_index, parameter_sets, filename="smb_profiles.mp4"):
+#     """
+#     Create an animated visualization of SMB liquid-phase concentration profiles across zones.
+
+#     Parameters:
+#     - y: (n_components, nx_total, time_points) concentration data
+#     - t: time vector (in seconds)
+#     - labels: list of component names
+#     - colors: list of colors per component
+#     - nx_per_col: number of spatial points per column
+#     - cols_per_zone: list with number of columns per zone
+#     - L_col: length of each column (m)
+#     - t_index: time (s) for 1 indexing shift
+#     - parameter_sets: list of dicts per component
+#     - filename: output video file name
+#     """
+#     n_components, nx_total, nt = y.shape
+#     n_zones = len(cols_per_zone)
+#     n_cols_total = sum(cols_per_zone)
+#     L_total = n_cols_total * L_col
+
+#     # Determine frame indices for animation (≤ 90s total shown if t > 120s)
+#     if t[-1] > 120:
+#         t_segment = 30  # seconds
+#         frames_per_segment = int(t_segment / (t[1] - t[0]))
+#         first_idx = np.arange(0, frames_per_segment)
+#         middle_idx = np.arange(nt // 2 - frames_per_segment // 2, nt // 2 + frames_per_segment // 2)
+#         last_idx = np.arange(nt - frames_per_segment, nt)
+#         selected_frames = np.concatenate([first_idx, middle_idx, last_idx])
+#     else:
+#         selected_frames = np.arange(nt)
+
+#     # Calculate column junction positions
+#     col_boundaries = [i * nx_per_col for i in range(n_cols_total + 1)]
+#     x_full = np.linspace(0, L_total, nx_total)
+
+#     # Initial port positions (index in spatial array), assuming inlet at col 0 (zone 3)
+#     stream_order = ["Feed", "Extract", "Raffinate", "Desorbent"]
+#     stream_colors = ["red", "blue", "orange", "purple"]
+#     stream_zone = [2, 1, 3, 0]  # zone indices: Feed at zone 3 (index 2), etc.
+
+#     # Compute starting port positions in terms of column number
+#     start_ports = np.cumsum([0] + cols_per_zone[:-1])  # column index per zone start
+
+#     # Pre-compute port positions over time (indexed every t_index)
+#     port_positions = {stream: [] for stream in stream_order}
+#     for time_val in t:
+#         idx_shift = int(time_val // t_index)
+#         for i, stream in enumerate(stream_order):
+#             base_col = start_ports[stream_zone[i]]
+#             pos = (base_col + idx_shift) % n_cols_total
+#             port_positions[stream].append(pos * nx_per_col * L_col)  # convert to length
+
+#     # Set up figure and axes (4 stacked panels)
+#     fig, axes = plt.subplots(n_zones, 1, figsize=(8, 10), sharex=True)
+#     lines = [[] for _ in range(n_zones)]
+
+#     for zone_id, ax in enumerate(axes):
+#         ax.set_xlim(0, L_total)
+#         ax.set_ylim(0, np.max(y))
+#         ax.set_ylabel("C (g/L)")
+#         ax.set_title(f"Zone {zone_id + 1}")
+
+#         # Vertical black lines for column boundaries
+#         col_start = sum(cols_per_zone[:zone_id]) * nx_per_col * L_col
+#         for i in range(cols_per_zone[zone_id] + 1):
+#             ax.axvline(x=col_start + i * L_col, color='black', linewidth=0.5)
+
+#         # Plot initialization for each component
+#         for comp_idx in range(n_components):
+#             # Spatial slice for this zone
+#             start = sum(cols_per_zone[:zone_id]) * nx_per_col
+#             end = start + cols_per_zone[zone_id] * nx_per_col
+#             x = x_full[start:end]
+#             line, = ax.plot(x, y[comp_idx, start:end, 0], color=colors[comp_idx], label=labels[comp_idx])
+#             lines[zone_id].append(line)
+
+#     # Add time and legend box
+#     time_text = axes[0].text(0.95, 0.9, '', transform=axes[0].transAxes,
+#                              ha='right', va='top', fontsize=10, bbox=dict(facecolor='white', alpha=0.7))
+#     axes[-1].set_xlabel("Column Length (m)")
+#     axes[0].legend(loc='upper left', bbox_to_anchor=(1, 1))
+
+#     # Initialize stream vertical lines
+#     stream_lines = [axes[0].axvline(0, color=color, linestyle='--', linewidth=1.5) for color in stream_colors]
+
+#     # Update function
+#     def update(frame_idx):
+#         t_hr = t[frame_idx] / 3600  # convert to hours
+#         time_text.set_text(f"Time: {t_hr:.2f} h")
+
+#         for zone_id, ax in enumerate(axes):
+#             start = sum(cols_per_zone[:zone_id]) * nx_per_col
+#             end = start + cols_per_zone[zone_id] * nx_per_col
+#             for comp_idx in range(n_components):
+#                 lines[zone_id][comp_idx].set_ydata(y[comp_idx, start:end, frame_idx])
+
+#         # Update stream lines (positioned in top axis only)
+#         for i, stream in enumerate(stream_order):
+#             x_pos = port_positions[stream][frame_idx]
+#             stream_lines[i].set_xdata(x_pos)
+
+#         return [l for sublist in lines for l in sublist] + stream_lines + [time_text]
+
+#     # Create animation
+#     ani = animation.FuncAnimation(fig, update, frames=selected_frames, interval=100, blit=True)
+
+#     # Save animation
+#     writer = animation.FFMpegWriter(fps=15, bitrate=1800)
+#     ani.save(filename, writer=writer)
+#     plt.close()
+#     return filename
+
+# # Run it with the simulated data
+# sample_data_bundle = {
+#     "y": y_matrices,
+#     "t": t,
+#     "labels": Names,
+#     "colors": colors,
+#     "nx_per_col": nx_per_col,
+#     "cols_per_zone": zone_config,
+#     "L_col": L,
+#     "t_index": t_index_min,
+#     "parameter_sets": parameter_sets
+# }
+
+# def plot_all_columns_single_axes(y_matrices, t,indxing_period, time_index,
+#                                   nx_per_col, L_col, zone_config, 
+#                                   labels=None, colors=None,
+#                                   title="Concentration Across Entire Column"):
+#     """
+#     Plot all columns together on one continuous axis for each component at a given time index.
+
+#     Parameters:
+#     - y_matrices: array of shape (n_components, nx_total, n_timepoints)
+#     - time_index: int, index along the time axis
+#     - nx_per_col: int, spatial points per column
+#     - L_col: float, physical length of each column
+#     - labels: list of component names (optional)
+#     - colors: list of line colors per component (optional)
+#     - title: overall figure title
+#     """
+
+#     n_components, nx_total, n_timepoints = y_matrices.shape
+
+#     n_columns = np.sum(zone_config)
+#     nx_total = nx_per_col*n_columns # just for the liquid phase
+
+#     total_length = L_col * n_columns # cm
+#     x = np.linspace(0, total_length, nx_total)
+#     # Rotate so that Z3 is first
+#     zone_config_rot = np.roll(zone_config, -2)  # => [Z3, Z4, Z1, Z2]
+
+#     # Labels accordingly
+#     zone_labels = ['Z3', 'Z4', 'Z1', 'Z2']
+
+#     plt.figure(figsize=(10, 6))
+#     for i in range(n_components):
+#         y_vals = y_matrices[i][ 0:nx_total, time_index]
+#         label = labels[i] if labels else f"Comp {i+1}"
+#         color = colors[i] if colors else None
+#         plt.plot(x, y_vals, label=label, color=color)
+#     x_plot = 0
+#     for i, x_zone in enumerate(zone_config_rot):
+#         x_plot += x_zone
+#         plt.axvline(x=x_plot*L, color='k', linestyle='--', linewidth=2)
+#         plt.text(x_plot*L, plt.ylim()[1]*0.995, zone_labels[i], ha='right', va='top',
+#                 fontsize=8, color='k')
+#     for i in range(0,n_columns+1):
+#         x_plot = i*L
+#         plt.axvline(x=x_plot, color='grey', linestyle='--', linewidth=1)
+
+#     plt.title(f"{title} (Time Index {time_index}) (Time Stamp: {t[time_index]/60} min)\nIndxing_period: {indxing_period} min")
+#     plt.xlabel("Position along full unit (cm)")
+#     plt.ylabel("Concentration (g/L)")
+#     # plt.grid(True)
+#     plt.legend()
+#     plt.tight_layout()
+#     plt.show()
+
+
+# #%%
+# # animate_smb_concentration_profiles(**sample_data_bundle)
+# plot_all_columns_single_axes(
+#     y_matrices=y_matrices,
+#     t = t,
+#     indxing_period = t_index_min,
+#     # time_index= int(np.round(np.shape(y_matrices)[2]*0.01)),
+#     time_index= 700, # 27, 31, 35. 70, 90
+#     nx_per_col=nx_per_col,
+#     L_col = L,
+#     zone_config = zone_config,
+#     labels=Names,
+#     colors= colors
+# )
 
 
 
-# %%
+
+# # %%
+
+
+
+# # %%

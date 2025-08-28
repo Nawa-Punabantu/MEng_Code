@@ -673,7 +673,7 @@ config2 = np.array([2,2,2,2])
 config3 = np.array([2,1,2,1])
 config4 = np.array([1,2,1,2])
 
-ZONE_CONFIGS = [config1,config2,config3,config4]
+ZONE_CONFIGS = [config1, config2, config3, config4]
 var_name = 'zone_config'     # C_feed, 
 
 Output, x_variable, x_variable_name, tend = scalar_value_parametric_study(var_name, lower_bound, upper_bound, dist_bn_points, SMB_inputs, SMB_inputs_names, ZONE_CONFIGS = ZONE_CONFIGS) # (Name of quantitiy, lower_bound, upper_bound, resolution(=space between points))
