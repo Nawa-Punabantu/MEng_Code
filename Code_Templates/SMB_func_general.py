@@ -1833,160 +1833,76 @@ import plotly.graph_objects as go
 ###########################################
 # IMPORTING MY OWN FUNCTIONS
 ###########################################
+def see_prod_curves(t_odes, Y, t_index):
+    """
+    Plot feed, raffinate, and extract concentration curves (zigzag + averages).
 
-def see_prod_curves(t_odes, Y, t_index) :
-    # Y = C_feed, C_raff, C_ext
-    # X = t_sets
+    Parameters
+    ----------
+    t_odes : np.ndarray
+        Time vector in seconds.
+    Y : list
+        [C_feed, raff_cprofile, ext_cprofile, raff_vflow, ext_vflow,
+         raff_avg_cprofile, ext_avg_cprofile, t_schedule]
+    t_index : float
+        Indexing time (s).
+    """
+
+    (C_feed, raff_cprofile, ext_cprofile, _, _, 
+     raff_avg_cprofile, ext_avg_cprofile, t_schedule) = Y
+    colour_set_1 = ['lightcoral','lightblue']
     fig, ax = plt.subplots(1, 3, figsize=(25, 5))
     
+    t_odes_hr   = t_odes / 3600         # convert to hours
+    t_sched_hr  = np.array(t_schedule) / 3600
 
-    # 0 - Feed Profile
-    # 1 - Raffinate Profile
-    # 2 - Extract Profile
-    t_odes  = t_odes/60/60
-    # # Concentration Plots
-    for i in range(num_comp): # for each component
+    # Plot each component
+    for i in range(num_comp): 
+        label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}"
+
         if iso_type == "UNC":
-            ax[0].plot(t_odes[i], Y[0][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
-            ax[1].plot(t_odes[i], Y[1][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
-            ax[2].plot(t_odes[i], Y[2][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
-        
-        elif iso_type == "CUP":    
-            ax[0].plot(t_odes, Y[0][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
-            ax[1].plot(t_odes, Y[1][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
-            ax[2].plot(t_odes, Y[2][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
-    # Loop over components
-    # smooth=True
-    # window= 350
-    # poly=1
-    # color_smooth = ['green', 'orange']
-    # # colors = ['grey', 'grey']
-    # for i in range(num_comp):
-    #     for j, label in enumerate(["Feed", "Raffinate", "Extract"]):
-    #         yj = Y[j][i]
+            # Feed
+            ax[0].plot(t_odes_hr[i], C_feed[i], color=colors[i], label=label)
 
-    #         if smooth:
-    #             # Raw in gray
-    #             ax[j].plot(t_odes, yj, color='grey', alpha=0.4)
-    #             # Smoothed in component color
-    #             yj_s = savgol_filter(yj, window, poly, mode="nearest")
-    #             ax[j].plot(t_odes, yj_s, color=colors[i],
-    #                        label=f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
-    #             # ax[j].plot(t_odes, yj, color=colors[i],
-    #             #            label=f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
-    #         else:
-    #             ax[j].plot(t_odes, yj, color=colors[i],
-    #                        label=f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
-        
-    # Add Accessories
-    ax[0].set_xlabel('Time, hrs')
+            # Raffinate zigzag (light grey)
+            ax[1].plot(t_odes_hr[i], raff_cprofile[i], color=colour_set_1[i], linewidth=1.0, alpha=0.7)
+            # Raffinate average (colored dotted)
+            ax[1].plot(t_sched_hr, raff_avg_cprofile[i], linestyle="-", color=colors[i], linewidth=2, label=label)
+
+            # Extract zigzag
+            ax[2].plot(t_odes_hr[i], ext_cprofile[i], color=colour_set_1[i], linewidth=1.0, alpha=0.7)
+            # Extract average
+            ax[2].plot(t_sched_hr, ext_avg_cprofile[i], linestyle="-", color=colors[i], linewidth=2, label=label)
+
+        elif iso_type == "CUP":
+            # Feed
+            ax[0].plot(t_odes_hr, C_feed[i], color=colors[i], label=label)
+
+            # Raffinate zigzag
+            ax[1].plot(t_odes_hr, raff_cprofile[i], color=colour_set_1[i], linewidth=1.0, alpha=0.7)
+            ax[1].plot(t_sched_hr, raff_avg_cprofile[i], linestyle="-", color=colors[i], linewidth=2, label=label)
+
+            # Extract zigzag
+            ax[2].plot(t_odes_hr, ext_cprofile[i], color=colour_set_1[i], linewidth=1.0, alpha=0.7)
+            ax[2].plot(t_sched_hr, ext_avg_cprofile[i], linestyle="-", color=colors[i], linewidth=2, label=label)
+
+    # Axis labels and titles
+    ax[0].set_xlabel('Time (h)')
     ax[0].set_ylabel('($\mathregular{g/cm^3}$)')
     ax[0].set_title(f'Feed Concentration Curves\nConfig: {Z1}:{Z2}:{Z3}:{Z4},\nNumber of Cycles:{n_num_cycles}\nIndex Time: {t_index}s')
-    # ax[0].legend()
+    ax[0].legend()
 
-    ax[1].set_xlabel('Time, hrs')
+    ax[1].set_xlabel('Time (h)')
     ax[1].set_ylabel('($\mathregular{g/cm^3}$)')
     ax[1].set_title(f'Raffinate Elution Curves\nConfig: {Z1}:{Z2}:{Z3}:{Z4},\nNumber of Cycles:{n_num_cycles}\nIndex Time: {t_index}s')
-    # ax[1].legend()
+    ax[1].legend()
 
-    ax[2].set_xlabel('Time, hrs')
+    ax[2].set_xlabel('Time (h)')
     ax[2].set_ylabel('($\mathregular{g/cm^3}$)')
     ax[2].set_title(f'Extract Elution Curves\nConfig: {Z1}:{Z2}:{Z3}:{Z4},\nNumber of Cycles:{n_num_cycles}\nIndex Time: {t_index}s')
-    # ax[2].legend()
-
-
-    plt.show()
-
-    # Volumetric Flowrate Plots
-    fig, vx = plt.subplots(1, 2, figsize=(25, 5))
-    for i in range(num_comp): # for each component
-        if iso_type == "UNC":
-            
-            vx[0].plot(t_odes[i], Y[3][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
-            vx[1].plot(t_odes[i], Y[4][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
-        
-        elif iso_type == "CUP":    
-            
-            vx[0].plot(t_odes, Y[3][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
-            vx[1].plot(t_odes, Y[4][i], color = colors[i], label = f"{Names[i]}, {Names[i]}:{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}")
-        
-    # Add Accessories
-    vx[0].set_xlabel('Time, hrs')
-    vx[0].set_ylabel('($\mathregular{cm^3/s}$)')
-    vx[0].set_title(f'Raffinate Volumetric Flowrates')
-    vx[0].legend()
-
-    vx[1].set_xlabel('Time, hrs')
-    vx[1].set_ylabel('($\mathregular{cm^3/s}$)')
-    vx[1].set_title(f'Extract Volumetric Flowrates')
-    # vx[1].legend()
+    ax[2].legend()
 
     plt.show()
-
-
-import numpy as np
-import matplotlib.pyplot as plt
-from scipy.signal import savgol_filter
-import numpy as np
-import matplotlib.pyplot as plt
-from scipy.signal import savgol_filter
-
-from scipy.signal import savgol_filter
-
-from scipy.signal import savgol_filter
-import numpy as np
-
-# def hybrid_smooth(y, window=200, poly=2, alpha=0.3):
-#     y = np.asarray(y)
-    
-#     # Determine axis to smooth along (time axis)
-#     axis = 0 if y.ndim == 1 else 0
-#     n_points = y.shape[axis]
-
-#     # Ensure valid window length
-#     window_len = min(window, n_points // 2 * 2 - 1)  # largest odd <= n_points
-#     if window_len <= poly:
-#         window_len = poly + 1 if (poly + 1) % 2 == 1 else poly + 2
-
-#     # Apply Savitzky-Golay filter along axis
-#     y_smooth = savgol_filter(y, window_length=window_len, polyorder=poly, axis=axis)
-    
-#     # Hybrid smoothing: blend original with smoothed
-#     return alpha * y + (1 - alpha) * y_smooth
-
-
-
-# def see_prod_curves(t_data, Y, smooth=True, window=200, poly=2, alpha=0.3):
-#     import matplotlib.pyplot as plt
-#     from scipy.signal import savgol_filter
-#     import numpy as np
-
-#     C_feed, raff_cprofile, ext_cprofile, raff_vflow, ext_vflow = Y
-
-#     fig, ax = plt.subplots(figsize=(10,6))
-
-#     # Helper function for smoothing
-#     def hybrid_smooth(y):
-#         if smooth:
-#             y_smooth = savgol_filter(y, window_length=min(window, len(y)//2*2-1), polyorder=poly)
-#             # Blend smoothed with original
-#             return alpha * y + (1 - alpha) * y_smooth
-#         return y
-
-#     # Apply smoothing
-#     raff_c_smooth = hybrid_smooth(Y[1], window=201, poly=2, alpha=0.3)
-#     ext_c_smooth  = hybrid_smooth(Y[2], window=201, poly=2, alpha=0.3)
-
-#     # Plot
-#     ax.plot(t_data, raff_c_smooth, label="Raffinate", color="blue")
-#     ax.plot(t_data, ext_c_smooth,  label="Extract",   color="red")
-
-#     ax.set_xlabel("Time")
-#     ax.set_ylabel("Concentration")
-#     ax.legend()
-#     ax.set_title("SMB Raffinate & Extract Elution Curves")
-
-#     plt.show()
 
 
 def col_liquid_profile(t, y, Axis_title, c_in, Ncol_num, L_total):
@@ -2149,74 +2065,73 @@ def col_solid_profile(t, y, Axis_title, Ncol_num, start, L_total):
 
 
 def see_prod_curves_with_data(t_odes, Y, t_index, exp_data_raff=None, exp_data_ext=None, show_exp=True):
-    # Y = [C_feed, C_raff, C_ext]
-    # exp_data_raff/ext = dict of {i: (t_exp, C_exp)}, for component i
+    """
+    Plot feed, raffinate, and extract concentration curves (zigzag + averages).
+
+    Parameters
+    ----------
+    t_odes : np.ndarray
+        Time vector in seconds.
+    Y : list
+        [C_feed, raff_cprofile, ext_cprofile, raff_vflow, ext_vflow,
+         raff_avg_cprofile, ext_avg_cprofile, t_schedule]
+    t_index : float
+        Indexing time (s).
+    exp_data_raff : dict, optional
+        Experimental raffinate data {i: (t_exp, C_exp)} for component i.
+    exp_data_ext : dict, optional
+        Experimental extract data {i: (t_exp, C_exp)} for component i.
+    show_exp : bool, optional
+        Whether to plot experimental data.
+    """
+
+    C_feed, raff_cprofile, ext_cprofile, _, _, raff_avg_cprofile, ext_avg_cprofile, t_schedule = Y
 
     fig, ax = plt.subplots(1, 3, figsize=(25, 5), constrained_layout=True)
 
-    t_odes_hr = t_odes / 3600  # convert to hours
+    t_odes_hr = t_odes / 3600       # time in hours
+    t_sched_hr = np.array(t_schedule) / 3600  # schedule in hours
 
     for i in range(num_comp):
-        label_base = f"{Names[i]}" #,{cusotom_isotherm_params_all[i]}, kh:{kav_params_all[i]}"
+        label_base = f"{Names[i]}"
 
-        # Determine clipping bounds
-        t_min = 0
-        t_max = np.inf
-        if show_exp:
-            t_exp_vals = []
-            if exp_data_raff and i in exp_data_raff:
-                t_exp_vals.extend(exp_data_raff[i][0])
-            if exp_data_ext and i in exp_data_ext:
-                t_exp_vals.extend(exp_data_ext[i][0])
-            if t_exp_vals:
-                t_min = min(t_exp_vals)
-                t_max = max(t_exp_vals)
+        # --- Feed (always zigzag only) ---
+        ax[0].plot(t_odes_hr, C_feed[i], color=colors[i], label=label_base)
 
-        # Manual clipping using index-based slicing (not masks)
-        if iso_type == "UNC":
-            t_i = t_odes[i]
-            start_idx = np.searchsorted(t_i, t_min, side='left')
-            end_idx   = np.searchsorted(t_i, t_max, side='right')
-            t_plot = t_i[start_idx:end_idx] / 3600
+        # --- Raffinate ---
+        # zigzag in light grey
+        ax[1].plot(t_odes_hr, raff_cprofile[i], color="grey", linewidth=1.0, alpha=0.7)
+        # average (dotted, colored)
+        ax[1].plot(t_sched_hr, raff_avg_cprofile[i], linestyle=":", color=colors[i], linewidth=2, label=label_base)
 
-            ax[0].plot(t_plot, Y[0][i][start_idx:end_idx], color=colors[i], label=label_base)
-            ax[1].plot(t_plot, Y[1][i][start_idx:end_idx], color=colors[i], label=label_base)
-            ax[2].plot(t_plot, Y[2][i][start_idx:end_idx], color=colors[i], label=label_base)
+        # --- Extract ---
+        ax[2].plot(t_odes_hr, ext_cprofile[i], color="grey", linewidth=1.0, alpha=0.7)
+        ax[2].plot(t_sched_hr, ext_avg_cprofile[i], linestyle=":", color=colors[i], linewidth=2, label=label_base)
 
-        elif iso_type == "CUP":
-            start_idx = np.searchsorted(t_odes, t_min, side='left')
-            end_idx   = np.searchsorted(t_odes, t_max, side='right')
-            t_plot = t_odes[start_idx:end_idx] / 3600
-
-            ax[0].plot(t_plot, Y[0][i][start_idx:end_idx], color=colors[i], label=label_base)
-            ax[1].plot(t_plot, Y[1][i][start_idx:end_idx], color=colors[i], label=label_base)
-            ax[2].plot(t_plot, Y[2][i][start_idx:end_idx], color=colors[i], label=label_base)
-
-        # Plot experimental data
+        # --- Experimental data ---
         if show_exp:
             if exp_data_raff and i in exp_data_raff:
                 t_exp_r, C_exp_r = exp_data_raff[i]
-                ax[1].scatter(t_exp_r / 3600, C_exp_r, color=colors[i], marker='x', s=40 # label=f"Exp Raff"
-                             , label=f"Exp", alpha=0.6)
+                ax[1].scatter(t_exp_r / 3600, C_exp_r, color=colors[i], marker='x', s=40, alpha=0.6, label="Exp Raff")
             if exp_data_ext and i in exp_data_ext:
                 t_exp_e, C_exp_e = exp_data_ext[i]
-                ax[2].scatter(t_exp_e / 3600, C_exp_e, color=colors[i], marker='o', s=40, # label=f"Exp Ext",
-                               label=f"Exp",alpha=0.6)
+                ax[2].scatter(t_exp_e / 3600, C_exp_e, color=colors[i], marker='o', s=40, alpha=0.6, label="Exp Ext")
 
     # Titles and labels
-    ax[0].set_xlabel('Time, hrs')
-    ax[0].set_title(f'Feed Concentration Curves in (g/mL)\nConfig: {Z1}:{Z2}:{Z3}:{Z4}\nIndex Time: {t_index/60}min')
+    ax[0].set_xlabel("Time (h)")
+    ax[0].set_title(f"Feed Concentration Curves (g/mL)\nConfig: {Z1}:{Z2}:{Z3}:{Z4}, Index Time: {t_index/60:.2f} min")
 
-    ax[1].set_xlabel('Time, hrs')
-    ax[1].set_title(f'Raffinate Elution Curves in (g/mL)\nConfig: {Z1}:{Z2}:{Z3}:{Z4}\nIndex Time: {t_index/60}min')
+    ax[1].set_xlabel("Time (h)")
+    ax[1].set_title(f"Raffinate Elution Curves (g/mL)\nConfig: {Z1}:{Z2}:{Z3}:{Z4}, Index Time: {t_index/60:.2f} min")
 
-    ax[2].set_xlabel('Time, hrs')
-    ax[2].set_title(f'Extract Elution Curves in (g/mL)\nConfig: {Z1}:{Z2}:{Z3}:{Z4}\nIndex Time: {t_index/60}min')
+    ax[2].set_xlabel("Time (h)")
+    ax[2].set_title(f"Extract Elution Curves (g/mL)\nConfig: {Z1}:{Z2}:{Z3}:{Z4}, Index Time: {t_index/60:.2f} min")
 
     for a in ax:
         a.legend()
-    # plt.tight_layout()
+
     plt.show()
+
 
 
 
@@ -2257,8 +2172,17 @@ def see_instantane_outputs(t_odes, Y2, t_index):
             t_plot = t_odes[start_idx:end_idx] / 3600
 
             ax[0].plot(t_plot, Y2[0][i][start_idx:end_idx]*100, color=colors[i], label=label_base)
+
+
+
             ax[1].plot(t_plot, Y2[1][i][start_idx:end_idx]*100, color=colors[i], label=label_base)
+            # Plot the average
+            ax[1].plot(t_plot, Y2[-2][i][start_idx:end_idx]*100, color=colors[i], label=label_base)
+
             ax[2].plot(t_plot, Y2[2][i][start_idx:end_idx]*100, color=colors[i], label=label_base)
+            # Plot the average
+            ax[2].plot(t_plot, Y2[-1][i][start_idx:end_idx]*100, color=colors[i], label=label_base)
+
             ax[3].plot(t_plot, Y2[3][i][start_idx:end_idx]*100, color=colors[i], label=label_base)
 
 
@@ -2378,8 +2302,8 @@ iso_type = "CUP"
 
 ###################### PRIMARY INPUTS #########################
 # Define the names, colors, and parameter sets for 6 components
-Names = ["Glucose", "Fructose"]#, 'C', 'D']#, "C"]#, "D", "E", "F"]
-colors = ["green", "orange"]    #, "purple", "brown"]#, "b"]#, "r", "purple", "brown"]
+Names =  ['Borate', 'HCl']  # ['Borate', 'HCl'] , ["Glucose", "Fructose"]
+colors = ['red', 'blue']  #, ['red, 'blue'], ["green", "orange"]  
 num_comp = len(Names) # Number of components
 e = 0.56 # 0.56         # bed voidage
 Bm = 300
@@ -2459,7 +2383,7 @@ nx_per_col = 15
 
 ################ Time Specs #################################################################################
 t_index_min = 10 # min # Index time # How long the pulse holds before swtiching
-n_num_cycles = 3   # Number of Cycles you want the SMB to run for
+n_num_cycles = 5  # Number of Cycles you want the SMB to run for
 t_simulation_end = None # HRS
 ###############  FLOWRATES  #################################################################################
 
@@ -2530,7 +2454,7 @@ print(f'Simulation Took: {duration/60} min')
 # print(f'ext_cprofile: {ext_cprofile}')
 # print(f'raff_cprofile: {raff_cprofile}')
 print("-----------------------------------------------------------")
-Y1 = [C_feed, raff_cprofile, ext_cprofile, raff_vflow, ext_vflow]
+Y1 = [C_feed, raff_cprofile, ext_cprofile, raff_vflow, ext_vflow, raff_avg_cprofile, ext_avg_cprofile, t_schedule]
 
 Y2 = [raff_avg_cprofile, ext_avg_cprofile, raff_avg_mprofile, ext_avg_mprofile]
 
@@ -2564,10 +2488,10 @@ if iso_type == "UNC":
     see_instantane_outputs(t_schedule, Y2, t_index_min*60)
     # see_prod_curves_with_data(t_sets, Y, t_index_min*60, exp_data_raff, exp_data_ext, show_exp=True)
 elif iso_type == "CUP":
-    # see_prod_curves(t, Y1, t_index_min*60)
+    see_prod_curves(t, Y1, t_index_min*60)
     see_instantane_outputs2(np.array(t_schedule), Y2, t_index_min*60)
     see_instantane_outputs2(np.array(t_schedule), Y3, t_index_min*60)
-    # see_prod_curves_with_data(t, Y, t_index_min*60, exp_data_raff, exp_data_ext, show_exp=True)
+    # see_prod_curves_with_data(t, Y1, t_index_min*60, exp_data_raff, exp_data_ext, show_exp=True)
 
 
 # Define the data for the table
@@ -2841,8 +2765,8 @@ plot_all_columns_single_axes(
     nx_per_col=nx_per_col,
     L_col = L,
     zone_config = zone_config,
-    labels=['A', 'B'],
-    colors=['green', 'orange']
+    labels=Names,
+    colors= colors
 )
 
 

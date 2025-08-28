@@ -1196,6 +1196,20 @@ parameter_sets = [
     {"C_feed": 0.009726*1.5}]    # Hcl syn_sol: 0.009726*1.5 | illovo wastewater: 0.012222*0.8
 
 
+# ILLOVO UBK
+parameter_sets = [ {"C_feed": 0.003190078*1.4}, {"C_feed": 0.012222*0.8}] 
+Da_all = np.array([1.83e-5, 5.6e-5]) 
+kav_params_all = np.array([[0.173], [0.151]])
+cusotom_isotherm_params_all = np.array([[4.13], [2.3]]) # [ [H_borate], [H_hcl] ]
+
+# ILLOVO PCR
+# parameter_sets = [ {"C_feed": 0.003190078*1.4}, {"C_feed": 0.012222*0.8}] 
+# # parameter_sets = [ {"C_feed": 0.003190078*1.4}, {"C_feed": 0.003190078*1.4}]  
+# Da_all = np.array([5.77e-7, 2.3812e-7]) 
+# kav_params_all = np.array([[0.170], [0.154]])
+# cusotom_isotherm_params_all = np.array([[2.13], [2.35]]) # [ [H_borate], [H_hcl] ]
+
+
 column_func_inputs = [iso_type,  Names, color, parameter_sets, Da_all, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all, kav_params_all]
                     #   iso_type,  Names, color, parameter_sets, Da_all, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all
 
@@ -1227,20 +1241,20 @@ def col_elution_profile(t_vals, col_elution, num_comp,
     # Plot based on isotherm type
     if iso_type == 'UNC':
         for i in range(num_comp):
-            ax[i].plot(t_vals[i]/60, col_elution[i], color=color[i], 
+            ax[i].plot(t_vals[i]/60, 1000*col_elution[i], color=color[i], 
                     label=f"Model: {Names[i]}")
             
-            bx.plot(t_vals[i]/60, col_elution[i], color=color[i], 
+            bx.plot(t_vals[i]/60, 1000*col_elution[i], color=color[i], 
                     label=f"Model: {Names[i]}")
 
     elif iso_type == 'CUP':
         for i in range(num_comp):
-            ax[i].plot(t_vals/60, col_elution[i], color=color[i], 
+            ax[i].plot(t_vals/60, 1000*col_elution[i], color=color[i], 
                     label=f"Model: {Names[i]}")
-            bx.plot(t_vals/60, col_elution[i], color=color[i], 
+            bx.plot(t_vals/60, 1000*col_elution[i], color=color[i], 
                     label=f"Model: {Names[i]}")
     
-    # === Plot experimental curves if provided ===
+    # === Plot experimental curves if provided
     if bor_curves is not None and t_data is not None:
         ax[0].plot(t_data/60, bor_curves, 'o', label="Boric Acid Exp. Data")
 
@@ -1303,9 +1317,9 @@ bor_pcr_exp_illovo_data = np.array([0, 0.000089379, 0.000088917, 0.000088875, 0.
 hcl_pcr_exp_illovo_data = np.array([0, 0.00016615, 0.0000054, 0.00016321, 0.00000287, 0.0000678, 0.00233887, 0.00412077, 0.00492319, 0.00520473, 0.00508107, 0.00589219, 0.0041031, 0.00100611, 0.00028994, 0.00019753, 0.00005782, 0.00017425, 0.00015523, 0.00016247, 0.00016429, 0.00016433, 0.00023953, 0.00001003, 0.00016187, 0.00006041 ])
 
 col_elution_profile(t, col_elution, num_comp, 
-                    bor_curves  =     bor_ubk_exp_data, 
-                    hcl_curves  =     hcl_ubk_exp_data, 
-                    t_data      =         t_exp_ubk)
+                    bor_curves  =     1000*bor_ubk_exp_illovo_data, 
+                    hcl_curves  =     1000*hcl_ubk_exp_illovo_data, 
+                    t_data      =         t_exp_ubk_illovo)
 
 # print("\n\n\nStarting Animation. . . ")
 # if iso_type == "UNC":
