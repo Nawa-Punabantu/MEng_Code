@@ -80,7 +80,10 @@ def solve_concentration(param_name, param_val, SMB_inputs, SMB_inputs_names):
 
     results = SMB(SMB_inputs)
     
-    y_matrices, nx, t, t_sets, t_schedule, C_feed, m_in, m_out, raff_cprofile, ext_cprofile, raff_intgral_purity, raff_recov, ext_intgral_purity, ext_recov, raff_vflow, ext_vflow, Model_Acc, Expected_Acc, Error_percent, raff_inst_purity, ext_inst_purity, raff_inst_output_recovery, ext_inst_output_recovery, raff_output_recov, ext_output_recov = results[0:]
+    
+    y_matrices, nx, t, t_sets, t_schedule, C_feed, m_in, m_out, raff_cprofile, ext_cprofile, raff_intgral_purity, raff_feed_recov, ext_intgral_purity, ext_feed_recov, raff_vflow, ext_vflow, Model_Acc, Expected_Acc, Error_percent, raff_inst_purity, ext_inst_purity, raff_inst_feed_recovery, ext_inst_feed_recovery, raff_inst_output_recovery, ext_inst_output_recovery, raff_avg_cprofile, ext_avg_cprofile, raff_avg_mprofile, ext_avg_mprofile, t_schedule, raff_output_recov, ext_output_recov = results[0:]
+                 
+    
 
     return results
 
@@ -145,51 +148,61 @@ def scalar_value_parametric_study(param_name, lower_bound, upper_bound, dist_bn_
         # Run the simulation
         start_time = time.time()
 
-        y_matrices, nx, t, t_sets, t_schedule, C_feed, m_in, m_out, raff_cprofile, ext_cprofile, raff_intgral_purity, raff_recov, ext_intgral_purity, ext_recov, raff_vflow, ext_vflow, Model_Acc, Expected_Acc, Error_percent, raff_inst_purity, ext_inst_purity, raff_inst_output_recovery, ext_inst_output_recovery, raff_output_recov, ext_output_recov = solve_concentration(param_name, param_val, SMB_inputs, SMB_inputs_names)
+        y_matrices, nx, t, t_sets, t_schedule, C_feed, m_in, m_out, raff_cprofile, ext_cprofile, raff_intgral_purity, raff_feed_recov, ext_intgral_purity, ext_feed_recov, raff_vflow, ext_vflow, Model_Acc, Expected_Acc, Error_percent, raff_inst_purity, ext_inst_purity, raff_inst_feed_recovery, ext_inst_feed_recovery, raff_inst_output_recovery, ext_inst_output_recovery, raff_avg_cprofile, ext_avg_cprofile, raff_avg_mprofile, ext_avg_mprofile, t_schedule, raff_output_recov, ext_output_recov = solve_concentration(param_name, param_val, SMB_inputs, SMB_inputs_names)
         
         end_time = time.time()
         sim_time = (end_time - start_time)/60 # min
         
-        if iso_type == "UNC":
-            t_end = t_sets[0][-1]   
-        else:
-            t_end = t[-1]
+
         
         # Save the parameter value and corresponding results
         output['parameter_values'].append(var_value)
-        output['results'].append({
-            # Not interested in matrices:
-            # 'y_matrices': y_matrices,
-            # 't_schedule': t_schedule,
+        output['results'].append({      # Appended scalars:
+                                        'y_matrices': y_matrices,
+                                        'nx': nx,
+                                        't': t,
+                                        't_sets': t_sets,
+                                        't_schedule': t_schedule,
+                                        'C_feed': C_feed,
+                                        'm_in': m_in,
+                                        'm_out': m_out,
 
+                                        'raff_cprofile': raff_cprofile,
+                                        'ext_cprofile': ext_cprofile,
+                                        'raff_intgral_purity': raff_intgral_purity,
+                                        'raff_feed_recov': raff_feed_recov,
+                                        'ext_intgral_purity': ext_intgral_purity,
+                                        'ext_feed_recov': ext_feed_recov,
 
-            # Appended scalars:
+                                        'raff_vflow': raff_vflow,
+                                        'ext_vflow': ext_vflow,
 
-            'y_matrices': y_matrices, 
-            'nx': nx, 
-            't': t, 
-            't_sets': t_sets, 
-            't_schedule': t_schedule, 
-            'C_feed': C_feed, 
-            'm_in': m_in, 
-            'm_out': m_out, 
+                                        'Model_Acc': Model_Acc,
+                                        'Expected_Acc': Expected_Acc,
+                                        'Error_percent': Error_percent,
 
-            'raff_cprofile': raff_cprofile, 
-            'ext_cprofile': ext_cprofile, 
-            'raff_intgral_purity': raff_intgral_purity, 
-            'raff_recov': raff_recov, 
-            'ext_intgral_purity': ext_intgral_purity, 
-            'ext_recov': ext_recov, 
+                                        'raff_inst_purity': raff_inst_purity,
+                                        'ext_inst_purity': ext_inst_purity,
+                                        'raff_inst_feed_recovery': raff_inst_feed_recovery,
+                                        'ext_inst_feed_recovery': ext_inst_feed_recovery,
+                                        'raff_inst_output_recovery': raff_inst_output_recovery,
+                                        'ext_inst_output_recovery': ext_inst_output_recovery,
 
-            'raff_vflow': raff_vflow, 
-            'ext_vflow': ext_vflow, 
+                                        'raff_avg_cprofile': raff_avg_cprofile,
+                                        'ext_avg_cprofile': ext_avg_cprofile,
+                                        'raff_avg_mprofile': raff_avg_mprofile,
+                                        'ext_avg_mprofile': ext_avg_mprofile,
 
-            'Model_Acc': Model_Acc, 
-            'Expected_Acc': Expected_Acc, 
-            'Error_percent': Error_percent, 
-            'Simulation_time':sim_time
+                                        'raff_output_recov': raff_output_recov,
+                                        'ext_output_recov': ext_output_recov,
 
-            })
+                                        'Simulation_time': sim_time
+                                        })
+
+    if iso_type == "UNC":
+        t_end = t_sets[0][-1]   
+    elif iso_type == 'CUP':
+            t_end = t[-1]                        
     
     return output, variable, param_name, t_end
 
@@ -293,192 +306,162 @@ def save_output_to_json(
 
     print(f"✅ Results saved to: {save_path}")
 
-        
 
-def plot_all_parametric_results(output, x_values, x_variable_name, lower_bound, upper_bound, dist_bn_points, tend, var_name):
+def plot_all_parametric_results(output, x_values, var_name):
     """
-    Plots three subplots:
+    Plots:
     (1) Mass Balance Error vs Varied Variable
-    (2) Simulation Time vs Varied Variable
-    (3) Elution Curves
+    (2) Raffinate instantaneous purity & recovery (comp 0)
+    (3) Extract instantaneous purity & recovery (comp 0)
     """
 
-    # Extract y-values
-    mb_errors = []
-    sim_times = []
+    # Extract MB error + sim time
+    mb_errors = [r.get("Error_percent", 0) for r in output["results"]]
+    sim_times = [r.get("Simulation_time", 0) for r in output["results"]]
 
-    ext_intgral_purityA = [] 
-    ext_intgral_purityB = []
-    ext_recovA = []
-    ext_recovB = []
+    n_cases = len(output["results"])
 
+    # Build colormap scaled from min→max x_values
+    norm = plt.Normalize(vmin=min(x_values), vmax=max(x_values))
+    cmap = plt.cm.get_cmap("viridis")  # could swap with other
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
 
-    raff_intgral_purityA = [] 
-    raff_intgral_purityB = []
-    raff_recovA= []
-    raff_recovB = []
-
-
-# ----------- Components:
-    if var_name == 'C_feed':
-        var_name = 'Feed Concentration, c_feed (g/ml)'
-        var_name2 = 'c_feed'
-    
-    elif var_name == 'cusotom_isotherm_params_all':
-        var_name = 'Henry Constant, H'
-        var_name2 = 'H'
-
-    elif var_name == 'kav_params_all':
-        var_name = 'Mass Transfer Coefficient, kfp (1/s)'
-        var_name2 = 'kfp'
-
-    elif var_name == 'D_all':
-        var_name = 'Dispersion Coefficient, Da (cm^3/s)'
-        var_name2 = 'Da'
-
-
-# ----------- Flowrates:
-
-    elif var_name == 'Q1':
-        var_name = 'Section 1 Flowrate, Q (mL/s)'
-        var_name2 = 'Q1'
-
-    elif var_name == 'Q2':
-        var_name = 'Section 2 Flowrate, Q (mL/s)'
-        var_name2 = 'Q2'
-
-    elif var_name == 'Q3':
-        var_name = 'Section 3 Flowrate, Q (mL/s)'
-        var_name2 = 'Q3'
-
-    elif var_name == 'Q4':
-        var_name = 'Section 4 Flowrate, Q (mL/s)'
-        var_name2 = 'Q4'
-
-    elif var_name == 't_index':
-        var_name = 'Index Time, t_index (seconds)'
-        var_name2 = 't_index'
-
-
-
-# ----------- Columns:
-    elif var_name == 'zone_config':
-        var_name = 'Column Configuration'
-        var_name2 = 'config'
-
-    elif var_name == 'L':
-        var_name = 'Column Length, L (cm)'
-        var_name2 = 'L'
-
-    elif var_name == 'd_col':
-        var_name = 'Column Diameter, d_col (cm)'
-        var_name2 = 'd_col'
-
-    elif var_name == 'tend_min':
-        var_name = 'End Time, (min)'
-        var_name2 = 't_end'
-
-    elif var_name == 'e':
-        var_name = 'void fraction, e'
-        var_name2 = 'e'
-
-    elif var_name == 'nx_per_col':
-        var_name = '# Spacial Nodes per column, nx'
-        var_name2 = 'nx'
-
-    elif var_name == 'zone_config':
-        var_name = 'Config' #[f'config_{i}' for i in range(len(x_values)+1)]
-        x_values = np.range(1,len(x_values))
-        var_name2 = 'Config'
-
-    for result in output['results']:
-        mb_errors.append(result.get("Error_percent", 0))
-        sim_times.append(result.get("Simulation_time", 0))
-
-        ext_intgral_purityA.append(result.get("ext_intgral_purity", 0)[0])
-        ext_intgral_purityB.append(result.get("ext_intgral_purity", 1)[1])
-        ext_recovA.append(result.get("ext_recov", 0)[0])
-        ext_recovB.append(result.get("ext_recov", 1)[1])
-
-        raff_intgral_purityA.append(result.get("raff_intgral_purity", 0)[0])
-        raff_intgral_purityB.append(result.get("raff_intgral_purity", 1)[1])
-        raff_recovA.append(result.get("raff_recov", 0)[0])
-        raff_recovB.append(result.get("raff_recov", 1)[1])
-
-    # Elution data
-    if x_variable_name == 'D_all':
-        variable = generate_exponential_array(lower_bound, upper_bound + dist_bn_points, dist_bn_points)
-        
-        # print(f'variable: {variable}')
-    else:
-        variable = np.arange(lower_bound, upper_bound + dist_bn_points, dist_bn_points)
-
-    # Start figure
     fig, axs = plt.subplots(1, 3, figsize=(18, 5))
 
-    # Plot 1: MB Error
-    axs[0].plot(x_values, mb_errors, marker='o', linestyle='-', color='red')
-    axs[0].axhline(0, color='black', linestyle='--', linewidth=1.2, label="Zero Error")
-    axs[0].set_title(f"Mass Balance Error (%)") # vs {x_variable_name}")
+    # --- Plot 1: MB Error vs parameter ---
+    axs[0].plot(x_values, mb_errors, marker="o", color="red")
+    axs[0].axhline(0, color="black", linestyle="--", linewidth=1)
+    axs[0].set_title("Mass Balance Error (%)")
     axs[0].set_xlabel(var_name)
     axs[0].set_ylabel("Error (%)")
-
-    y_limit = max(np.max(mb_errors), abs(np.min(mb_errors)))
-    y_padding = y_limit * 0.05
-    if y_limit < 10:
-        y_plot = 10 + y_padding
-    else:
-        y_plot = y_limit + y_padding
-    axs[0].set_ylim(-y_plot, y_plot)
-    axs[0].legend()
     axs[0].grid(True)
 
+    # --- Plot 2: Raffinate inst. purity & recovery (comp 0) ---
+    for idx, result in enumerate(output["results"]):
+        raff_purity = np.array(result["raff_inst_purity"][0]) * 100
+        raff_recovery = np.array(result["raff_inst_output_recovery"][0]) * 100
+        t_schedule_1 = result["t_schedule"].copy()
+        t_indexing  = t_schedule_1[1] - t_schedule_1[0] # s
 
+        for i, t in enumerate(t_schedule_1):
+            t_schedule_1[i] = t + t_indexing
+        
+        where_to_insert = 0
+        t_schedule_1.insert(where_to_insert, 0)
 
-    # Extract
-    axs[1].plot(x_values, np.array(ext_intgral_purityA)*100, marker='o', linestyle='-', color='red', label = 'Raff_Pur_A')
-    axs[1].plot(x_values, np.array(ext_intgral_purityB)*100, marker='s', linestyle='-', color='green', label = 'Ext_Pur_B')
-    axs[1].plot(x_values, np.array(ext_recovA)*100,         marker='^', linestyle='-', color='k', label = 'Raff_Rec_A')
-    axs[1].plot(x_values, np.array(ext_recovB)*100,        marker='d', linestyle='-', color='orange', label = 'Ext_Rec_B')
+        color = sm.to_rgba(x_values[idx])
 
-    axs[1].set_title("Extract Purity and Recoveries")
-    axs[1].set_xlabel(var_name)
-    # axs[2].set_ylabel("Concentration (g/mL)")
-    # axs[2].set_xlim(0, tend)
+        axs[1].plot(np.array(t_schedule_1)/3600, raff_purity, color=color, linestyle="-", label=f"Purity {x_values[idx]}")
+        axs[1].plot(np.array(t_schedule_1)/3600, raff_recovery, color=color, linestyle="--", label=f"Recovery {x_values[idx]}")
+
+    axs[1].set_title(f"Raffinate {Names[0]} Inst. Purity & Recovery")
+    axs[1].set_xlabel("Time (s)")
+    axs[1].set_ylabel("Value (%)")
+    axs[1].set_ylim(0, 105)
     axs[1].grid(True)
-    axs[1].set_ylim(0, 100)
-    axs[1].legend()
 
-    
-    # Raffinate
-    axs[2].plot(x_values, np.array(raff_intgral_purityA)*100, marker='o', linestyle='-', color='red', label = 'Pur_A')
-    axs[2].plot(x_values, np.array(raff_intgral_purityB)*100, marker='s', linestyle='-', color='green', label = 'Pur_B')
-    axs[2].plot(x_values, np.array(raff_recovA)*100,         marker='^', linestyle='-', color='k', label = 'Rec_A')
-    axs[2].plot(x_values, np.array(raff_recovB)*100,        marker='d', linestyle='-', color='orange', label = 'Rec_B')
+    # --- Plot 3: Extract inst. purity & recovery (comp 0) ---
+    for idx, result in enumerate(output["results"]):
+        ext_purity = np.array(result["ext_inst_purity"][1]) * 100
+        ext_recovery = np.array(result["ext_inst_output_recovery"][1]) * 100
+        t_schedule = result["t_schedule"].copy()
+        t_indexing  = t_schedule[1] - t_schedule[0] # s
 
-    axs[2].set_title("Raffinate Purity and Recoveries")
-    axs[2].set_xlabel(var_name)
-    # axs[2].set_ylabel("Concentration (g/mL)")
-    # axs[2].set_xlim(0, tend)
+        for i, t in enumerate(t_schedule):
+            t_schedule[i] = t + t_indexing
+        
+        where_to_insert = 0
+        t_schedule.insert(where_to_insert, 0)
+        color = sm.to_rgba(x_values[idx])
+
+        axs[2].plot(np.array(t_schedule)/3600, ext_purity, color=color, linestyle="-", label=f"Purity {x_values[idx]}")
+        axs[2].plot(np.array(t_schedule)/3600, ext_recovery, color=color, linestyle="--", label=f"Recovery {x_values[idx]}")
+
+    axs[2].set_title(f"Extract {Names[1]} Inst. Purity & Recovery")
+    axs[2].set_xlabel("Time (s)")
+    axs[2].set_ylabel("Value (%)")
+    axs[2].set_ylim(0, 105)
     axs[2].grid(True)
-    axs[2].set_ylim(0, 100)
-    axs[2].legend()
 
     plt.tight_layout()
     plt.show()
 
-    # Start new figure for simulation time:
+    # --- Separate legend figure ---
+    fig_leg, ax_leg = plt.subplots(figsize=(8, 1))
+    fig_leg.subplots_adjust(bottom=0.5)
+    cb = plt.colorbar(sm, cax=ax_leg, orientation="horizontal")
+    cb.set_label(var_name)
+    plt.show()
 
-    fig, bxs = plt.subplots(1, 1, figsize=(18, 5))
-        # Plot 2: Simulation Time
-    bxs.plot(x_values, sim_times, marker='o', linestyle='-', color='blue')
-    bxs.set_title(f"Computation Time (min)") # vs {x_variable_name}")
-    bxs.set_xlabel(var_name)
-    # axs[1].set_ylabel("Simulation Time (min)")
-    # axs[1].set_ylim(0,)
-    bxs.grid(True)
+    # --- Separate sim time figure ---
+    fig, bx = plt.subplots(figsize=(8, 5))
+    bx.plot(x_values, sim_times, marker="o", color="blue")
+    bx.set_title("Simulation Time (min)")
+    bx.set_xlabel(var_name)
+    bx.set_ylabel("Time (min)")
+    bx.grid(True)
+    plt.show()
 
+def plot_parametric_inst_purity_recovery(output, x_values, var_name, component_index=0):
+    """
+    Plots instantaneous purity and recovery for raffinate and extract
+    vs t_schedule for a parametric study.
+    
+    Parameters:
+    - output: dict, output from simulation
+    - x_values: list or array, values of the varied parameter
+    - var_name: str, name of the varied parameter for labeling
+    - component_index: int, component to plot (default 0)
+    """
 
+    # Color gradient for lighter to darker for low to high x_values
+    from matplotlib.cm import get_cmap
+    cmap = get_cmap("viridis")
+    colors = [cmap(i/(len(x_values)-1)) for i in range(len(x_values))]
+
+    fig, axs = plt.subplots(1, 2, figsize=(18, 5))
+
+    for i, result in enumerate(output['results']):
+        # t_schedule vector
+        t_schedule = np.array(result['t_schedule'])
+
+        # Raffinate: purity and recovery of first component
+        raff_purity = np.array(result['raff_inst_purity'])[component_index] * 100
+        raff_recovery = np.array(result['raff_inst_output_recovery'])[component_index] * 100
+
+        # Extract: purity and recovery of first component
+        ext_purity = np.array(result['ext_inst_purity'])[component_index] * 100
+        ext_recovery = np.array(result['ext_inst_output_recovery'])[component_index] * 100
+
+        # Label
+        if isinstance(x_values[i], float):
+            label_val = f"{var_name}: {x_values[i]:.2f}"
+        else:
+            label_val = f"{var_name}: {x_values[i]}"
+
+        # Raffinate plot
+        axs[0].plot(t_schedule, raff_purity, color=colors[i], linestyle='-', label=f'Purity {label_val}')
+        axs[0].plot(t_schedule, raff_recovery, color=colors[i], linestyle='--', label=f'Recovery {label_val}')
+
+        # Extract plot
+        axs[1].plot(t_schedule, ext_purity, color=colors[i], linestyle='-', label=f'Purity {label_val}')
+        axs[1].plot(t_schedule, ext_recovery, color=colors[i], linestyle='--', label=f'Recovery {label_val}')
+
+    # Titles and labels
+    axs[0].set_title("Raffinate Instantaneous Purity and Recovery (%)")
+    axs[0].set_xlabel("Time (s)")
+    axs[0].set_ylabel("Percent (%)")
+    axs[0].grid(True)
+    axs[0].legend(fontsize=8)
+
+    axs[1].set_title("Extract Instantaneous Purity and Recovery (%)")
+    axs[1].set_xlabel("Time (s)")
+    axs[1].set_ylabel("Percent (%)")
+    axs[1].grid(True)
+    axs[1].legend(fontsize=8)
+
+    plt.tight_layout()
+    plt.show()
 
 def mj_to_Qj(mj, t_index_min):
     '''
@@ -497,7 +480,6 @@ def mj_to_Qj(mj, t_index_min):
 # Coupled: "CUP"
 # Uncoupled: "UNC"
 iso_type = "CUP"
-
 ###################### PRIMARY INPUTS #########################
 # Define the names, colors, and parameter sets for 6 components
 Names = ["Glucose", "Fructose"]#, 'C', 'D']#, "C"]#, "D", "E", "F"]
@@ -510,7 +492,7 @@ Bm = 300
 
 # How many columns in each Zone?
 
-Z1, Z2, Z3, Z4 = 1, 1, 1, 1 # *3 for smb config
+Z1, Z2, Z3, Z4 = 2, 2, 2, 2 # *3 for smb config
 zone_config = np.array([Z1, Z2, Z3, Z4])
 
 # sub_zone information - EASIER TO FILL IN IF YOU DRAW THE SYSTEM
@@ -581,7 +563,7 @@ nx_per_col = 15
 
 ################ Time Specs #################################################################################
 t_index_min = 10 # min # Index time # How long the pulse holds before swtiching
-n_num_cycles = 1   # Number of Cycles you want the SMB to run for
+n_num_cycles = 10   # Number of Cycles you want the SMB to run for
 t_simulation_end = None # HRS
 ###############  FLOWRATES  #################################################################################
 
@@ -621,9 +603,18 @@ t_simulation_end = None # HRS
 # Da_all = np.array([3.218e-6, 8.38e-6 ]) 
 
 # parameter_sets = [ {"C_feed": 0.003190078*1.4}, {"C_feed": 0.012222*0.8}] 
-# Da_all = np.array([5.77e-7, 2.3812e-7]) 
-# kav_params_all = np.array([[0.170], [0.154]])
-# cusotom_isotherm_params_all = np.array([[2.13], [2.4]]) # [ [H_borate], [H_hcl] ]
+parameter_sets = [ {"C_feed": 0.01222}, {"C_feed": 0.012222}] 
+D_all = np.array([5.77e-7, 2.3812e-7]) 
+kav_params_all = np.array([[0.170], [0.154]])
+cusotom_isotherm_params_all = np.array([[2.13], [2.4]]) # [ [H_borate], [H_hcl] ]
+
+# Linear, H
+# parameter_sets = [{"C_feed": 0.22}, {"C_feed": 0.22}] 
+# D_all = np.array([6.218e-6, 6.38e-6]) 
+# kav_params_all = np.array([[0.027], [0.053]]) 
+# cusotom_isotherm_params_all = np.array([[0.27], [0.53]]) # H_glu, H_fru 
+# Sub et al = np.array([[0.27], [0.53]])
+
 
 m1, m2, m3, m4 = 3.5, 2.13, 2.4, 1.5
 Q_I, Q_II, Q_III, Q_IV = mj_to_Qj(m1, t_index_min), mj_to_Qj(m2, t_index_min), mj_to_Qj(m3, t_index_min), mj_to_Qj(m4, t_index_min)
@@ -631,12 +622,6 @@ Q_I, Q_II, Q_III, Q_IV = mj_to_Qj(m1, t_index_min), mj_to_Qj(m2, t_index_min), m
 Q_internal = np.array([Q_I, Q_II, Q_III, Q_IV])
 
 
-# Linear, H
-parameter_sets = [{"C_feed": 0.22}, {"C_feed": 0.22}] 
-D_all = np.array([6.218e-6, 6.38e-6]) 
-kav_params_all = np.array([[0.027], [0.053]]) 
-cusotom_isotherm_params_all = np.array([[0.27], [0.53]]) # H_glu, H_fru 
-# Sub et al = np.array([[0.27], [0.53]])
 
 
 # STORE/INITALIZE SMB VAIRABLES
@@ -662,21 +647,21 @@ print('\n\n\n\nSolving Parametric Study #1 . . . . . . ')
 # - All lengths are in cm
 # - All concentrations are in g/cm^3 (g/mL)
 # 
-lower_bound = -10       # cm or g/cm^3
-upper_bound = -5   # cm or g/cm^3
-dist_bn_points = -1  # cm or g/cm^3
-ZONE_CONFIGS = None
+lower_bound = 1      # cm or g/cm^3 -10
+upper_bound = 3   # cm or g/cm^3       -5
+dist_bn_points = 1  # cm or g/cm^3     -1
+# ZONE_CONFIGS = None
 
 # //// if varying hte zone zone config:
-config1 = np.array([1,1,1,1])
-config2 = np.array([2,2,2,2])
-config3 = np.array([2,1,2,1])
-config4 = np.array([1,2,1,2])
+# config1 = np.array([1,1,1,1])
+# config2 = np.array([2,2,2,2])
+# config3 = np.array([2,1,2,1])
+# config4 = np.array([1,2,1,2])
 
-ZONE_CONFIGS = [config1, config2, config3, config4]
-var_name = 'zone_config'     # C_feed, 
+# ZONE_CONFIGS = [config1, config2, config3, config4]
+var_name = 'cusotom_isotherm_params_all'     # C_feed, 
 
-Output, x_variable, x_variable_name, tend = scalar_value_parametric_study(var_name, lower_bound, upper_bound, dist_bn_points, SMB_inputs, SMB_inputs_names, ZONE_CONFIGS = ZONE_CONFIGS) # (Name of quantitiy, lower_bound, upper_bound, resolution(=space between points))
+Output, x_variable, x_variable_name, tend = scalar_value_parametric_study(var_name, lower_bound, upper_bound, dist_bn_points, SMB_inputs, SMB_inputs_names) # (Name of quantitiy, lower_bound, upper_bound, resolution(=space between points))
 # print(F'Output: {Output}')
 # Output, x_variable, x_variable_name = scalar_value_parametric_study('parameter_sets', 2, 10, 1, Hkfp='H') # 
 # # Where resolution => space between points
@@ -690,16 +675,19 @@ Output, x_variable, x_variable_name, tend = scalar_value_parametric_study(var_na
 # plot_elution_curves(Output, tend, lower_bound, upper_bound, dist_bn_points, var_name)
 
 #%%
-plot_all_parametric_results(
-    output=Output,
-    x_values=x_variable,
-    x_variable_name=x_variable_name,
-    lower_bound=lower_bound,
-    upper_bound=upper_bound,
-    dist_bn_points=dist_bn_points,
-    tend=tend,
-    var_name=var_name,
-)
+
+plot_all_parametric_results(output = Output, x_values = x_variable, var_name = x_variable_name)
+plot_parametric_inst_purity_recovery()
+# plot_all_parametric_results(
+#     output=Output,
+#     x_values=x_variable,
+#     x_variable_name=x_variable_name,
+#     lower_bound=lower_bound,
+#     upper_bound=upper_bound,
+#     dist_bn_points=dist_bn_points,
+#     tend=tend,
+#     var_name=var_name,
+# )
 
 
 #%%
