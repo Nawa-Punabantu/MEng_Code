@@ -201,6 +201,7 @@ for c, q, label in fru_profiles:
 axs[1].scatter(datasets[1][0], datasets[1][1], color='k', marker='x', label='Data')
 axs[1].set_xlabel("C (g/mL)")
 axs[1].legend()
+axs[1].set_ylim(0, np.max(datasets[1][1]) * 1.1)
 
 plt.tight_layout()
 plt.show()
@@ -230,7 +231,7 @@ plt.show()
 
 # Call the function for each isotherm type
 plot_combined_isotherm_fit("Linear", datasets[0], datasets[1], fit_results)
-plot_combined_isotherm_fit("Langmuir", datasets[0], datasets[1], fit_results)
-plot_combined_isotherm_fit("Freundlich", datasets[0], datasets[1], fit_results)
+# plot_combined_isotherm_fit("Langmuir", datasets[0], datasets[1], fit_results)
+# plot_combined_isotherm_fit("Freundlich", datasets[0], datasets[1], fit_results)
 
 # %%

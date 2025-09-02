@@ -716,7 +716,17 @@ def column_func(column_func_inputs):
     # Assuming only a binary coupled system
     if iso_type == "CUP": # COUPLED - solve 
             v0 = np.zeros(num_comp*(nx + nx)) # for c and , for each comp
-            solution = solve_ivp(mod2, t_span, v0, args=( Q_pulse_all, C_pulse_all, t_start_inject_all, Da_all))
+            solution = solve_ivp(mod2, t_span, v0, args=( Q_pulse_all, C_pulse_all, t_start_inject_all, Da_all),    method="BDF",          # or "Radau"
+                                                                                                                    atol=1e-8,             # absolute tolerance
+                                                                                                                    rtol=1e-6,             # relative tolerance
+                                                                                                                    max_step=0.1           # optional: cap step size
+                                                                                                                )
+            
+            # "Radau" is often more stable for strongly stiff PDE/ODE-like problems.
+
+            # "BDF" is good for moderate stiffness.
+
+
             y_solution, t = solution.y, solution.t
             # Convert y_solution from: [cA, cB, qA, qB] ,  TO: [[cA, qA ], [cB, qB]] 
             # Write a function to do that
@@ -798,9 +808,9 @@ def column_func(column_func_inputs):
             # print('type(QIN):\n',type(QIN))
             
             F_feed = C_feed * QIN # (g/cm^3 * cm^3/s)  =>  g/s | mass flow into col (for comp, i)
-            print(f'F_feed: {F_feed} g/s')
-            print(f't_ode[i]: {t_ode[i][12]}')
-            print('type(F_feed):\n',type(F_feed))
+            # print(f'F_feed: {F_feed} g/s')
+            # print(f't_ode[i]: {t_ode[i][12]}')
+            # print('type(F_feed):\n',type(F_feed))
             # m_in = F_feed[0]*t_index
 
 
@@ -1133,8 +1143,8 @@ def animate_profiles(t_sets, title, y, nx, labels, colors, t_start_inject_all, t
 # # Coupled: "CUP"
 # # Uncoupled: "UNC"
 # iso_type = "CUP" 
-# Names = ["Borate", "HCl"] #, "C"]#, "D", "E", "F"]
-# color = ["red", "green"] #, "b"]#, "r", "purple", "brown"]
+# Names = ["A", "B"] #, "C", "D"]
+# color = ["red", "green"] #, "purple", "brown"]
 # num_comp = len(Names)
 
 
@@ -1143,15 +1153,15 @@ def animate_profiles(t_sets, title, y, nx, labels, colors, t_start_inject_all, t
 # e = 0.4     # assuming shperical packing, voidage (0,1]
 # Q_S = 8.4*0.0166666667 # cm^3/s | The volumetric flowrate of the feed to the left of the feed port (pure solvent)
 # t_index = 70 # s # Index time # How long the SINGLE pulse holds for
-# slug_vol = 30 #cm^3
+# slug_vol = 30 # cm^3
 # Q_inj = slug_vol/t_index # cm^3/s | The volumetric flowrate of the injected concentration slug
 
 # Ncol_num = 1
 # tend_min = 20 # min # How long the simulation is for
-# nx = 50
+# nx = 100 # number of spacial points
 # Bm = 300
 # ###################### COLUMN DIMENTIONS ########################
-# L = 24 # cm
+# L = 30 # cm
 # d_col = 2 # cm
 
 
@@ -1173,13 +1183,12 @@ def animate_profiles(t_sets, title, y, nx, labels, colors, t_start_inject_all, t
 # # - kfp: 1/s
 
 # # kav_params_all = [[0.4, 0.4], [0.2, 0.5]] # [[A], [B]]
-# cusotom_isotherm_params_all = np.array([[4.33],[1.0]])
-# kav_params_all = [[0.93], [0.6]] # [[A], [B]]
-# Da_all = np.array([1.83e-6, 5.60e-24 ]) 
+# cusotom_isotherm_params_all = np.array([[0.5],[1.0]]) # [[A], [B]]
+# kav_params_all = [[0.4], [0.4]] # [[A], [B]]
+# Da_all = np.array([1.e-6, 1.e-6]) #, 5.60e-24 ]) 
 
-# parameter_sets = [
-#     {"C_feed": 0.0029},    # Borate
-#     {"C_feed": 0.017}] #, # Hcl
+# parameter_sets = [{"C_feed": 0.1}] #,    # Borate
+#     # {"C_feed": 0.017}] #, # Hcl
 
 
 
@@ -1229,11 +1238,15 @@ def animate_profiles(t_sets, title, y, nx, labels, colors, t_start_inject_all, t
 #         ax.plot(t_data/60, hcl_curves, 'gray', linestyle='dotted', linewidth=2, 
 #                 label="HCl Exp. Data")
 
-#     ax.set_xlabel('Time (min)')
-#     ax.set_ylabel('Concentration (g/mL)')
-#     ax.set_title(f"Single Column Elution Curves\n{Names}\n"
-#                  f"Da: {Da_all}, kfp: [{kav_params_all[0]}, {kav_params_all[1]}], "
-#                  f"Isotherm Params: {cusotom_isotherm_params_all}")
+#     ax.set_xlabel('Time (min)', fontsize=14)
+#     ax.set_ylabel('Concentration (g/mL)', fontsize=14)
+
+#     # Increase font size of tick numberings
+#     ax.tick_params(axis='both', labelsize=12)
+
+#     # ax.set_title(f"Single Column Elution Curves\n{Names}\n"
+#     #              f"Da: {Da_all}, kfp: [{kav_params_all}], "
+#     #              f"Isotherm Params: {cusotom_isotherm_params_all}")
 #     ax.legend()
 #     ax.grid(True)
 #     plt.tight_layout()
@@ -1264,9 +1277,9 @@ def animate_profiles(t_sets, title, y, nx, labels, colors, t_start_inject_all, t
 # # hcl_ubk_exp_illovo_data = np.array([])
 
 # col_elution_profile(t, col_elution, num_comp, 
-#                     bor_curves=bor_ubk_exp_data, 
-#                     hcl_curves=hcl_ubk_exp_data, 
-#                     t_data=t_exp)
+#                     bor_curves= None, 
+#                     hcl_curves= None, 
+#                     t_data= None)
 
 # # print("\n\n\nStarting Animation. . . ")
 # # if iso_type == "UNC":

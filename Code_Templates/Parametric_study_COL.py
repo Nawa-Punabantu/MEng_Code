@@ -98,7 +98,7 @@ def point_value_parametric_study(param_name, lower_bound, upper_bound, dist_bn_p
 
         param_val = var_value
         if param_name == 'cusotom_isotherm_params_all' or param_name == 'Da_all' or param_name == 'kav_params_all':
-            param_val = np.array([param_val])
+            param_val = np.array([[param_val]])
         # Run the simulation
         start_time = time.time()
 
@@ -417,10 +417,18 @@ def plot_all_parametric_results(output, x_values, x_variable_name, lower_bound, 
     (2) Simulation Time vs Varied Variable
     (3) Elution Curves
     """
+    red_gradient = [
 
+        "#f8866f",  # medium-light red
+        "#ef3b2c",  # medium red
+        "#de2d26",  # strong red
+        "#a50f15",  # dark red
+        "#e80221",  # very dark red
+    ]
     # Extract y-values
     mb_errors = []
     sim_times = []
+    Errors = []
     if var_name == 'cusotom_isotherm_params_all':
         var_name = 'Henry Constant, H'
         var_name2 = 'H'
@@ -476,6 +484,10 @@ def plot_all_parametric_results(output, x_values, x_variable_name, lower_bound, 
 
 
     for result in output['results']:
+        Expexted_Acc = result.get("Expected_Acc", 0)
+        Model_Acc = result.get("Model_Acc", 0)
+        error = Expexted_Acc - Model_Acc
+        Errors.append(error)
         mb_errors.append(result.get("Error_percent", 0))
         sim_times.append(result.get("Simulation_time", 0))
 
@@ -491,19 +503,22 @@ def plot_all_parametric_results(output, x_values, x_variable_name, lower_bound, 
     fig, axs = plt.subplots(1, 3, figsize=(18, 5))
 
     # Plot 1: MB Error
-    axs[0].plot(x_values, mb_errors, marker='o', linestyle='-', color='red')
+    axs[0].plot(x_values, Errors, marker='o', linestyle='-', color='red')
     axs[0].axhline(0, color='black', linestyle='--', linewidth=1.2, label="Zero Error")
-    axs[0].set_title(f"Mass Balance Error (%)") # vs {x_variable_name}")
+    axs[0].set_title(f"Mass Balance Error (grams)\n(Expected_Acc-Model_Acc)") # vs {x_variable_name}")
     axs[0].set_xlabel(var_name)
-    axs[0].set_ylabel("Error (%)")
+    axs[0].set_ylabel("Error (grams)")
 
     y_limit = max(np.max(mb_errors), abs(np.min(mb_errors)))
     y_padding = y_limit * 0.05
-    if y_limit < 10:
-        y_plot = 10 + y_padding
-    else:
-        y_plot = y_limit + y_padding
-    axs[0].set_ylim(-y_plot, y_plot)
+    y_plot = y_limit + y_padding
+
+    # if y_limit < 10:
+    #     y_plot = 10 + y_padding
+    # else:
+    #     y_plot = y_limit + y_padding
+
+    # axs[0].set_ylim(-y_plot, y_plot)
     axs[0].legend()
     axs[0].grid(True)
 
@@ -522,15 +537,27 @@ def plot_all_parametric_results(output, x_values, x_variable_name, lower_bound, 
         if iso_type == "UNC":
             time_vector = result['t_sets'][0]
         else:
-            time_vector = result['t']
+            time_vector = np.array(result['t']) # min
+        
+        if var_name == 'void fraction, e':
+            label_val = f'{var_name2}: {variable[i]:.2f}'
 
-        if var_name == 'Dispersion Coefficient, Da (cm^3/s)':
+        elif var_name == 'Dispersion Coefficient, Da (cm^3/s)':
+            print(f'variable[i]: {variable[i]}')
             label_val = f'{var_name2}: {variable[i]:.0e}'
+            # label_val = f'{var_name2}: {variable[i]}'
+
         else:
-            label_val = f'{var_name2}: {variable[i]:.0f}'
+            label_val = f'{var_name2}: {variable[i]:.2f}'
 
 
-        axs[2].plot(time_vector, col_elution, label=label_val)
+        if i == 0 or i == len(output["results"])-1:
+            if i == 0:
+                axs[2].plot(time_vector, col_elution, label=label_val, color= red_gradient[-1], linestyle="--")
+            elif i == len(output["results"])-1:
+                axs[2].plot(time_vector, col_elution, label=label_val, color= red_gradient[-1], linestyle="-")
+        else:
+            axs[2].plot(time_vector, col_elution, label=label_val, color= red_gradient[0], alpha = 0.6, linestyle="--")
 
     axs[2].set_title("Elution Profiles (g/mL)")
     axs[2].set_xlabel("Time (s)")
@@ -548,34 +575,32 @@ def plot_all_parametric_results(output, x_values, x_variable_name, lower_bound, 
 # What tpye of isoherm is required?
 # Coupled: "CUP"
 # Uncoupled: "UNC"
-iso_type = "UNC"
-Names = ["A"]#, "B"]#, "C"]#, "D", "E", "F"]
-color = ["g"]#, "orange"]#, "b"]#, "r", "purple", "brown"]
+iso_type = "CUP" 
+Names = ["A"]#, "B"] # ]#, "C", "D"]
+color = ["red"]#, "green"] #, "purple", "brown"]
 num_comp = len(Names)
 
-# Parameter sets for different components
-# Units:
-# - Concentrations: g/cm^3
-# - kfp: 1/s
-parameter_sets = [ {"C_feed": 10}]
-kav_params_all = [[0.05]] # [[A], [B]]
-cusotom_isotherm_params_all = np.array([[1]])
-Da_all = np.array([1e-6]) 
 
-# ]
-# print("size:\n", np.shape(parameter_sets))  #]#
+e = 0.4     # assuming shperical packing, voidage (0,1]
+Q_S = 8.4*0.0166666667 # cm^3/s | The volumetric flowrate of the feed to the left of the feed port (pure solvent)
+t_index = 70 # s # Index time # How long the SINGLE pulse holds for
+slug_vol = 30 # cm^3
+Q_inj = slug_vol/t_index # cm^3/s | The volumetric flowrate of the injected concentration slug
 
- 
-Bm = 0
-e = 0.4    # (0, 1]     # voidage
-Q_S = 1 # cm^3/s | The volumetric flowrate of the feed to the left of the feed port (pure solvent)
-Q_inj = 0.5 # cm^3/s | The volumetric flowrate of the injected concentration slug
-t_index = 2 # s    # Index time # How long the SINGLE pulse holds for
-tend_min = 1 # min
-nx = 100
+Ncol_num = 1
+tend_min = 20 # min # How long the simulation is for
+nx = 100 # number of spacial points
+Bm = 300
 ###################### COLUMN DIMENTIONS ########################
 L = 30 # cm
 d_col = 2 # cm
+###################### PARAMETRIC STUDY INPUTS ########################
+
+# kav_params_all = [[0.4, 0.4], [0.2, 0.5]] # [[A], [B]]
+cusotom_isotherm_params_all = np.array([[1]])# [[A], [B]]
+kav_params_all = [[0.5]]#, [0.4]] # [[A], [B]]
+Da_all = np.array([1.e-6]) #, 1.e-6]) #, 5.60e-24 ]) 
+parameter_sets = [{"C_feed": 0.1}] #,    # Borate
 
 
 column_func_inputs = [iso_type,  Names, color, parameter_sets, Da_all, Bm, e, Q_S, Q_inj, t_index, tend_min, nx, L, d_col, cusotom_isotherm_params_all, kav_params_all]
@@ -590,10 +615,10 @@ print('\n\n\n\nSolving Parametric Study #1 . . . . . . ')
 # - All lengths are in cm
 # - All concentrations are in g/cm^3 (g/mL)
 # 
-lower_bound = -10       # cm or g/cm^3
-upper_bound = -5    # cm or g/cm^3
-dist_bn_points = -1   # cm or g/cm^3
-var_name = 'Da_all'     # C_feed
+lower_bound = 100      # cm or g/cm^3
+upper_bound = 500      # cm or g/cm^3
+dist_bn_points = 100   # cm or g/cm^3
+var_name = 'nx'        # C_feed
 
 Hkfp = None # 'H', 'kfp', None
 
